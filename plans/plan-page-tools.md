@@ -199,6 +199,9 @@ jsdom for page code. The live check is Phase 5's walk.
 
 - Chrome's built-in Prompt API for `find`, once confirmed available to
   extensions on stable Chrome.
+- Refs inside iframes: the initial version reads and acts on the top frame
+  only. Cross-origin frames need per-frame content scripts and a frame offset
+  for clicks.
 
 ## Repository knowledge
 
@@ -209,45 +212,63 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the walker and `read_page`
 
-- [ ] `read_page` returns the tree with refs, `filter`, `depth`, `ref_id` and
+- [x] `read_page` returns the tree with refs, `filter`, `depth`, `ref_id` and
   `max_chars` as the reference schema says (expected in
   `extension/src/page/walker.ts` and `host/src/tools/page.rs`), pinned by
   `extension/test/walker.test.ts`.
+  Landed 17/10/2026: refs are numbered in the top frame only; iframes are a
+  follow-up. Tool schemas live in `host/src/tools/args.rs` and forwarding in
+  `host/src/mcp.rs` (no `host/src/tools/page.rs`). The content script entry is
+  `extension/src/page/content.ts`, reached through
+  `extension/src/page-client.ts`, which injects it into tabs opened before the
+  extension loaded. Tests: `extension/test/page.test.ts`.
 - [ ] Baseline: the walker's time and output size on three real pages
   (a news article, a web app, a long form) recorded in
   `docs/research/page-tools-baseline.md`.
-- [ ] Check: `npm --prefix extension test` and `cargo test` pass.
+- [x] Check: `npm --prefix extension test` and `cargo test` pass.
 
 ### Phase 2: `find` and `get_page_text`
 
-- [ ] `find` ranks walker nodes lexically and returns up to 20 refs (expected
+- [x] `find` ranks walker nodes lexically and returns up to 20 refs (expected
   in `extension/src/page/find.ts`), pinned by `extension/test/find.test.ts`.
-- [ ] `get_page_text` returns Readability text, falling back to body text
+  Landed 17/10/2026: tests in `extension/test/page.test.ts`.
+- [x] `get_page_text` returns Readability text, falling back to body text
   (expected in `extension/src/page/text.ts`), pinned by
   `extension/test/text.test.ts`.
-- [ ] Check: `npm --prefix extension test` passes.
+  Landed 17/10/2026: per `docs/external/readability.md`, pulled while building;
+  output capped at 100,000 characters.
+- [x] Check: `npm --prefix extension test` passes.
 
 ### Phase 3: console and network
 
-- [ ] `read_console_messages` with `pattern`, `onlyErrors`, `limit`, `clear`
+- [x] `read_console_messages` with `pattern`, `onlyErrors`, `limit`, `clear`
   reads the MAIN-world hook buffer for the current domain (expected in
   `extension/src/page/hooks.ts`), pinned by `extension/test/hooks.test.ts`.
-- [ ] `read_network_requests` with `urlPattern`, `limit`, `clear` reads the
+  Landed 17/10/2026: the hook is `extension/src/page/hooks.ts`, run by
+  `main-world.ts`; the isolated-world buffer is
+  `extension/src/page/console.ts`. Tests in `extension/test/page.test.ts`.
+- [x] `read_network_requests` with `urlPattern`, `limit`, `clear` reads the
   per-tab `webRequest` log (expected in `extension/src/network.ts`), pinned by
   `extension/test/network.test.ts`.
-- [ ] Check: `npm --prefix extension test` passes.
+  Landed 17/10/2026: tests in `extension/test/tools.test.ts`.
+- [x] Check: `npm --prefix extension test` passes.
 
 ### Phase 4: the debugger manager, scripts, forms and uploads
 
-- [ ] The debugger manager attaches per tab on demand and detaches after 30 s
+- [x] The debugger manager attaches per tab on demand and detaches after 30 s
   idle (expected in `extension/src/debugger.ts`), pinned by
   `extension/test/debugger.test.ts`.
-- [ ] `javascript_tool` evaluates with `replMode` per
+  Landed 17/10/2026: tests in `extension/test/tools.test.ts`.
+- [x] `javascript_tool` evaluates with `replMode` per
   `docs/external/chrome-debugger-cdp.md` § CDP methods; `form_input` and
   `file_upload` land in `extension/src/page/forms.ts`, pinned by
   `extension/test/forms.test.ts`, with the 10 MB cap in
   `host/src/tools/page.rs`.
-- [ ] Check: `npm --prefix extension test` and `cargo test` pass.
+  Landed 17/10/2026: the 10 MB cap and file reading are in
+  `host/src/tools/files.rs`; tests for forms in `extension/test/page.test.ts`
+  (jsdom has no `DataTransfer`, so `setFiles` and `dropFiles` wait for the
+  walk) and for uploads in `host/tests/mcp.rs`.
+- [x] Check: `npm --prefix extension test` and `cargo test` pass.
 
 ### Phase 5: review and the walk (needs you at Chrome)
 

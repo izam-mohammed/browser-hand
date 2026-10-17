@@ -1,0 +1,11 @@
+[package]
+name = "prove-gif-encode"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Standalone: proves the gif crate alone, never part of the project's build.
+[workspace]
+
+[dependencies]
+gif = "=0.14.2"

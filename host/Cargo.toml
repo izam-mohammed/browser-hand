@@ -17,6 +17,10 @@ uuid = { version = "1.28", features = ["v4"] }
 base64 = "0.23"
 libc = "0.2"
 anyhow = "1"
+gif = "0.14.2"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+imageproc = { version = "0.27.0", default-features = false, features = ["text"] }
+ab_glyph = "0.2.32"
 
 [dev-dependencies]
 tokio = { version = "1.53", features = ["test-util"] }

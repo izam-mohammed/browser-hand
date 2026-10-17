@@ -146,30 +146,46 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: prove the encoder
 
-- [ ] `scripts/prove/gif-encode.sh` builds the minimal crate kept in the repo
+- [x] `scripts/prove/gif-encode.sh` builds the minimal crate kept in the repo
   at `scripts/prove/gif-encode/` (no project code), which encodes
   three 640x400 RGBA frames with `Frame::from_rgba_speed` at speed 10 per
   `docs/external/gif-crate.md`, and prints `PASS` when the file starts with
   `GIF89a`, with the encode time printed.
-- [ ] Check: the script exits 0 and prints `PASS`.
+  Landed 17/10/2026: PASS: 3 frames of 640x400 in 85 ms, a 120,007-byte GIF89a
+  file.
+- [x] Check: the script exits 0 and prints `PASS`.
 
 ### Phase 2: `gif_creator`
 
-- [ ] Recording, overlays and export as the reference schema describes
+- [x] Recording, overlays and export as the reference schema describes
   (expected in `host/src/tools/gif.rs`), pinned by `host/tests/gif.rs`.
-- [ ] Check: `cargo test` passes, and a 60-frame export in the test takes
+  Landed 17/10/2026: in `host/src/gif.rs` (not under `tools/`), font Inter
+  (OFL) in `host/assets/` with its licence; the MCP side takes a frame after
+  each acting tool.
+- [x] Check: `cargo test` passes, and a 60-frame export in the test takes
   under 5 s on this Mac, the time recorded in the test output.
+  Landed 17/10/2026: 60 frames of 1280x800 in 1,111 ms with `cargo test
+  --release --test gif`; debug builds run 10 frames and skip the time limit.
 
 ### Phase 3: the skill, instructions and plugin
 
-- [ ] `plugin/skills/browser-hand/SKILL.md` and `host/src/instructions.md`
+- [x] `plugin/skills/browser-hand/SKILL.md` and `host/src/instructions.md`
   written from the reference skill with the profile and pace rules, the
   instructions under 4,096 characters, pinned by `host/tests/instructions.rs`.
-- [ ] `plugin/.claude-plugin/plugin.json` and `plugin/.mcp.json` per
+  Landed 17/10/2026: instructions are 2,384 characters, pinned by
+  `host/tests/instructions.rs`.
+- [x] `plugin/.claude-plugin/plugin.json` and `plugin/.mcp.json` per
   `docs/external/claude-code-mcp-and-skills.md` § Plugin bundling, with
   `scripts/build.sh` and the install steps in `README.md`.
-- [ ] Check: `sh scripts/build.sh` succeeds, and `claude --plugin-dir plugin`
+  Landed 17/10/2026: the binary goes in `plugin/server/`, not `plugin/bin/`: a
+  plugin `bin/` is put on the Bash tool's PATH and claude.ai and Cowork will
+  not install such a plugin (`docs/external/claude-code-mcp-and-skills.md` §
+  Plugin bundling).
+- [x] Check: `sh scripts/build.sh` succeeds, and `claude --plugin-dir plugin`
   lists the `browser-hand` tools and the skill.
+  Landed 17/10/2026: `sh scripts/build.sh` succeeded; checked with `claude
+  plugin validate plugin` (passed) and a stdio `tools/list` against
+  `plugin/server/browser-hand` (19 tools), not an interactive session.
 
 ### Phase 4: review and the full walk (needs you at Chrome)
 

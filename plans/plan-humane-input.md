@@ -225,27 +225,41 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: the humane model
 
-- [ ] Paths, minimum-jerk timing, overshoot, Fitts duration, typing gaps and
+- [x] Paths, minimum-jerk timing, overshoot, Fitts duration, typing gaps and
   holds, all from one seeded random source and one parameter file (expected
   in `extension/src/humane/`), pinned by `extension/test/humane.test.ts`.
-- [ ] Check: `npm --prefix extension test` passes.
+  Landed 17/10/2026: also `extension/src/humane/keys.ts`, the US key table and
+  macOS editing commands.
+- [x] Check: `npm --prefix extension test` passes.
 
 ### Phase 3: the `computer` tool acts
 
-- [ ] Every action but `screenshot` and `zoom` turns into CDP events through
+- [x] Every action but `screenshot` and `zoom` turns into CDP events through
   the debugger manager (expected in `extension/src/input.ts`), with schema,
   bounds and `pace` in `host/src/tools/computer.rs`, pinned by
   `extension/test/input.test.ts` and `host/tests/computer.rs`.
-- [ ] Check: `npm --prefix extension test` and `cargo test` pass.
+  Landed 17/10/2026: the action engine is `extension/src/input.ts`; schema,
+  bounds and `pace` are `ComputerArgs` in `host/src/tools/args.rs` and
+  `do_computer` in `host/src/mcp.rs` (no `host/src/tools/computer.rs`). Engine
+  tests are in `extension/test/humane.test.ts`.
+- [x] Check: `npm --prefix extension test` and `cargo test` pass.
 
 ### Phase 4: screenshots, batch, resize and image upload
 
-- [ ] `screenshot` and `zoom` with `scale` and `save_to_disk`, image ids kept
+- [x] `screenshot` and `zoom` with `scale` and `save_to_disk`, image ids kept
   5 minutes (expected in `extension/src/screenshot.ts`), pinned by
   `extension/test/screenshot.test.ts`.
-- [ ] `browser_batch`, `resize_window` and `upload_image` (expected in
+  Landed 17/10/2026: image ids live in the MCP server
+  (`host/src/tools/images.rs`), which also saves to
+  `~/Downloads/browser-hand/`; scaling tests in `extension/test/tools.test.ts`.
+  Whether CDP's `clip.scale` multiplies device pixels, as `screenshot.ts`
+  assumes, is checked in the walk.
+- [x] `browser_batch`, `resize_window` and `upload_image` (expected in
   `host/src/tools/batch.rs`), pinned by `host/tests/batch.rs`.
-- [ ] Check: `npm --prefix extension test` and `cargo test` pass.
+  Landed 17/10/2026: batch and upload are `do_batch` and `do_upload_image` in
+  `host/src/mcp.rs`, pinned by `host/tests/mcp.rs` (no
+  `host/src/tools/batch.rs`).
+- [x] Check: `npm --prefix extension test` and `cargo test` pass.
 
 ### Phase 5: review, tune and the walk (needs you at Chrome)
 

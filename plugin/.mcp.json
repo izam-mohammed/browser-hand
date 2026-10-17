@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "browser-hand": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/server/browser-hand",
+      "args": ["mcp"]
+    }
+  }
+}

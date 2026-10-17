@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "browser-hand input proof",
+  "version": "0.0.1",
+  "description": "Throwaway proof: CDP input reaches a page as trusted events. Remove after scripts/prove/cdp-input.sh passes.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqAiy6L5bME6bteinvPfXRsPkMJPsv0cI1kFzsDK19O3hLMQPjdlJpzxCl6Li8Wc6uvA39imlCTzpRmDexkva6/lqBU8w0IU2h5GCJF+UTCh4V1x1MFvm/8HrSJJmNECC7gsCfOPeP3U8zHW7kiVyPZZDjsvrr7pJ/bZTCP2yP6Pr10xXuaiIXYO8F9HnPMLF/xRk/n9+wZFv10AePUKKeci+jo3vC7cutopCOhKvJ17Pk/X3YMHPJ+7fssgLXdBo0NJ+iM6BN6ZhFGks6wRozalf3gJlcXmAtTo7r3BLCbHlhTEi67+M1vAlANuVeq6RnAYEEfNUZVIy+2sGCVColQIDAQAB",
+  "permissions": ["nativeMessaging", "debugger", "tabs"]
+}

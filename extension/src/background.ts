@@ -1,10 +1,17 @@
 // Service worker: holds the native port to browser-hand, answers calls, and
 // takes profile claims from claim.html (`docs/protocol.md`).
+import { DebuggerManager } from "./debugger";
+import { seeded } from "./humane/random";
+import { Input, type ComputerArgs, type Pace, type Rect } from "./input";
+import { NetworkLog } from "./network";
+import { toPage } from "./page-client";
+import { capture, captureVisible, type Shot } from "./screenshot";
 import { TabTools, type GroupStore } from "./tabs";
-import { PROTOCOL, Reassembler, ToolError, err, ok, text, type CallFrame, type Frame } from "./wire";
+import { PROTOCOL, Reassembler, ToolError, err, ok, text, type CallFrame, type Content, type Frame } from "./wire";
 
 const HOST = "dev.browserhand.host";
 const MAX_RETRY_MS = 30_000;
+const JS_RESULT_MAX = 50_000;
 
 let port: chrome.runtime.Port | null = null;
 let retryMs = 1000;
@@ -38,14 +45,137 @@ function waitForLoad(tabId: number, timeoutMs: number): Promise<boolean> {
   });
 }
 
-const tabs = new TabTools(chrome, groups, waitForLoad);
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+const tabs = new TabTools(chrome, groups, waitForLoad);
+const dbg = new DebuggerManager(chrome.debugger);
+const network = new NetworkLog();
+network.attach(chrome.webRequest, chrome.tabs);
+
+let isMac = false;
+chrome.runtime.getPlatformInfo().then((info) => (isMac = info.os === "mac"));
+
+const inputs = new Map<number, Input>();
+chrome.tabs.onRemoved.addListener((tabId) => inputs.delete(tabId));
+
+function inputFor(tabId: number): Input {
+  let input = inputs.get(tabId);
+  if (!input) {
+    input = new Input({
+      send: (method, params) => dbg.send(tabId, method, params),
+      sleep,
+      rng: seeded((Date.now() ^ (tabId * 2654435761)) >>> 0),
+      get isMac() {
+        return isMac;
+      },
+      rect: (ref) => toPage<Rect>(tabId, { op: "rect", ref }),
+      scrollIntoView: async (ref) => void (await toPage(tabId, { op: "scroll_into_view", ref })),
+      viewport: () => toPage<{ width: number; height: number }>(tabId, { op: "viewport" }),
+    });
+    inputs.set(tabId, input);
+  }
+  return input;
+}
+
+/** A tool answers with content blocks; a plain value becomes one text block. */
 type Tool = (session: string, args: any) => Promise<unknown>;
+
+const shotContent = (s: Shot): Content[] => [text(s.text), { type: "image", data: s.data, mimeType: s.mimeType }];
+
+async function screenshot(session: string, tabId: number, opts: { scale?: number; region?: [number, number, number, number] }) {
+  const tab = await tabs.ownTab(session, tabId);
+  try {
+    return await capture(dbg, tabId, opts);
+  } catch (e) {
+    if (e instanceof ToolError && e.code === "debugger_refused" && !opts.region) return captureVisible(tab);
+    throw e;
+  }
+}
+
+async function javascript(session: string, a: { text: string; tabId: number }) {
+  await tabs.ownTab(session, a.tabId);
+  const r = await dbg.send<{
+    result?: { type: string; value?: unknown; description?: string };
+    exceptionDetails?: { text: string; exception?: { description?: string } };
+  }>(a.tabId, "Runtime.evaluate", {
+    expression: a.text,
+    replMode: true,
+    awaitPromise: true,
+    returnByValue: true,
+    userGesture: true,
+  });
+  if (r.exceptionDetails) {
+    throw new ToolError("page_error", r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
+  }
+  const res = r.result;
+  let out: string;
+  if (!res || res.type === "undefined") out = "undefined";
+  else if ("value" in res) out = typeof res.value === "string" ? res.value : JSON.stringify(res.value, null, 2);
+  else out = res.description ?? res.type;
+  return out.length > JS_RESULT_MAX ? `${out.slice(0, JS_RESULT_MAX)}\n[truncated: ${out.length} characters]` : out;
+}
+
 const tools: Record<string, Tool> = {
   tabs_context: (s, a) => tabs.tabsContext(s, a),
   tabs_create: (s) => tabs.tabsCreate(s),
-  tabs_close: (s, a) => tabs.tabsClose(s, a),
+  tabs_close: async (s, a) => {
+    const r = await tabs.tabsClose(s, a);
+    inputs.delete(a.tabId);
+    return r;
+  },
   navigate: (s, a) => tabs.navigate(s, a),
+
+  read_page: async (s, a) => {
+    await tabs.ownTab(s, a.tabId);
+    return toPage(a.tabId, { op: "read_page", filter: a.filter, depth: a.depth, ref_id: a.ref_id, max_chars: a.max_chars });
+  },
+  find: async (s, a) => {
+    await tabs.ownTab(s, a.tabId);
+    return toPage(a.tabId, { op: "find", query: a.query });
+  },
+  get_page_text: async (s, a) => {
+    await tabs.ownTab(s, a.tabId);
+    return toPage(a.tabId, { op: "text" });
+  },
+  read_console_messages: async (s, a) => {
+    await tabs.ownTab(s, a.tabId);
+    return toPage(a.tabId, { op: "console", pattern: a.pattern, onlyErrors: a.onlyErrors, limit: a.limit, clear: a.clear });
+  },
+  read_network_requests: async (s, a) => {
+    await tabs.ownTab(s, a.tabId);
+    return network.read(a.tabId, a);
+  },
+  form_input: async (s, a) => {
+    await tabs.ownTab(s, a.tabId);
+    return toPage(a.tabId, { op: "form_input", ref: a.ref, value: a.value });
+  },
+  javascript_tool: (s, a) => javascript(s, a),
+  file_upload: async (s, a) => {
+    await tabs.ownTab(s, a.tabId);
+    return toPage(a.tabId, { op: "set_files", ref: a.ref, files: a.files });
+  },
+  upload_image: async (s, a) => {
+    await tabs.ownTab(s, a.tabId);
+    const files = [{ name: a.filename ?? "image.png", mimeType: a.mimeType, data: a.data }];
+    if (a.ref) return toPage(a.tabId, { op: "set_files", ref: a.ref, files });
+    if (!a.coordinate) throw new ToolError("bad_args", "upload_image needs ref or coordinate");
+    return toPage(a.tabId, { op: "drop_files", x: a.coordinate[0], y: a.coordinate[1], files });
+  },
+
+  computer: async (s, a: ComputerArgs & { tabId: number; pace?: Pace; scale?: number; region?: [number, number, number, number] }) => {
+    if (a.action === "screenshot") return shotContent(await screenshot(s, a.tabId, { scale: a.scale }));
+    if (a.action === "zoom") {
+      if (!a.region) throw new ToolError("bad_args", "zoom needs region [x0, y0, x1, y1]");
+      return shotContent(await screenshot(s, a.tabId, { scale: a.scale, region: a.region }));
+    }
+    await tabs.ownTab(s, a.tabId);
+    return inputFor(a.tabId).run(a, a.pace === "fast" ? "fast" : "human");
+  },
+  resize_window: async (s, a) => {
+    const tab = await tabs.ownTab(s, a.tabId);
+    const win = await chrome.windows.update(tab.windowId, { width: Math.round(a.width), height: Math.round(a.height), state: "normal" });
+    return `Window resized to ${win.width}x${win.height}`;
+  },
 };
 
 function post(frame: Frame) {
@@ -68,7 +198,8 @@ async function handleCall(call: CallFrame) {
   if (!tool) return post(err(call.id, "bad_args", `Unknown tool: ${call.tool}`));
   try {
     const result = await tool(call.session, call.args ?? {});
-    post(ok(call.id, [text(result)]));
+    const content = Array.isArray(result) ? (result as Content[]) : [text(result)];
+    post(ok(call.id, content));
   } catch (e) {
     if (e instanceof ToolError) post(err(call.id, e.code, e.message));
     else post(err(call.id, "page_error", e instanceof Error ? e.message : String(e)));
@@ -102,7 +233,9 @@ function connect() {
   void hello();
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+  // Only the extension's own claim page may claim.
+  if (sender.id !== chrome.runtime.id || sender.url?.startsWith(chrome.runtime.getURL("claim.html")) !== true) return;
   if (msg?.type !== "claim" || typeof msg.dir !== "string" || typeof msg.nonce !== "string") return;
   (async () => {
     await chrome.storage.local.set({ profileDir: msg.dir });

@@ -69,7 +69,7 @@ export class TabTools {
   }
 
   /** Throws `no_tab` unless the tab exists and is in the session's group. */
-  private async ownTab(session: string, tabId: number): Promise<chrome.tabs.Tab> {
+  async ownTab(session: string, tabId: number): Promise<chrome.tabs.Tab> {
     const groupId = await this.group(session);
     let tab: chrome.tabs.Tab;
     try {

@@ -5,6 +5,44 @@
   "description": "Lets Claude drive this Chrome profile through the local browser-hand MCP server.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyN0wnssM9ofOC+S3X1iscWn3k8KMziQUl3UYqITxMbZYPgW9N6Aa667pLrGAF4Zj7ZxwDldNTsqtmfQ7tf+n0XVo2nRb+hMGqb04SvoTzIeHot5vc8lnfFH/qC8RZUh9L9VT0Ip5VHbDMWZ9MbwXcX0qFE8QSAZzr0R0CUFVzsV4CcbEKQ7MRKwGQ1eyayOItT2TqZvIrIOenWvu9LgH66oCljRreLJ6trgoFvvCnZukd/JbpTjFxi9duCf7ngRPbQ5N4HNiJ3t3uNLTX8oLHfzlO9s6gE8YyPr73FPNBz1cGQTcXOg96otLtxS2kM9JHMpw0FFzXzsmKPk/C/N2uQIDAQAB",
   "minimum_chrome_version": "120",
-  "permissions": ["nativeMessaging", "tabs", "tabGroups", "storage"],
-  "background": { "service_worker": "background.js", "type": "module" }
+  "permissions": [
+    "nativeMessaging",
+    "tabs",
+    "tabGroups",
+    "storage",
+    "scripting",
+    "webRequest",
+    "debugger",
+    "webNavigation"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "main-world.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ]
 }

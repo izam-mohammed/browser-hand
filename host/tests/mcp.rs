@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use browser_hand::mcp::{Launcher, NavigateArgs, SelectProfileArgs, Server, TabsContextArgs, EXTENSION_ID};
+use browser_hand::mcp::{Launcher, Server, EXTENSION_ID};
+use browser_hand::tools::args::{NavigateArgs, SelectProfileArgs, TabsContextArgs};
 use browser_hand::native_host;
 use browser_hand::wire::{self, Content, Frame};
 use rmcp::handler::server::wrapper::Parameters;
@@ -33,11 +34,30 @@ fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Opti
         }
         while let Ok(Some(frame)) = wire::read_frame(&mut r).await {
             if let Frame::Call { id, tool, args, .. } = frame {
-                let reply = Frame::ok(id, vec![Content::Text { text: format!("{tool} {args}") }]);
+                let reply = if tool == "computer" && args["action"] == "screenshot" {
+                    Frame::ok(
+                        id,
+                        vec![
+                            Content::Text { text: "Screenshot of tab 1: viewport 100x50 CSS px; image 60x30 (scale 0.600).".into() },
+                            Content::Image { data: tiny_png(), mime_type: "image/png".into(), image_id: None },
+                        ],
+                    )
+                } else {
+                    Frame::ok(id, vec![Content::Text { text: format!("{tool} {args}") }])
+                };
                 wire::write_frame(&mut w, &reply).await.unwrap();
             }
         }
     });
+}
+
+/// A 60x30 grey PNG, base64.
+pub fn tiny_png() -> String {
+    use base64::Engine;
+    let img = image::RgbaImage::from_pixel(60, 30, image::Rgba([128, 128, 128, 255]));
+    let mut bytes = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png).unwrap();
+    base64::engine::general_purpose::STANDARD.encode(bytes)
 }
 
 struct Setup {
@@ -199,4 +219,138 @@ async fn opening_a_profile_whose_extension_never_answers_says_what_happened() {
     assert!(t.contains("after starting Chrome"), "{t}");
     assert!(t.contains("within 30 s"), "{t}");
     assert!(t.contains("Load unpacked"), "{t}");
+}
+
+mod more {
+    use super::*;
+    use browser_hand::tools::args::*;
+
+    fn all_text(r: &CallToolResult) -> String {
+        let v = serde_json::to_value(r).unwrap();
+        v["content"].as_array().unwrap().iter().filter_map(|c| c["text"].as_str()).collect::<Vec<_>>().join("\n")
+    }
+
+    fn computer(action: ComputerAction) -> ComputerArgs {
+        ComputerArgs {
+            action,
+            tab_id: 1,
+            coordinate: None,
+            start_coordinate: None,
+            reference: None,
+            text: None,
+            duration: None,
+            scroll_direction: None,
+            scroll_amount: None,
+            modifiers: None,
+            repeat: None,
+            region: None,
+            scale: None,
+            save_to_disk: None,
+            action_summary: None,
+        }
+    }
+
+    async fn connected() -> (Setup, Server) {
+        let s = Setup::new();
+        fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+        let server = s.server(false);
+        (s, server)
+    }
+
+    #[tokio::test]
+    async fn computer_passes_the_pace_and_screenshots_get_an_image_id() {
+        let (_s, server) = connected().await;
+        let r = server.computer(Parameters(ComputerArgs { coordinate: Some([5.0, 6.0]), ..computer(ComputerAction::LeftClick) })).await.unwrap();
+        assert!(text(&r).contains(r#""pace":"human""#), "{}", text(&r));
+
+        let r = server.computer(Parameters(computer(ComputerAction::Screenshot))).await.unwrap();
+        let v = serde_json::to_value(&r).unwrap();
+        assert_eq!(v["content"][1]["type"], "image");
+        assert!(all_text(&r).contains("imageId: img_1"));
+    }
+
+    #[tokio::test]
+    async fn upload_image_sends_the_kept_screenshot_and_refuses_unknown_ids() {
+        let (_s, server) = connected().await;
+        server.computer(Parameters(computer(ComputerAction::Screenshot))).await.unwrap();
+        let args = |id: &str| UploadImageArgs { image_id: id.into(), tab_id: 1, reference: Some("ref_2".into()), coordinate: None, filename: None };
+        let r = server.upload_image(Parameters(args("img_1"))).await.unwrap();
+        let t = text(&r);
+        assert!(t.starts_with("upload_image "), "{t}");
+        assert!(t.contains(&tiny_png()) && t.contains(r#""filename":"image.png""#), "{t}");
+        let r = server.upload_image(Parameters(args("img_9"))).await.unwrap();
+        assert!(is_error(&r) && text(&r).contains("fresh screenshot"));
+    }
+
+    #[tokio::test]
+    async fn out_of_range_inputs_are_refused_before_reaching_the_browser() {
+        let (_s, server) = connected().await;
+        let r = server.computer(Parameters(ComputerArgs { repeat: Some(101), text: Some("Enter".into()), ..computer(ComputerAction::Key) })).await.unwrap();
+        assert!(is_error(&r) && text(&r).contains("repeat"));
+        let r = server.computer(Parameters(ComputerArgs { duration: Some(11.0), ..computer(ComputerAction::Wait) })).await.unwrap();
+        assert!(is_error(&r) && text(&r).contains("duration"));
+    }
+
+    #[tokio::test]
+    async fn file_upload_reads_files_and_refuses_relative_paths() {
+        let (_s, server) = connected().await;
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("note.txt");
+        std::fs::write(&f, "hello").unwrap();
+        let r = server
+            .file_upload(Parameters(FileUploadArgs { paths: vec![f.display().to_string()], reference: "ref_1".into(), tab_id: 1 }))
+            .await
+            .unwrap();
+        let t = text(&r);
+        assert!(t.contains(r#""name":"note.txt""#) && t.contains(r#""mimeType":"text/plain""#) && t.contains("aGVsbG8="), "{t}");
+        let r = server.file_upload(Parameters(FileUploadArgs { paths: vec!["note.txt".into()], reference: "ref_1".into(), tab_id: 1 })).await.unwrap();
+        assert!(is_error(&r) && text(&r).contains("absolute"));
+    }
+
+    #[tokio::test]
+    async fn a_batch_runs_in_order_strips_prefixes_and_stops_at_the_first_error() {
+        let (_s, server) = connected().await;
+        // "fail" is no tool, so the second item fails before reaching the browser.
+        let items = vec![
+            BatchItem { name: "mcp__browser-hand__find".into(), input: serde_json::json!({ "query": "go", "tabId": 1 }) },
+            BatchItem { name: "fail".into(), input: serde_json::json!({}) },
+            BatchItem { name: "get_page_text".into(), input: serde_json::json!({ "tabId": 1 }) },
+        ];
+        let r = server.browser_batch(Parameters(BatchArgs { actions: items })).await.unwrap();
+        let t = all_text(&r);
+        assert!(t.contains("[1/3] find: ok"), "{t}");
+        assert!(t.contains("[2/3] fail failed, batch stopped"), "{t}");
+        assert!(!t.contains("get_page_text"), "{t}");
+    }
+
+    #[tokio::test]
+    async fn a_batch_cannot_nest() {
+        let (_s, server) = connected().await;
+        let items = vec![BatchItem { name: "browser_batch".into(), input: serde_json::json!({ "actions": [] }) }];
+        let r = server.browser_batch(Parameters(BatchArgs { actions: items })).await.unwrap();
+        assert!(is_error(&r) && text(&r).contains("cannot be nested"));
+    }
+
+    #[tokio::test]
+    async fn a_recording_takes_a_frame_per_action_and_exports_a_gif() {
+        let out = tempfile::tempdir().unwrap();
+        std::env::set_var("BROWSER_HAND_OUTPUT_DIR", out.path());
+        let (_s, server) = connected().await;
+        let gif = |action| GifArgs { action, tab_id: 1, download: None, filename: Some("walk".into()), options: None };
+
+        let r = server.gif_creator(Parameters(gif(GifAction::StartRecording))).await.unwrap();
+        assert!(text(&r).contains("1 frame"), "{}", text(&r));
+        server
+            .computer(Parameters(ComputerArgs { coordinate: Some([50.0, 25.0]), action_summary: Some("Clicks Go".into()), ..computer(ComputerAction::LeftClick) }))
+            .await
+            .unwrap();
+        server.computer(Parameters(computer(ComputerAction::Screenshot))).await.unwrap(); // no frame
+        let r = server.gif_creator(Parameters(gif(GifAction::StopRecording))).await.unwrap();
+        assert!(text(&r).contains("2 frame(s)"), "{}", text(&r));
+
+        let r = server.gif_creator(Parameters(gif(GifAction::Export))).await.unwrap();
+        assert!(!is_error(&r), "{}", text(&r));
+        let bytes = std::fs::read(out.path().join("walk.gif")).unwrap();
+        assert_eq!(&bytes[..6], b"GIF89a");
+    }
 }
