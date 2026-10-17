@@ -55,7 +55,7 @@ Needs Rust (1.88+), Node (for building the extension) and Google Chrome.
 | Tool | What it does |
 | --- | --- |
 | `list_profiles` | Your Chrome profiles, and which have the extension connected |
-| `select_profile` | Binds this Claude session to one profile, connecting it if needed |
+| `select_profile` | Binds this Claude session to one profile; if the profile is not open, opens it with Chrome's command line (starting Chrome if needed) |
 | `tabs_context` | This session's tab group: tab ids, titles, URLs |
 | `tabs_create` | A new tab in the session's group |
 | `tabs_close` | Closes a tab in the session's group |

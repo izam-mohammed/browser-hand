@@ -138,8 +138,10 @@ Chrome passes the host only the caller origin, never the profile
 | **Survives** | **yes** | no | no |
 
 The handshake: `select_profile` runs `open -na "Google Chrome" --args
---profile-directory=<dir> chrome-extension://<id>/claim.html#dir=<dir>&nonce=<n>`;
-Chrome routes it to that profile, the extension page stores `dir` in
+--profile-directory=<dir> chrome-extension://<id>/claim.html#dir=<dir>&nonce=<n>`.
+The same command opens the profile when it is not open, and starts Chrome in
+that profile when Chrome is not running, so Claude never needs the user to
+open a profile by hand. Chrome routes it to that profile, the extension page stores `dir` in
 `chrome.storage.local` and reports it with the nonce. Every later connection
 from that profile says its `dir` in `hello`. Routing and the extension URL
 launch are read from Chromium source, not tested
@@ -168,6 +170,12 @@ writes the host manifest. The extension in `extension/` is TypeScript with a
 service worker and one page, `claim.html` (decisions 3, 5). Profiles come from
 `Local State` `profile.info_cache` (`docs/external/chrome-profiles-and-launch.md`
 § `Local State`).
+
+Opening profiles is part of the MCP server: `select_profile` on a profile
+with no live host uses Chrome's own command line (`open -na "Google Chrome"
+--args --profile-directory=<dir>`) to open it, starting Chrome first when it
+is not running, and waits 10 s for the claim, or 30 s after a cold start
+(decision 5, Phase 7).
 
 Tools this plan lands, named as Claude in Chrome names them minus the `_mcp`
 suffix: `list_profiles` and `select_profile` (replacing
@@ -245,9 +253,13 @@ different `protocol` refuse with `not_connected` and say why.
 
 ## Edge cases
 
-- Profile has no extension installed: the claim times out after 10 s and
+- Profile has no extension installed: the claim times out and
   `select_profile` says to load the extension into that profile.
-- Chrome not running: `select_profile` launches it with the profile.
+- Profile not open (Chrome running, but no window or extension for that
+  profile): the same Chrome command opens the profile, and the claim page
+  connects it (Phase 7).
+- Chrome not running: the command starts Chrome with that profile, and the
+  claim waits 30 s instead of 10 s for a cold start (Phase 7).
 - Stale socket file from a killed host: `connect` fails, the file is removed.
 - Two MCP sessions in one profile: separate tab groups, never each other's
   tabs.
@@ -389,7 +401,26 @@ repository instructions for recording useful development findings.
 - [ ] Check: `## Verified` in `plans/plan-bridge.md` records the walk as
   `passed`, with what was seen.
 
-### Phase 7: open the PR
+### Phase 7: open the profile when it is not open
+
+> Added 17/10/2026 at the user's request: the MCP server uses Chrome's own
+> command line to open a profile that is not open yet, as part of
+> `select_profile`, starting Chrome when it is not running.
+
+- [x] `select_profile` on a profile with no live host opens that profile with
+  `open -na "Google Chrome" --args --profile-directory=<dir>` and the claim
+  page (`docs/external/chrome-profiles-and-launch.md` § Opening a URL in a
+  specific profile), checks first whether Chrome is running, and waits 10 s
+  when it was, 30 s when the command had to start it (expected in
+  `host/src/mcp.rs`), pinned by `host/tests/mcp.rs`.
+- [x] `list_profiles` and the `select_profile` description say a profile that
+  is not open will be opened, and `README.md` says the same.
+- [x] Check: `cargo test --manifest-path host/Cargo.toml` passes.
+  Landed 17/10/2026: the launcher returns whether it started Chrome
+  (`pgrep -x "Google Chrome"` before `open`); pinned by
+  `opening_a_profile_whose_extension_never_answers_says_what_happened`.
+
+### Phase 8: open the PR
 
 - [ ] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to date)

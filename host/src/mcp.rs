@@ -22,6 +22,8 @@ pub const EXTENSION_ID: &str = "ednpkicgdjiiihmophoifehfeeoabjdc";
 
 const PROBE_WAIT: Duration = Duration::from_millis(800);
 const CLAIM_WAIT: Duration = Duration::from_secs(10);
+/// Chrome cold-starting and loading the profile takes longer.
+const CLAIM_WAIT_COLD: Duration = Duration::from_secs(30);
 const CALL_WAIT: Duration = Duration::from_secs(20);
 const NAVIGATE_WAIT: Duration = Duration::from_secs(45);
 
@@ -31,21 +33,32 @@ connected and the user did not say which, ask them, never pick one yourself. The
 tabs_context before other tab tools, and work in tabs you create. Close the tabs you \
 created before finishing unless the user wants them kept.";
 
-/// Opens `url` in Chrome's profile `dir`.
-pub type Launcher = Arc<dyn Fn(&str, &str) -> std::io::Result<()> + Send + Sync>;
+/// Opens `url` in Chrome's profile `dir`, opening the profile (and starting
+/// Chrome) when needed. Returns whether Chrome had to be started.
+pub type Launcher = Arc<dyn Fn(&str, &str) -> std::io::Result<bool> + Send + Sync>;
 
-/// `open -na "Google Chrome" --args --profile-directory=<dir> <url>`, which a
-/// running Chrome routes to that profile
+fn chrome_running() -> bool {
+    std::process::Command::new("pgrep")
+        .args(["-x", "Google Chrome"])
+        .stdout(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|s| s.success())
+}
+
+/// `open -na "Google Chrome" --args --profile-directory=<dir> <url>`: a
+/// running Chrome routes it to that profile, loading the profile if it is not
+/// open; with Chrome closed it starts Chrome in that profile
 /// (`docs/external/chrome-profiles-and-launch.md`).
 pub fn open_in_chrome() -> Launcher {
     Arc::new(|dir: &str, url: &str| {
+        let started = !chrome_running();
         let status = std::process::Command::new("open")
             .args(["-na", "Google Chrome", "--args"])
             .arg(format!("--profile-directory={dir}"))
             .arg(url)
             .status()?;
         if status.success() {
-            Ok(())
+            Ok(started)
         } else {
             Err(std::io::Error::other(format!("open exited with {status}")))
         }
@@ -171,27 +184,29 @@ impl Server {
         Ok(())
     }
 
-    /// Opens the claim page in `profile` and waits for its host to say hello
-    /// with that dir.
+    /// Opens `profile` with the claim page in it (starting Chrome if needed)
+    /// and waits for its host to say hello with that dir.
     async fn claim(&self, profile: &Profile) -> Result<LiveHost, String> {
         let nonce = uuid::Uuid::new_v4().simple().to_string();
         let url = format!(
             "chrome-extension://{EXTENSION_ID}/claim.html#dir={}&nonce={nonce}",
             encode_component(&profile.dir)
         );
-        (self.inner.launch)(&profile.dir, &url).map_err(|e| format!("could not open Chrome: {e}"))?;
-        let deadline = tokio::time::Instant::now() + CLAIM_WAIT;
+        let started = (self.inner.launch)(&profile.dir, &url).map_err(|e| format!("could not open Chrome: {e}"))?;
+        let wait = if started { CLAIM_WAIT_COLD } else { CLAIM_WAIT };
+        let deadline = tokio::time::Instant::now() + wait;
         loop {
             if let Some(h) = Self::host_for(&self.hosts().await, &profile.dir) {
                 return Ok(h.clone());
             }
             if tokio::time::Instant::now() >= deadline {
                 return Err(format!(
-                    "The profile \"{}\" ({}) did not answer within {} s. Is the browser-hand extension \
-                     loaded in that profile? (chrome://extensions, Developer mode, Load unpacked: extension/dist)",
+                    "Opened the profile \"{}\" ({}){}, but its browser-hand extension did not answer within {} s. \
+                     Is the extension loaded in that profile? (chrome://extensions, Developer mode, Load unpacked: extension/dist)",
                     profile.name,
                     profile.dir,
-                    CLAIM_WAIT.as_secs()
+                    if started { " after starting Chrome" } else { "" },
+                    wait.as_secs()
                 ));
             }
             tokio::time::sleep(Duration::from_millis(300)).await;
@@ -249,7 +264,7 @@ impl Server {
 #[tool_router]
 impl Server {
     #[tool(
-        description = "List the Chrome profiles on this computer: dir, name, whether Chrome last used it, and whether the browser-hand extension in it is connected right now. Call this before select_profile.",
+        description = "List the Chrome profiles on this computer: dir, name, whether Chrome last used it, and whether the browser-hand extension in it is connected right now. A profile that is not open or not connected can still be selected: select_profile opens it. Call this before select_profile.",
         annotations(read_only_hint = true)
     )]
     pub async fn list_profiles(&self) -> Result<CallToolResult, McpError> {
@@ -276,7 +291,7 @@ impl Server {
     }
 
     #[tool(
-        description = "Select the Chrome profile this session acts in, by name or dir from list_profiles. If its extension is not connected yet, Chrome opens a short-lived page in that profile to connect it (Chrome starts if needed). Never choose a profile on the user's behalf when several are connected and they did not say which: ask them."
+        description = "Select the Chrome profile this session acts in, by name or dir from list_profiles. If the profile is not open, it is opened with Chrome's command line (starting Chrome if it is not running), and a short-lived page connects its extension. Never choose a profile on the user's behalf when several are connected and they did not say which: ask them."
     )]
     pub async fn select_profile(&self, Parameters(args): Parameters<SelectProfileArgs>) -> Result<CallToolResult, McpError> {
         let profiles = match profiles::read_profiles(&self.inner.chrome_dir) {

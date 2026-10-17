@@ -71,7 +71,7 @@ impl Setup {
             if claim {
                 fake_profile(&sockets, 900, None, Some(dir));
             }
-            Ok(())
+            Ok(false)
         });
         Server::new(self.chrome_dir(), self.sockets.path().to_owned(), launch)
     }
@@ -183,4 +183,20 @@ async fn with_several_connected_profiles_tab_tools_refuse_to_guess() {
     let r = s.server(false).tabs_create().await.unwrap();
     assert!(is_error(&r));
     assert!(text(&r).contains("select_profile"));
+}
+
+#[tokio::test]
+async fn opening_a_profile_whose_extension_never_answers_says_what_happened() {
+    let s = Setup::new();
+    // Chrome "starts" but nothing claims: the wait is the cold one (30 s),
+    // so pause time and let tokio run the clock forward.
+    tokio::time::pause();
+    let launch: Launcher = Arc::new(|_: &str, _: &str| Ok(true));
+    let server = Server::new(s.chrome_dir(), s.sockets.path().to_owned(), launch);
+    let r = server.select_profile(Parameters(SelectProfileArgs { profile: "Work".into() })).await.unwrap();
+    assert!(is_error(&r));
+    let t = text(&r);
+    assert!(t.contains("after starting Chrome"), "{t}");
+    assert!(t.contains("within 30 s"), "{t}");
+    assert!(t.contains("Load unpacked"), "{t}");
 }
