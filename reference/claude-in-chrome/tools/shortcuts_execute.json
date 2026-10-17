@@ -1,0 +1,24 @@
+{
+  "name": "mcp__claude-in-chrome__shortcuts_execute",
+  "description": "Execute a shortcut or workflow by running it in a new sidepanel window using the current tab (shortcuts and workflows are interchangeable). Use shortcuts_list first to see available shortcuts. This starts the execution and returns immediately - it does not wait for completion.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "command": {
+        "type": "string",
+        "description": "The command name of the shortcut to execute (e.g., 'debug', 'summarize'). Do not include the leading slash."
+      },
+      "shortcutId": {
+        "type": "string",
+        "description": "The ID of the shortcut to execute"
+      },
+      "tabId": {
+        "type": "number",
+        "description": "Tab ID to execute the shortcut on. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID."
+      }
+    },
+    "required": [
+      "tabId"
+    ]
+  }
+}
