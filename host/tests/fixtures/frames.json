@@ -1,0 +1,12 @@
+[
+  {"type":"call","id":7,"session":"5b0c3c1e-6f1a-4a43-9d0e-2b8f3f0d9a11","tool":"tabs_create","args":{}},
+  {"type":"call","id":8,"session":"5b0c3c1e-6f1a-4a43-9d0e-2b8f3f0d9a11","tool":"navigate","args":{"url":"example.com","tabId":123}},
+  {"type":"result","id":7,"ok":true,"content":[{"type":"text","text":"{\"tabId\":123}"}]},
+  {"type":"result","id":9,"ok":true,"content":[{"type":"image","data":"iVBORw0KGgo=","mimeType":"image/png","imageId":"img_1"}]},
+  {"type":"result","id":8,"ok":false,"error":{"code":"no_tab","message":"tab 99 is not in this session's group"}},
+  {"type":"hello","protocol":1,"profileDir":"Profile 3","extensionVersion":"0.1.0","instance":"0a9f6c3e-1111-4c2d-8e7f-000000000001"},
+  {"type":"hello","protocol":1,"profileDir":null,"extensionVersion":"0.1.0","instance":"0a9f6c3e-1111-4c2d-8e7f-000000000002"},
+  {"type":"claimed","profileDir":"Default","nonce":"3fa2b1c0d9e8f7a6"},
+  {"type":"chunk","id":7,"seq":0,"last":true,"data":"e30="},
+  {"type":"end","session":"5b0c3c1e-6f1a-4a43-9d0e-2b8f3f0d9a11"}
+]

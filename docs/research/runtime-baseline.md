@@ -34,5 +34,14 @@ separate the runtimes; memory does, by a factor of about 14 (Bun) and 23
 ## Limits of this measurement
 
 An empty program, not the real host: the real host adds a tokio runtime, a
-socket listener and JSON parsing, which will raise the Rust figure. Phase 2
+socket listener and JSON parsing, which will raise the Rust figure. Phase 3
 of `plans/plan-bridge.md` records the real host's idle RSS as the baseline.
+
+## The real host, 17/10/2026
+
+`browser-hand` release build (1,508,224 bytes) started as Chrome starts it
+(`browser-hand chrome-extension://x/`), stdin held open, one client connected
+to its socket for 1.5 s, then `ps -o rss=`: **2,288 KB**. The tokio runtime
+(two worker threads), the socket listener and the relay added under 300 KB
+over the empty program above. When stdin closed, the host exited and its
+socket file was gone.
