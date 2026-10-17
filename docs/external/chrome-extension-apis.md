@@ -1,0 +1,107 @@
+# Chrome extension APIs (MV3)
+
+Fetched: 17/10/2026 from https://developer.chrome.com/docs/extensions/reference/api/tabs, https://developer.chrome.com/docs/extensions/reference/api/tabGroups, https://developer.chrome.com/docs/extensions/reference/api/windows, https://developer.chrome.com/docs/extensions/reference/api/scripting, https://developer.chrome.com/docs/extensions/reference/api/webNavigation, https://developer.chrome.com/docs/extensions/reference/api/storage, https://developer.chrome.com/docs/extensions/reference/api/identity, https://developer.chrome.com/docs/extensions/reference/api/runtime, https://developer.chrome.com/docs/extensions/reference/api/offscreen, https://developer.chrome.com/docs/extensions/reference/manifest/key, and Chromium source at `refs/heads/main`: `extensions/common/api/extension_types.json`, `chrome/browser/extensions/api/tabs/tabs_api.cc`, `extensions/browser/quota_service.cc`, `components/crx_file/id_util.cc`.
+Version: tabs page last updated 24/09/2026, windows 11/09/2026, webNavigation 04/10/2026, others as published on 17/10/2026; local Google Chrome 155.0.8059.80. Docs note "Chrome now supports the standardized browser.* namespace (available from Chrome 148)."
+
+## What this project uses
+
+### chrome.tabs
+
+- Permissions: the `"tabs"` permission "does not give access to the `browser.tabs` namespace"; it unlocks `url`, `pendingUrl`, `title`, `favIconUrl` on `Tab` and querying by them. Host permissions give the same for matching tabs plus `captureVisibleTab()` and scripting.
+- `tabs.create(createProperties: { active?, index?, openerTabId?, pinned?, url?, windowId?, splitWithTabId? (155+) }): Promise<Tab>`. "Fully-qualified URLs must include a scheme". Relative URLs resolve inside the extension.
+- `tabs.query(queryInfo: { active?, audible?, currentWindow?, discarded?, frozen?, groupId?, highlighted?, index?, lastFocusedWindow?, muted?, pinned?, splitViewId?, status?, title?, url?, windowId?, windowType? }): Promise<Tab[]>`. `title` and `url` filters are ignored without `"tabs"` or host permission.
+- `tabs.remove(tabIds: number | number[]): Promise<void>`.
+- `tabs.update(tabId?: number, updateProperties: { active?, autoDiscardable?, highlighted?, muted?, openerTabId?, pinned?, url? }): Promise<Tab | undefined>`. "JavaScript URLs are not supported; use scripting.executeScript instead."
+- `tabs.captureVisibleTab(windowId?: number, options?: ImageDetails): Promise<string>` (data URL).
+  - "the extension must have either the <all_urls> permission or the activeTab permission."
+  - Sensitive sites such as chrome: pages "can only be captured with the activeTab permission." File URLs need file access.
+  - `ImageDetails` (`extension_types.json`): `format?: "jpeg" | "png"` (default `"jpeg"`), `quality?: integer 0..100` ("When format is "jpeg"... ignored for PNG").
+  - Captures the visible area of the active tab of the window only.
+- Constants: `MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND = 2` (Chrome 92+): "The maximum number of times that captureVisibleTab can be called per second." "captureVisibleTab is expensive and should not be called too often." `TAB_ID_NONE = -1`.
+
+### chrome.tabGroups and tabs.group
+
+- `tabs.group(options: { tabIds: number | number[], groupId?: number, createProperties?: { windowId?: number } }): Promise<number>`. No `groupId` means "a new group will be created". `createProperties` "Cannot be used if groupId is already specified." `tabs.ungroup(tabIds)` removes.
+- `tabGroups` permission `"tabGroups"`, "Chrome 89+ MV3+".
+- `TabGroup { collapsed: boolean, color: Color, id: number, shared: boolean (137+), title?: string, windowId: number }`. "Group IDs are unique within a browser session."
+- `Color`: `grey | blue | red | yellow | green | pink | purple | cyan | orange`.
+- `tabGroups.get(groupId)`, `tabGroups.query(queryInfo)`, `tabGroups.update(groupId, { collapsed?, color?, title? })`, `tabGroups.move(groupId, { index, windowId? })`; events `onCreated`, `onMoved`, `onRemoved`, `onUpdated`. `TAB_GROUP_ID_NONE = -1`.
+
+### chrome.windows
+
+- `windows.create(createData?: { url?, focused?, type?, state?, width?, height?, left?, top?, incognito?, setSelfAsOpener?, tabId? }): Promise<Window>`.
+- `windows.update(windowId: number, updateInfo: { width?, height?, left?, top?, focused?, state?, drawAttention? }): Promise<Window>`. Used for resize.
+- "The `minimized`, `maximized`, and `fullscreen` states cannot be combined with `left`, `top`, `width`, or `height`."
+- `WindowState`: `normal | minimized | maximized | fullscreen`. `WindowType`: `normal | popup | panel | app | devtools`.
+- `WINDOW_ID_CURRENT = -2`, `WINDOW_ID_NONE = -1`. `windows.get/getCurrent/getAll(queryOptions?: { populate?, windowTypes? })`.
+
+### chrome.scripting
+
+- Permission `"scripting"` plus host permissions or `"activeTab"`. "Chrome 88+ MV3+".
+- `scripting.executeScript(injection: ScriptInjection): Promise<InjectionResult[]>`.
+- `ScriptInjection { target: InjectionTarget, func?, args?, files?, world?: "ISOLATED" | "MAIN", injectImmediately? }`. "Exactly one of `files` or `func` must be specified." `args` "must be JSON-serializable." `world` "Defaults to `ISOLATED`."
+- `InjectionTarget { tabId: number, frameIds?: number[], documentIds?: string[] (106+), allFrames?: boolean }`. `allFrames` "Defaults to false" and "must not be true if `frameIds` is specified."
+- `ExecutionWorld.ISOLATED`: "the execution environment unique to this extension." `ExecutionWorld.MAIN`: "the execution environment shared with the host page's JavaScript."
+- `InjectionResult { documentId, frameId, result? }`. "Chrome will wait for the promise to settle and return the resulting value." "The main frame is guaranteed to be the first index in the resulting array."
+- You "can't execute a string using `scripting.executeScript()`" (only functions or files).
+
+### chrome.webNavigation
+
+- Permission `"webNavigation"`.
+- Order: "onBeforeNavigate -> onCommitted -> [onDOMContentLoaded] -> onCompleted"; errors give `onErrorOccurred`. Also `onCreatedNavigationTarget`, `onHistoryStateUpdated`, `onReferenceFragmentUpdated`, `onTabReplaced`.
+- Details include `tabId`, `frameId`, `url`, `documentId`, `parentFrameId`, `frameType`, `documentLifecycle`, `timeStamp`. frameId "0 indicates the navigation happens in the tab content window".
+- `getFrame(details)`, `getAllFrames(details)` return promises.
+
+### chrome.storage.local
+
+- Permission `"storage"`. `storage.local.QUOTA_BYTES = 10485760`: "The storage limit is 10 MB (5 MB in Chrome 113 and earlier)", raised with `"unlimitedStorage"`.
+- Values must be JSON-serialisable. Cleared "when the extension is removed." Exposed to content scripts by default (`setAccessLevel` changes this). `storage.session` is also 10 MB, in memory, not exposed to content scripts by default.
+- Methods `get`, `set`, `remove`, `clear`, `getBytesInUse`, `setAccessLevel`; `onChanged((changes, areaName) => void)`.
+
+### chrome.identity.getProfileUserInfo
+
+- `identity.getProfileUserInfo(details?: { accountStatus?: "SYNC" | "ANY" }): Promise<{ email: string, id: string }>` (details Chrome 84+, promise 106+).
+- `accountStatus` "Defaults to `SYNC`". `ANY`: "Specifies the existence of a primary account, if any." Use `ANY` to see signed-in but non-sync profiles.
+- "Requires the `identity.email` manifest permission. Otherwise, returns an empty result." `email` and `id` are empty if not signed in. Permissions: `["identity", "identity.email"]`.
+
+### chrome.runtime.connectNative
+
+See chrome-native-messaging.md. `connectNative(application: string): Port`, permission `"nativeMessaging"`.
+
+### chrome.offscreen
+
+- Permission `"offscreen"`, "Chrome 109+ MV3+".
+- `offscreen.createDocument({ url: string, reasons: Reason[], justification: string }): Promise<void>`, `offscreen.closeDocument()`, `offscreen.hasDocument()` (Chrome 150+).
+- `Reason`: TESTING, AUDIO_PLAYBACK, IFRAME_SCRIPTING, DOM_SCRAPING, BLOBS, DOM_PARSER, USER_MEDIA, DISPLAY_MEDIA, WEB_RTC, CLIPBOARD, LOCAL_STORAGE, WORKERS, BATTERY_STATUS, MATCH_MEDIA, GEOLOCATION.
+- One document: "an installed extension can only have one open at a time" (split mode incognito can have one per profile).
+- "The runtime API is the only extensions API supported by offscreen documents." URL "must be a static HTML file bundled with the extension." AUDIO_PLAYBACK closes after 30 s without audio; "All other reasons don't set lifetime limits."
+- Lifecycle docs: "Messages sent from an offscreen document reset the timers" (Chrome 109).
+
+### Manifest `key` (pinning the extension ID)
+
+- "This value maintains the unique ID of an extension, or theme when it is loaded during development."
+- Docs method: upload a zip to the Developer Dashboard, Package tab, "View public key", copy the text between `-----BEGIN PUBLIC KEY-----` and `-----END PUBLIC KEY-----`, remove newlines, put it in `"key"`.
+- Derivation (docs: not stated; source `components/crx_file/id_util.cc`): ID = first 16 bytes of SHA-256 of the public key bytes (the base64-decoded DER SubjectPublicKeyInfo in `key`), hex-encoded to 32 chars, each hex digit mapped `0-9a-f` to `a-p` (`ch = 'a' + val`). `IdIsValid` requires 32 chars in `a`..`p`. Without `key`, an unpacked extension's ID is `GenerateIdForPath(path)` (hash of the directory path), so it changes if the folder moves.
+- Generating a key locally with openssl: not described in the docs.
+
+## Errors
+
+- captureVisibleTab over quota (source `quota_service.cc`, `tabs_api.cc`): "This request exceeds the MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND quota." Enforced as a `TimedLimit` of 2 calls per 1 s, one bucket for the extension.
+- Scripting and capture on restricted pages: "Cannot access a chrome:// URL", "The extensions gallery cannot be scripted.", "Cannot access contents of the page. Extension manifest must request permission to access the respective host." (see chrome-debugger-cdp.md).
+- Others: not stated per method on the reference pages.
+
+## Limits
+
+- captureVisibleTab: 2 calls per second.
+- storage.local: 10,485,760 bytes unless `unlimitedStorage`. storage.session: 10,485,760 bytes.
+- offscreen: one document per extension (per profile in split incognito).
+- Number of tab groups, windows, tabs: not stated.
+
+## Gotchas
+
+- captureVisibleTab only captures the active tab of a window, at 2 per second, and needs `<all_urls>` or activeTab. For per-tab or background-tab screenshots use CDP `Page.captureScreenshot` instead.
+- `tabs.create` with an extension-relative URL is resolved inside the extension; this is how to open the extension's own page as a top-level tab.
+- `identity.getProfileUserInfo` defaults to `SYNC`; pass `{ accountStatus: "ANY" }` or non-sync signed-in profiles return empty. Treat the email as personal information.
+- Tab groups only move between `normal` windows; `onMoved` is not fired for cross-window moves.
+- Offscreen documents only get `chrome.runtime`; route other API calls through the service worker.
+- `allowed_origins` in the native host manifest needs a stable ID, so ship the `key` field in development builds.
