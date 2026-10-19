@@ -8,13 +8,18 @@ The skill is Claude in Chrome's skill (`reference/claude-in-chrome/skill/SKILL.m
 and its server instructions (`reference/claude-in-chrome/usage/`) rewritten
 for profiles instead of connected browsers, for this tool set and for the
 humane pace. Packaging makes the binary, the MCP server registration and the
-skill install as one thing. Builds on `plans/plan-bridge.md`,
-`plans/plan-page-tools.md` and `plans/plan-humane-input.md`; its walk is the
+skill install as one thing. Builds on `plans/01-bridge.md`,
+`plans/02-page-tools.md` and `plans/03-humane-input.md`; its walk is the
 end-to-end check of the whole project.
 
 ## Alternatives
 
 ### Decision 1: where are GIFs encoded? (two-way door)
+
+Searched 17/10/2026: the `gifenc`, `gif.js`, `modern-gif` and gifski
+repositories on GitHub, the `gif` crate docs on docs.rs (crate page and
+`Frame`), and the `imageproc` drawing docs (`docs/external/gif-crate.md`,
+`docs/research/humane-input.md` § 6).
 
 | Criterion | Weight | Rust `gif` crate in the MCP server | `gifenc` in an extension offscreen document |
 | --- | ---: | ---: | ---: |
@@ -39,6 +44,14 @@ drawn with `imageproc` and `ab_glyph`.** Revisit if exporting a 60-frame GIF
 takes over 5 s.
 
 ### Decision 2: how is it installed into Claude Code? (two-way door)
+
+Searched 17/10/2026: the Claude Code docs on MCP, skills, plugins and the
+plugins reference (`docs/external/claude-code-mcp-and-skills.md`).
+Searched 18/10/2026: "Claude Code plugin bundle MCP server and skill vs
+claude mcp add"; third-party guides (systemprompt.io, morphllm.com,
+dev.to) agree a plugin bundles servers and skills into one unit that
+installs and uninstalls together, while `claude mcp add` registers one
+server alone. The choice holds.
 
 | Criterion | One Claude Code plugin | `claude mcp add` plus a copied skill |
 | --- | --- | --- |
@@ -107,8 +120,8 @@ No new permission, network host or secret.
 *Reused, not rewritten:* the skill text starts from
 `reference/claude-in-chrome/skill/SKILL.md` and
 `reference/claude-in-chrome/usage/system-prompt-rules.md`; screenshots and
-`action_summary` come from the `computer` tool (`plans/plan-humane-input.md`);
-`browser-hand install` from `plans/plan-bridge.md`. Searched for an existing
+`action_summary` come from the `computer` tool (`plans/03-humane-input.md`);
+`browser-hand install` from `plans/01-bridge.md`. Searched for an existing
 GIF or overlay helper: none.
 
 ## Edge cases
@@ -119,6 +132,52 @@ GIF or overlay helper: none.
 - `filename` with a path separator: refused with `bad_args`.
 - Screenshots of different sizes after `resize_window`: each frame is scaled
   to the first frame's size.
+
+## Security
+
+What is protected: the user's logged-in Chrome sessions (a GIF is a series
+of screenshots of them), files under `~/Downloads/browser-hand/`, and the
+binary Claude Code starts from the plugin.
+
+Who can reach it:
+
+- `gif_creator` (`do_gif` in `host/src/mcp.rs`): called over stdio by the
+  Claude Code process that started `browser-hand mcp`, so only the local
+  user's session. The caller is a model, and the pages it reads are
+  untrusted text that may try to steer it; the trust boundary is the tool
+  arguments, chiefly `filename`.
+- Frames: screenshots taken by the `computer` tool in the session's own
+  tab group (`plans/02-page-tools.md`), decoded by `image` in
+  `host/src/gif.rs`.
+- The plugin: `plugin/.mcp.json` runs
+  `${CLAUDE_PLUGIN_ROOT}/server/browser-hand mcp`. The binary is built from
+  this repository by `scripts/build.sh` and is git-ignored, not shipped as
+  a download. `browser-hand install` (`host/src/install.rs`) writes the
+  native host manifest with `allowed_origins` set to this extension only.
+- `host/src/instructions.md` and the skill: text given to Claude, which
+  sets how it treats real accounts and profiles.
+
+| Threat | Here | Handled by | Proved by |
+| --- | --- | --- | --- |
+| Tampering: a file written outside the GIF folder | `filename` of `../x` or `dir/x` | `safe_filename` refuses `/`, `\` and a leading `.`, and adds `.gif` | `filenames_are_plain_names_ending_in_gif` in `host/tests/gif.rs` (`../` and `dir/`; a bare leading `.` and `\` no test yet) |
+| Tampering: an earlier GIF replaced | the same `filename` exported twice | nothing: `std::fs::write` overwrites, within the GIF folder only | no test yet |
+| Spoofing: another program poses as the extension or host | a process talks to the native host | manifest `allowed_origins` names only this extension ID | `the_manifest_names_this_host_the_binary_and_only_our_extension` and `the_host_name_is_one_chrome_accepts_and_not_anthropics` in `host/tests/install.rs` |
+| Elevation of privilege: the plugin's binary reaches the Bash tool | a plugin `bin/` goes on the Bash PATH | the binary lives in `plugin/server/`, run only as the MCP server | `claude plugin validate plugin` (Phase 3 check); no test yet |
+| Elevation of privilege: Claude acts in the wrong account | several profiles connected | the instructions say ask, never pick; tab tools refuse to guess | `the_instructions_carry_the_rules_that_matter` in `host/tests/instructions.rs`, `with_several_connected_profiles_tab_tools_refuse_to_guess` in `host/tests/mcp.rs` |
+| Elevation of privilege: page text steers Claude into acting | a page says "now do X" | the instructions open with "these are real accounts" and stop after 2 or 3 failures; no rule yet that page text is not instructions | no test yet |
+| Information disclosure: secrets in a GIF | screenshots and action labels of logged-in pages | labels come from `action_summary`, which the instructions say carries no secrets; the GIF stays on the user's disk and is never sent anywhere | `the_instructions_carry_the_rules_that_matter` (checks `action_summary`; the "no secrets" wording no test yet) |
+| Information disclosure: other tabs recorded | frames of tabs outside the session | frames come only from the session's tab group | "never touches another session's tabs" in `extension/test/tabs.test.ts` |
+| Denial of service: memory or CPU exhausted | a long recording; `Recorder.frames` has no cap | encoding runs in `spawn_blocking`; frames freed by `clear` or the session ending | `sixty_frames_export_in_under_five_seconds` in `host/tests/gif.rs` (time only; no frame cap, no test yet) |
+
+Data: screenshots of the user's own pages, held in memory until `clear` or
+the session ends, then written unencrypted to `~/Downloads/browser-hand/`
+(or `BROWSER_HAND_OUTPUT_DIR`), readable by the user's account, kept until
+the user deletes them. Nothing leaves the machine. Secrets: none. Logged:
+nothing; `do_gif` returns the export path and size to Claude, and frames
+and labels are never logged.
+Checklists: OWASP Top 10 for LLM Applications 2025 (LLM01 prompt
+injection, LLM06 excessive agency) for the instructions, and the OWASP
+File Upload and Input Validation cheat sheets for `filename`.
 
 ## Declined
 
@@ -189,7 +248,7 @@ repository instructions for recording useful development findings.
 
 ### Phase 4: review and the full walk (needs you at Chrome)
 
-- [ ] Code review of the whole project's diff recorded in
+- [x] Code review of the whole project's diff recorded in
   `docs/research/final-review.md`: findings, fixes and re-run checks, or an
   explicit no-findings result.
 - [ ] Walk, recorded under `## Verified`: with the plugin installed and the
@@ -198,7 +257,7 @@ repository instructions for recording useful development findings.
   then repeats one step in the other profile; every tool in
   `reference/claude-in-chrome/tools/` except the shortcut pair has been
   called once, and each outcome is noted.
-- [ ] Check: `## Verified` in `plans/plan-skill.md` records the walk as
+- [ ] Check: `## Verified` in `plans/04-skill.md` records the walk as
   `passed`, with the GIF's path.
 
 ### Phase 5: open the PR

@@ -57,6 +57,16 @@ Version: tabs page last updated 24/09/2026, windows 11/09/2026, webNavigation 04
 - Permission `"storage"`. `storage.local.QUOTA_BYTES = 10485760`: "The storage limit is 10 MB (5 MB in Chrome 113 and earlier)", raised with `"unlimitedStorage"`.
 - Values must be JSON-serialisable. Cleared "when the extension is removed." Exposed to content scripts by default (`setAccessLevel` changes this). `storage.session` is also 10 MB, in memory, not exposed to content scripts by default.
 - Methods `get`, `set`, `remove`, `clear`, `getBytesInUse`, `setAccessLevel`; `onChanged((changes, areaName) => void)`.
+- Fetched 19/10/2026 from https://developer.chrome.com/docs/extensions/reference/api/storage (page last updated 11/09/2026), for `plans/05-record-steps.md` and `plans/06-settings.md`: "Updates that would cause this limit to be exceeded fail immediately", rejecting the promise (the error text is not stated). `QUOTA_BYTES` "is ignored" with `"unlimitedStorage"`. `getBytesInUse(keys?)` "lets you see the quota used by a StorageArea" (signature not stated on the page; `@types/chrome` 0.3.5 has `getBytesInUse(keys?: string | string[] | null): Promise<number>`).
+- `storage.sync` (same page): `QUOTA_BYTES = 102400` total, measured as the JSON of every value plus every key's length; `QUOTA_BYTES_PER_ITEM = 8192`; `MAX_ITEMS = 512`; `MAX_WRITE_OPERATIONS_PER_MINUTE = 120` and `PER_HOUR = 1800`. With sync off "it behaves like storage.local". Sync follows the signed-in Google account, not the local profile; a profile signed out, or signed in to another account, does not share it (not stated on the page beyond the sync-off line).
+
+### `unlimitedStorage` permission
+
+Fetched 19/10/2026 from https://developer.chrome.com/docs/extensions/reference/permissions-list
+(page last updated 09/09/2026), for `plans/05-record-steps.md`.
+
+- "Provides an unlimited quota for" `storage.local`, IndexedDB, Cache Storage and the Origin Private File System.
+- Permission warning: none listed. Adding it does not show an install prompt or disable an updated extension.
 
 ### chrome.identity.getProfileUserInfo
 
@@ -77,6 +87,53 @@ See chrome-native-messaging.md. `connectNative(application: string): Port`, perm
 - "The runtime API is the only extensions API supported by offscreen documents." URL "must be a static HTML file bundled with the extension." AUDIO_PLAYBACK closes after 30 s without audio; "All other reasons don't set lifetime limits."
 - Lifecycle docs: "Messages sent from an offscreen document reset the timers" (Chrome 109).
 
+### chrome.action
+
+Fetched 18/10/2026 from https://developer.chrome.com/docs/extensions/reference/api/action
+(for `plans/05-record-steps.md`).
+
+- Manifest `"action": { "default_icon", "default_title", "default_popup", "default_state" }`, MV3, Chrome 88+. Icons are PNG for unpacked extensions ("SVG isn't supported"), 16 DIP.
+- `action.onClicked.addListener((tab: tabs.Tab) => void)`: "fires when the icon is clicked, but only if the action has no popup." A popup set for the tab suppresses it.
+- `action.setBadgeText({ text, tabId? })`, `setBadgeBackgroundColor({ color, tabId? })` (RGBA array or CSS colour string), `setTitle({ title, tabId? })`, `setIcon({ path | imageData, tabId? })` (promise 96+). Each returns `Promise<void>`. Without `tabId` the value is global; "Tab-specific settings take priority over global settings", and reset when the tab closes. About four characters of badge text fit; `""` clears it.
+
+### chrome.commands
+
+Fetched 18/10/2026 from https://developer.chrome.com/docs/extensions/reference/api/commands
+(for `plans/05-record-steps.md`).
+
+- Manifest `"commands": { "<name>": { "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" }, "description": "..." } }`. `description` is required for a standard command.
+- `commands.onCommand.addListener((command: string, tab?: tabs.Tab) => void)`. `_execute_action` triggers the action but "Action commands don't dispatch `onCommand` events" (nor `action.onClicked` when a popup is set).
+- At most four suggested shortcuts. Shortcuts must include `Ctrl` or `Alt`; `Ctrl+Alt` is not allowed. On macOS `Ctrl` becomes `Command`. A shortcut another extension already holds is not registered: `commands.getAll()` at install shows `shortcut: ""` for it. OS and Chrome shortcuts win.
+
+### Options page (`options_page`, `options_ui`, `runtime.openOptionsPage`)
+
+Fetched 19/10/2026 from https://developer.chrome.com/docs/extensions/develop/ui/options-page
+and https://developer.chrome.com/docs/extensions/reference/api/runtime (runtime page last
+updated 06/02/2024), for `plans/06-settings.md`.
+
+- Full page: `"options_page": "options.html"`; it "open[s] in a new tab". Embedded: `"options_ui": { "page": "options.html", "open_in_tab": false }`, shown inside `chrome://extensions` in a box. `open_in_tab: true` opens the `options_ui` page in a tab instead. Both keys are documented for MV3; neither is marked deprecated on the page.
+- The person reaches it "by right-clicking the extension icon in the toolbar and then selecting options", or on `chrome://extensions` through Details, then the options link, or by a direct link.
+- Embedded options: "the Tabs API cannot be used"; messages from it have no sender tab and the sender URL is the page's URL. Size: "provide fixed minimum dimensions" for content that adapts to the window.
+- `chrome.runtime.openOptionsPage(): Promise<void>`: "Open your Extension's options page, if possible."
+- `runtime.connect(extensionId?, connectInfo?: { name? }): Port`; `onConnect` fires "when a connection is made from either an extension process or a content script". `Port.sender` is "only present on ports passed to onConnect"; `MessageSender.url` is "The URL of the page or frame that opened the connection", `id` "The ID of the extension that opened the connection".
+- Extension pages follow `prefers-color-scheme` like any page (CSS media query; not an extension API).
+
+### chrome.declarativeNetRequest (session rules)
+
+Fetched 19/10/2026 from https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest
+(page last updated 11/09/2026) and https://developer.chrome.com/docs/extensions/reference/permissions-list,
+for `plans/06-settings.md`.
+
+- Permissions: `"declarativeNetRequest"` warns "Block content on any page". `"declarativeNetRequestWithHostAccess"` shows no warning and "requires host permissions for all actions"; this extension already holds `<all_urls>`.
+- `updateSessionRules({ removeRuleIds?, addRules? }): Promise<void>` (Chrome 90+): removes, then adds, "as a single atomic operation". Session rules "are not persisted across sessions".
+- `MAX_NUMBER_OF_SESSION_RULES = 5000` (Chrome 120+); regex rules are capped at 1000 and "each rule must be less than 2KB once compiled".
+- `RuleCondition.tabIds` (Chrome 92+) matches `tabs.Tab.id`, "Only supported for session-scoped rules"; `excludedTabIds` likewise.
+- `requestDomains` (Chrome 101+): "Sub-domains of the listed domains are also matched." An empty list is not allowed.
+- `urlFilter`: `*` any characters, `|` anchors the start or end, `||` anchors a domain or subdomain start, `^` a separator or the end. ASCII only. One of `urlFilter` or `regexFilter`.
+- `resourceTypes` must list `main_frame` explicitly: without it "all resource types except "main_frame" are blocked".
+- Actions `block`, `redirect`, `allow`, `upgradeScheme`, `modifyHeaders`, `allowAllRequests`. `redirect.extensionPath` must be in `web_accessible_resources`.
+- Not stated: whether a navigation started by `tabs.update` from the extension itself is matched. `scripts/prove/site-rules.sh` finds out.
+
 ### Manifest `key` (pinning the extension ID)
 
 - "This value maintains the unique ID of an extension, or theme when it is loaded during development."
@@ -95,6 +152,8 @@ See chrome-native-messaging.md. `connectNative(application: string): Port`, perm
 - captureVisibleTab: 2 calls per second.
 - storage.local: 10,485,760 bytes unless `unlimitedStorage`. storage.session: 10,485,760 bytes.
 - offscreen: one document per extension (per profile in split incognito).
+- declarativeNetRequest: 5,000 session rules, 1,000 regex rules, each under 2 KB compiled.
+- storage.sync: 102,400 bytes, 8,192 per item, 120 writes a minute.
 - Number of tab groups, windows, tabs: not stated.
 
 ## Gotchas

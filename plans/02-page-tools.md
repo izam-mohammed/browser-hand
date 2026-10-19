@@ -6,8 +6,8 @@ The reading and form tools Claude in Chrome has
 (`reference/claude-in-chrome/tools/`): `read_page`, `find`, `get_page_text`,
 `read_console_messages`, `read_network_requests`, `form_input`,
 `javascript_tool`, `file_upload`, with the same input schemas so the skill and
-habits carry over. Builds on `plans/plan-bridge.md` (the wire, the dispatcher,
-the tab group). Mouse and keyboard are `plans/plan-humane-input.md`.
+habits carry over. Builds on `plans/01-bridge.md` (the wire, the dispatcher,
+the tab group). Mouse and keyboard are `plans/03-humane-input.md`.
 
 A design goal from the user's "as humane as possible": reading a page should
 not show Chrome's "started debugging this browser" bar, which appears in every
@@ -18,6 +18,17 @@ debugger is attached only for tools that need it, and detached when idle.
 ## Alternatives
 
 ### Decision 1: how do `read_page` and `find` see the page? (two-way door)
+
+Searched 17/10/2026: the chrome.debugger reference, the CDP protocol JSON
+and Chromium's debugger source (`docs/external/chrome-debugger-cdp.md`:
+attach restrictions, the infobar, `Accessibility.getFullAXTree`), and
+"chrome.debugger attach infobar silent-debugger-extension-api flag".
+Searched 18/10/2026: "accessible name library in a content script,
+dom-accessibility-api vs Accessibility.getFullAXTree"; found
+`dom-accessibility-api` (`computeAccessibleName`, reported 153 of 159
+accname web-platform-tests passing in Chrome), a fuller in-page name
+computation, not a reason to attach. The choice holds; that library is the
+first thing to try if the revisit trigger fires.
 
 | Criterion | Weight | Content-script walker with a ref map | CDP `Accessibility.getFullAXTree` |
 | --- | ---: | ---: | ---: |
@@ -50,6 +61,12 @@ Revisit if names are wrong often enough that clicks miss.
 Claude in Chrome's `find` takes queries like "login button"; how it matches
 is not knowable from the reference (its bundles were not copied).
 
+Searched 18/10/2026: "Chrome built-in Prompt API LanguageModel extensions
+stable availability 2026"; secondary sources say the Prompt API is stable
+for extensions from Chrome 138, the official page's status row does not
+settle it, and the on-device model is downloaded once before first use.
+Not verified on this Chrome, so the must row stands and the choice holds.
+
 | Must | Local lexical ranking | Call an LLM API | Chrome built-in Prompt API |
 | --- | --- | --- | --- |
 | Works offline with no API key or new network host | yes | no | not verified for extensions on this Chrome |
@@ -63,6 +80,16 @@ matched to roles; up to 20 results, as the reference schema says.
 extensions (`## Follow-ups`).
 
 ### Decision 3: how are console messages and network requests captured? (two-way door)
+
+Searched 17/10/2026: the chrome.scripting and webNavigation references
+(`docs/external/chrome-extension-apis.md`) and the CDP `Runtime`, `Log` and
+`Network` domains (`docs/external/chrome-debugger-cdp.md`). Searched
+18/10/2026: "chrome extension capture console logs MV3 MAIN world content
+script vs chrome.debugger Runtime.consoleAPICalled; chrome.webRequest
+Manifest V3"; found the MAIN-world `console` wrap is the usual way, and a
+Claude in Chrome bug report (claudeissues.com issue 36559) where
+`read_console_messages` missed page-context output; nothing new on
+`webRequest`. The choice holds.
 
 | Criterion | Weight | Page hooks + `chrome.webRequest` | CDP `Runtime`, `Log`, `Network` |
 | --- | ---: | ---: | ---: |
@@ -87,6 +114,11 @@ response bodies are needed.
 
 ### Decision 4: how does `javascript_tool` run code? (two-way door)
 
+Searched 17/10/2026: the chrome.scripting reference
+(`docs/external/chrome-extension-apis.md` § chrome.scripting) and the CDP
+`Runtime` domain from the protocol JSON (`docs/external/chrome-debugger-cdp.md`
+§ CDP methods).
+
 | Criterion | `chrome.scripting` in MAIN world | CDP `Runtime.evaluate` |
 | --- | --- | --- |
 | Fit to the ask | a string must be `eval`ed, which page CSP without `unsafe-eval` blocks | runs under DevTools rules, not page CSP; `replMode` gives top-level `await` and last-expression results as the schema promises |
@@ -100,6 +132,15 @@ semantics.
 
 ### Decision 5: how does `file_upload` set files? (two-way door)
 
+Searched 17/10/2026: the native messaging limits
+(`docs/external/chrome-native-messaging.md` § Limits) and the CDP `DOM`
+domain with its file-access check (`docs/external/chrome-debugger-cdp.md`).
+Searched 18/10/2026: "chrome extension set file input files DataTransfer
+content script vs DOM.setFileInputFiles allow access to file URLs"; found
+(pqina.nl and others) that a `DataTransfer` FileList assigned to
+`input.files` works in all modern browsers; nothing new on
+`DOM.setFileInputFiles`. The choice holds.
+
 | Criterion | Bytes over the wire + `DataTransfer` | CDP `DOM.setFileInputFiles` |
 | --- | --- | --- |
 | Fit to the ask | works in every profile as installed | needs "Allow access to file URLs" turned on per profile |
@@ -110,6 +151,11 @@ semantics.
 Revisit if files above 10 MB are needed.
 
 ### Decision 6: what does `get_page_text` extract? (two-way door)
+
+Searched 17/10/2026, while building (Phase 2's `Landed` note): the
+Readability README and `npm view @mozilla/readability`
+(`docs/external/readability.md`, version 0.6.0, Apache-2.0). Other
+extractors were not searched for.
 
 | Criterion | `@mozilla/readability` | `main`/`article`, else `body.innerText` |
 | --- | --- | --- |
@@ -126,7 +172,7 @@ console hooks) are injected at `document_start` in all frames (decision 1, 3);
 `chrome.webRequest` records requests per tab, cleared on cross-domain
 navigation as the reference describes (decision 3). A debugger manager
 attaches per tab on first need and detaches after 30 s idle so the infobar
-closes; `plans/plan-humane-input.md` reuses it. `javascript_tool` uses it
+closes; `plans/03-humane-input.md` reuses it. `javascript_tool` uses it
 (decision 4). `form_input` sets values directly with `input` and `change`
 events: it is the fast path Claude in Chrome also has, and the humane path is
 `computer` typing. `file_upload` reads files in the MCP server, enforcing the
@@ -140,7 +186,7 @@ Dependencies: npm `@mozilla/readability`. New extension permissions:
 
 | Path | New or edit | Phase | What changes | Firm? |
 | --- | --- | --- | --- | --- |
-| `extension/src/page/walker.ts` | new | 1 | tree, refs, interactive filter, depth, `max_chars` | expected |
+| `extension/src/page/walker.ts` | added in 27b1462 | 1 | tree, refs, interactive filter, depth, `max_chars` | expected |
 | `extension/src/page/find.ts` | new | 2 | lexical ranking | expected |
 | `extension/src/page/text.ts` | new | 2 | Readability extraction | expected |
 | `extension/src/page/hooks.ts` | new | 3 | MAIN-world console hooks | expected |
@@ -151,9 +197,13 @@ Dependencies: npm `@mozilla/readability`. New extension permissions:
 | `extension/manifest.json` | edit | 1 | content scripts, permissions | reuse |
 | `extension/src/background.ts` | edit | 1 | dispatch for the new tools | reuse |
 
+Landed 17/10/2026 (27b1462): every row marked new was created by the build
+except `host/src/tools/page.rs` (see Phase 1's note); `walker.ts` reads
+"added" because Phase 1 is still open on its baseline.
+
 *Reused, not rewritten:* `host/src/wire.rs` `chunk` frames for uploads;
 `extension/src/background.ts` dispatcher and tab-group check from
-`plans/plan-bridge.md`; tool descriptions and schemas copied from
+`plans/01-bridge.md`; tool descriptions and schemas copied from
 `reference/claude-in-chrome/tools/` where they still hold. Searched for an
 existing walker or accessible-name library in the tree: none.
 
@@ -171,6 +221,58 @@ existing walker or accessible-name library in the tree: none.
   the reference's advice to always pass one.
 - DevTools opened by the user on the tab: `onDetach` fires and the manager
   re-attaches on next need.
+
+## Security
+
+What is protected: the signed-in profile's pages (what they show, their
+form values, the requests they make, the power to act as the user on each
+site through `javascript_tool` and `form_input`) and the user's files,
+which `file_upload` can read.
+
+Who can reach it, as built in 27b1462:
+
+- **The MCP tools** (`host/src/mcp.rs`): only the Claude Code process that
+  started `browser-hand mcp` over stdio. Claude Code asks the user before a
+  tool call unless the user allowed it.
+- **The host socket**: any process running as the user. The socket dir is
+  `0700` (`host/src/paths.rs`), each socket `0600`
+  (`host/src/native_host.rs`); there is no further identity check.
+- **The extension**: only through the native port Chrome opens for its own
+  origin. Content scripts answer only `__bh` messages from the service
+  worker (`extension/src/page/content.ts`, `extension/src/page-client.ts`).
+- **The page itself** is untrusted input: its text, labels, console output
+  and request URLs reach Claude as tool results, and a page script can post
+  messages into the console buffer.
+
+Every tool calls `TabTools.ownTab` first (`extension/src/background.ts`),
+so a session reaches only tabs in its own tab group.
+
+| Threat | Here | Handled by | Proved by |
+| --- | --- | --- | --- |
+| Spoofing | another local process connects to a host socket and drives the profile | socket dir `0700`, socket `0600` | no test yet |
+| Spoofing | a page posts fake console entries with the hook tag | only messages whose source is the same window are kept; a page can already `console.log`, so it gains nothing | `extension/test/page.test.ts` "ignores messages that are not from the hooks" (untagged ones) and "caps a tagged message the page posts itself at 4,000 characters" |
+| Tampering | a page rewrites `console` or the DOM to change what Claude reads | not prevented: page content is untrusted by nature | no test yet |
+| Repudiation | a tool call nobody can trace | the host logs frame types only, not calls; Claude Code's transcript holds each call | no test yet |
+| Information disclosure | one session reads another session's or the user's own tabs | `ownTab` refuses tabs outside the session's group | `extension/test/tabs.test.ts` "never touches another session's tabs", "an unknown tab id is no_tab" |
+| Information disclosure | `read_page` shows typed passwords | the walker never prints a password field's value | `extension/test/page.test.ts` "never prints a password value" |
+| Information disclosure | the network log carries headers, cookies or bodies | entries hold method, URL, type, status and timing only; tokens in query strings are not redacted | no test yet |
+| Information disclosure | Claude, steered by page text, uploads a private file (`~/.ssh`) to a site | absolute paths to regular files only, 10 MB per call (`host/src/tools/files.rs`), the user's tool-call approval; no path allow-list | `host/tests/mcp.rs` `file_upload_reads_files_and_refuses_relative_paths`; the 10 MB cap: no test yet |
+| Denial of service | a huge page or result floods Claude or the port | `read_page` `max_chars` (50,000), page text 100,000, script results 50,000, console 1,000 entries of 4,000 characters, network 500 per tab, frames above 64 MiB refused, chunks out of order dropped | `extension/test/page.test.ts` "truncates at a line boundary with the full size noted"; `host/tests/wire.rs` `chunks_out_of_order_are_refused`; the other caps: no test yet |
+| Elevation of privilege | `javascript_tool` runs any code as the page, with its cookies and session | the tool's purpose; limited to the session's tabs; attach refused on `chrome://`, extension and PDF pages | `extension/test/tools.test.ts` "a refused attach is debugger_refused naming the reason" |
+| Elevation of privilege | page text (prompt injection) tells Claude to run a script, fill a form or upload a file | Claude Code's tool-call approval only; `host/src/instructions.md` does not yet say page content is untrusted | no test yet |
+
+Data: page text, form values, console output and request URLs, which can
+include personal data. Held in memory only (the service worker's per-tab
+log, the content script's buffer), cleared on a cross-domain navigation, a
+new document or a closed tab; never written to disk by browser-hand. They
+leave the machine only as tool results Claude Code sends to Claude. The
+native port and the Unix socket are local, unencrypted. Secrets: none.
+Logged: frame types and I/O errors to stderr, and dropped frames to the
+service worker console; never tool arguments, page content or file bytes.
+Checklist: OWASP Top 10 for LLM Applications, current edition (reported as
+the 2026 edition by secondary sources on 18/10/2026, not confirmed on
+genai.owasp.org): prompt injection and excessive agency; and the OWASP File
+Upload Cheat Sheet for `file_upload`.
 
 ## Declined
 
@@ -272,14 +374,14 @@ repository instructions for recording useful development findings.
 
 ### Phase 5: review and the walk (needs you at Chrome)
 
-- [ ] Code review of this plan's diff recorded in
+- [x] Code review of this plan's diff recorded in
   `docs/research/page-tools-review.md`: findings, fixes and re-run checks, or
   an explicit no-findings result.
-- [ ] Walk, recorded under `## Verified` in `plans/plan-page-tools.md`: in one profile Claude
+- [ ] Walk, recorded under `## Verified` in `plans/02-page-tools.md`: in one profile Claude
   reads a page, finds and fills a form field, reads a console error and an
   API request, runs a script, uploads a file, and no debugging bar shows
   during the read-only steps.
-- [ ] Check: `## Verified` in `plans/plan-page-tools.md` records the walk as
+- [ ] Check: `## Verified` in `plans/02-page-tools.md` records the walk as
   `passed`, with what was seen.
 
 ### Phase 6: open the PR

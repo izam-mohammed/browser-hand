@@ -14,11 +14,9 @@ tools Claude in Chrome exposes, its skill and its native host wiring. This
 plan builds the pipe every later tool rides on: a Rust binary that is the MCP
 server and the native messaging host, a TypeScript MV3 extension with no UI,
 profile discovery from Chrome's `Local State`, and the tab tools. The
-reading tools are `plans/plan-page-tools.md`, the mouse and keyboard
-`plans/plan-humane-input.md`, the skill and packaging `plans/plan-skill.md`.
-
-This Mac has three profiles (`Default`, `Profile 3`, `Profile 4`) on Chrome
-155.
+reading tools are `plans/02-page-tools.md`, the mouse and keyboard
+`plans/03-humane-input.md`, the skill and packaging `plans/04-skill.md`.
+This Mac has three profiles (`Default`, `Profile 3`, `Profile 4`), Chrome 155.
 
 ## Constraints
 
@@ -29,8 +27,6 @@ This Mac has three profiles (`Default`, `Profile 3`, `Profile 4`) on Chrome
 ## Alternatives
 
 ### Decision 1: how do Claude's tool calls reach a running Chrome profile? (one-way door)
-
-Everything else is built on this pipe.
 
 | Must | Native host + local socket | Extension WebSocket to localhost | CDP remote debugging port | Playwright persistent context |
 | --- | --- | --- | --- | --- |
@@ -46,25 +42,10 @@ Everything else is built on this pipe.
 | Reversibility | 10 | 4 | 4 |
 | **Weighted total** | **100** | **4.35** | **3.20** |
 
-- Remote debugging and `--load-extension`: `docs/external/chrome-profiles-and-launch.md`
-  § Chrome 136 and § Chrome 137.
-- Efficiency 4 each: the native route adds one local socket hop; the
-  WebSocket route needs the extension to poll for a server that may not be
-  running.
-- Security 5 vs 2: native messaging is gated by `allowed_origins` and the
-  socket sits in a `0700` directory; a localhost port is reachable by every
-  local process and user (`docs/external/chrome-native-messaging.md` § Host
-  manifest).
-- Reliability 4 vs 3: an open native port keeps the service worker alive
-  (§ Service worker lifetime); a WebSocket keeps it alive only while messages
-  flow, and several MCP sessions would fight over one port.
-- Compatibility 5: the shape Claude in Chrome itself uses
-  (`reference/claude-in-chrome/README.md` § How it connects).
-
-Sensitivity: moving 10 points from security to efficiency leaves 4.25 vs
-3.40; the winner holds. Risk: Chrome kills the host when the port closes, so
-a service worker restart drops in-flight calls; the MCP side retries a call
-once on `not_connected` after the extension reconnects.
+Sensitivity: 10 points from security to efficiency leaves 4.25 vs 3.40;
+the winner holds. Evidence: `docs/research/01-bridge.md` § Decision 1.
+Searched 17/10/2026: Chrome's native messaging and service worker docs, the
+remote debugging port post, and the `--load-extension` removal in 137.
 
 **Chosen: native messaging host relaying to a local Unix socket.** Revisit
 if Chrome changes native messaging lifetime rules.
@@ -83,19 +64,13 @@ idle footprint dominates (`docs/research/runtime-baseline.md`).
 | Compatibility | 10 | 4 | 4 | 4 |
 | **Weighted total** | **100** | **4.45** | **3.05** | **3.20** |
 
-- Efficiency: idle RSS 2.0 MB Rust, 27.9 MB Bun, 46.2 MB Node, measured
-  17/10/2026 (`docs/research/runtime-baseline.md`).
-- Reliability Bun 3: a younger runtime with a smaller stdio and socket test
-  record; Node and Rust both have long-stable stdio and Unix socket APIs.
-- Security: Rust has no runtime package fetch and is memory safe; the Node
-  and Bun routes pull an npm tree into a process that holds the browser.
-- Portability Node 5: runs wherever Node is installed; Rust needs a build
-  per target, which `cargo` gives for macOS, Linux and Windows.
-- MCP SDK: `rmcp` 3.5.1 is the official Rust SDK (`docs/external/rmcp.md`).
+Idle RSS 2.0 MB Rust, 27.9 MB Bun, 46.2 MB Node, measured 17/10/2026; the
+rest in `docs/research/01-bridge.md` § Decision 2.
+Searched 17/10/2026: `rmcp` 3.5.1 (`docs/external/rmcp.md`). Searched
+18/10/2026: Rust vs Node host memory, about 7 vs 140 MB. The choice holds.
 
 **Chosen: Rust, one binary `browser-hand` with `mcp`, `native-host` and
-`install` subcommands.** Revisit if the host's idle RSS in Phase 3 exceeds
-20 MB.
+`install` subcommands.** Revisit if the Phase 3 idle RSS exceeds 20 MB.
 
 ### Decision 3: what language is the extension? (two-way door)
 
@@ -106,10 +81,12 @@ idle footprint dominates (`docs/research/runtime-baseline.md`).
 | Compatibility | wire types generated from the Rust types (`ts-rs`) | hand-copied types drift | shares Rust types natively |
 | Maintainability of the result | types check every message handler | none | two toolchains in the extension |
 
-**Chosen: TypeScript, bundled by esbuild.** Equal at run time to JS and
-cheaper than wasm, and the generated wire types hold the contract on both
-sides. Revisit if a hot path (GIF encoding, path generation) proves too slow
-in JS.
+Searched 18/10/2026: Rust-to-wasm MV3 extensions; each reaches `chrome.*`
+through JS glue (`docs/research/01-bridge.md` § Decision 3). The choice holds.
+
+**Chosen: TypeScript, bundled by esbuild.** Equal at run time to JS, cheaper
+than wasm, and generated wire types hold the contract on both sides. Revisit
+if a hot path (GIF encoding, path generation) proves too slow in JS.
 
 ### Decision 4: who listens on the local socket? (two-way door)
 
@@ -119,17 +96,15 @@ in JS.
 | Reliability | hosts live as long as Chrome; sessions come and go | a host with no server running has nowhere to go |
 | Performance efficiency | MCP scans one directory at `list_profiles` | same |
 
-Socket path `$TMPDIR/bh/<pid>.sock`: macOS caps `sun_path` at 103 usable
-bytes and `$TMPDIR` is 49 here (`docs/external/rust-ipc.md` § macOS `sun_path`
-limit).
+Socket path `$TMPDIR/bh/<pid>.sock`, short for macOS `sun_path`
+(`docs/research/01-bridge.md` § Decision 4).
+Searched 17/10/2026: tokio `UnixListener` and `UnixStream`, `interprocess`.
 
-**Chosen: each host listens on its own socket.** Revisit if Windows support
-is added (named pipes, `interprocess`).
+**Chosen: each host listens on its own socket.** Revisit for Windows pipes.
 
 ### Decision 5: how does a connection learn which profile it belongs to? (two-way door)
 
-Chrome passes the host only the caller origin, never the profile
-(`docs/external/chrome-native-messaging.md` § How Chrome launches the host).
+Chrome passes the host only the caller origin, never the profile.
 
 | Must | Claim handshake by launch URL | Match signed-in email | Scan extension storage on disk |
 | --- | --- | --- | --- |
@@ -137,15 +112,12 @@ Chrome passes the host only the caller origin, never the profile
 | Never reads Chrome's internal databases while it runs | yes | yes | no |
 | **Survives** | **yes** | no | no |
 
-The handshake: `select_profile` runs `open -na "Google Chrome" --args
---profile-directory=<dir> chrome-extension://<id>/claim.html#dir=<dir>&nonce=<n>`.
-The same command opens the profile when it is not open, and starts Chrome in
-that profile when Chrome is not running, so Claude never needs the user to
-open a profile by hand. Chrome routes it to that profile, the extension page stores `dir` in
-`chrome.storage.local` and reports it with the nonce. Every later connection
-from that profile says its `dir` in `hello`. Routing and the extension URL
-launch are read from Chromium source, not tested
-(`docs/external/chrome-profiles-and-launch.md`), so Phase 1 proves them.
+The handshake: `select_profile` opens `claim.html#dir=<dir>&nonce=<n>` in
+that profile with `open -na "Google Chrome" --args --profile-directory=<dir>`,
+opening the profile or Chrome when needed; the page reports `dir`, later
+connections say it in `hello`. Routing is read from source, so Phase 1
+proves it (`docs/research/01-bridge.md` § Decision 5).
+Searched 17/10/2026: native messaging, `storage` and Chromium startup source.
 
 **Chosen: claim handshake.** Revisit if Phase 1's proof fails, falling back
 to the email match for signed-in profiles.
@@ -157,40 +129,37 @@ to the email match for signed-in profiles.
 | Performance efficiency | reads a frame without scanning for a delimiter | scans every byte of multi-MB base64 screenshots | smallest, but re-encoded to JSON for Chrome anyway |
 | Compatibility | same framing as native messaging, one codec | a second codec | a second codec plus a dependency |
 
-**Chosen: u32 little-endian length plus UTF-8 JSON.** Revisit never unless
-payloads leave JSON.
+Searched 17/10/2026: native messaging framing, `native_messaging` 0.3.0.
+
+**Chosen: u32 little-endian length plus UTF-8 JSON.** Revisit if payloads
+leave JSON.
 
 ## The decision
 
-Feature path. One Rust crate in `host/` builds `browser-hand`:
-`browser-hand mcp` is the stdio MCP server Claude Code starts (decision 2),
-`browser-hand native-host` is what Chrome starts per profile, relaying between
-the native port and its socket (decisions 1, 4, 6), `browser-hand install`
-writes the host manifest. The extension in `extension/` is TypeScript with a
-service worker and one page, `claim.html` (decisions 3, 5). Profiles come from
-`Local State` `profile.info_cache` (`docs/external/chrome-profiles-and-launch.md`
-§ `Local State`).
+Feature path. One Rust crate in `host/` builds `browser-hand`: `mcp` is the
+stdio MCP server Claude Code starts (decision 2), `native-host` is what Chrome
+starts per profile, relaying between the native port and its socket
+(decisions 1, 4, 6), `install` writes the host manifest. The extension in
+`extension/` is TypeScript with a service worker and one page, `claim.html`
+(decisions 3, 5). Profiles come from `Local State` `profile.info_cache`
+(`docs/external/chrome-profiles-and-launch.md` § `Local State`).
 
 Opening profiles is part of the MCP server: `select_profile` on a profile
-with no live host uses Chrome's own command line (`open -na "Google Chrome"
---args --profile-directory=<dir>`) to open it, starting Chrome first when it
-is not running, and waits 10 s for the claim, or 30 s after a cold start
-(decision 5, Phase 7).
+with no live host opens it with Chrome's command line, starting Chrome when
+needed, and waits 10 s for the claim, or 30 s cold (decision 5, Phase 7).
 
-Tools this plan lands, named as Claude in Chrome names them minus the `_mcp`
-suffix: `list_profiles` and `select_profile` (replacing
-`list_connected_browsers`, `select_browser`, `switch_browser`),
-`tabs_context`, `tabs_create`, `tabs_close`, `navigate`. Each MCP session owns
-one tab group titled `browser-hand` per profile.
+Tools, named as Claude in Chrome names them minus `_mcp`: `list_profiles`
+and `select_profile` (replacing `list_connected_browsers`, `select_browser`,
+`switch_browser`), `tabs_context`, `tabs_create`, `tabs_close`, `navigate`.
+Each MCP session owns one tab group titled `browser-hand` per profile.
 
 Dependencies: crates `rmcp` (features `server`, `macros`, `transport-io`,
 pinned to 3.5), `tokio`, `serde`, `serde_json`, `ts-rs`, `uuid`; npm dev
 dependencies `typescript`, `esbuild`, `vitest`, `@types/chrome`. Extension
 permissions: `nativeMessaging`, `tabs`, `tabGroups`, `storage`. Native host
-name `dev.browserhand.host`, distinct from the two Anthropic hosts already
-installed. Writes one file outside the repo: the host manifest under
-`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`. No
-network host, no secret.
+`dev.browserhand.host`, distinct from the two Anthropic hosts. No network
+host, no secret. One file outside the repo, the host manifest under
+`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`.
 
 ## Integrations
 
@@ -203,10 +172,10 @@ network host, no secret.
 
 | Path | New or edit | Phase | What changes | Firm? |
 | --- | --- | --- | --- | --- |
-| `scripts/prove/rmcp-stdio.sh` | new | 1 | proof driver for the MCP SDK | expected |
-| `scripts/prove/rmcp-stdio/` | new | 1 | minimal rmcp server crate, kept in the repo | expected |
-| `scripts/prove/chrome-bridge.sh` | new | 1 | proof driver for native port and claim launch | expected |
-| `scripts/prove/chrome-bridge/` | new | 1 | echo extension and echo host, kept in the repo | expected |
+| `scripts/prove/rmcp-stdio.sh` | added 17/10/2026 | 1 | proof driver for the MCP SDK | expected |
+| `scripts/prove/rmcp-stdio/` | added 17/10/2026 | 1 | minimal rmcp server crate, kept in the repo | expected |
+| `scripts/prove/chrome-bridge.sh` | added 17/10/2026 | 1 | proof driver for native port and claim launch | expected |
+| `scripts/prove/chrome-bridge/` | added 17/10/2026 | 1 | echo extension and echo host, kept in the repo | expected |
 | `docs/protocol.md` | new | 2 | the wire contract below | fixed |
 | `host/src/wire.rs` | new | 2 | message types, framing, `ts-rs` export | fixed |
 | `extension/src/wire.gen.ts` | new | 2 | generated from `wire.rs` | fixed |
@@ -216,15 +185,14 @@ network host, no secret.
 | `extension/claim.html` | new | 4 | the claim page | fixed |
 | `host/src/profiles.rs` | new | 5 | `Local State` reader, socket discovery | expected |
 | `host/src/mcp.rs` | new | 5 | tool router | expected |
-| `host/src/install.rs` | new | 6 | host manifest writer | expected |
+| `host/src/install.rs` | added 17/10/2026 | 6 | host manifest writer | expected |
 
-*Reused, not rewritten:* the repository holds only `reference/`, which is
-read for tool names and schemas (`reference/claude-in-chrome/tools/tools.json`)
-and copied into our tool descriptions where they still apply; no code exists
-to extend. Searched crates.io for a native messaging framing crate:
-`native_messaging` 0.3.0 exists, but the framing is a four-byte prefix shared
-with the socket, so one codec in `wire.rs` serves both
-(`docs/external/rust-ipc.md` § Native messaging framing).
+Landed 17/10/2026: `added` rows landed in `386ca98`, before phases 1 and 6.
+
+*Reused, not rewritten:* only `reference/` existed, read for tool names and
+schemas (`reference/claude-in-chrome/tools/tools.json`); no code to extend.
+`native_messaging` 0.3.0 was found, but one codec in `wire.rs` serves the
+port and the socket (`docs/external/rust-ipc.md` § Native messaging framing).
 
 ## Contract
 
@@ -253,54 +221,68 @@ different `protocol` refuse with `not_connected` and say why.
 
 ## Edge cases
 
-- Profile has no extension installed: the claim times out and
-  `select_profile` says to load the extension into that profile.
-- Profile not open (Chrome running, but no window or extension for that
-  profile): the same Chrome command opens the profile, and the claim page
-  connects it (Phase 7).
-- Chrome not running: the command starts Chrome with that profile, and the
-  claim waits 30 s instead of 10 s for a cold start (Phase 7).
+- No extension in the profile: the claim times out and `select_profile`
+  says to load it.
+- Profile not open, or Chrome not running: the same command opens it or
+  starts Chrome, and the claim waits 10 s, or 30 s cold (Phase 7).
 - Stale socket file from a killed host: `connect` fails, the file is removed.
-- Two MCP sessions in one profile: separate tab groups, never each other's
-  tabs.
-- A tab group's last tab closed by the user: the next `tabs_context` with
+- Two MCP sessions in one profile: separate tab groups, never each other's tabs.
+- The user closes a group's last tab: the next `tabs_context` with
   `createIfEmpty` starts a new group.
+
+## Security
+
+Protected: the user's signed-in Chrome profiles. Entry points, all local:
+the host socket (dir `0700`, socket `0600`, `paths.rs`, `native_host.rs`),
+open to any process of this user, which is the trust boundary; the native
+port, started by Chrome only for `allowed_origins` (`install.rs`);
+`claim.html`, from our page only (`background.ts`); `Local State`, read only.
+
+| Threat | Here | Handled by | Proved by |
+| --- | --- | --- | --- |
+| Spoofing | another extension connects to our host | `allowed_origins` names only our pinned extension ID | `the_manifest_names_this_host_the_binary_and_only_our_extension` (`host/tests/install.rs`) |
+| Spoofing | a page or extension sends a fake `claim` | sender must be our ID and `claim.html`; not web accessible | no test yet |
+| Spoofing | a host claims a profile it is not | MCP accepts any host whose `hello` names the dir; the nonce is sent but not checked | no test yet |
+| Tampering | a stale socket left by a killed host | discovery removes sockets that refuse | `discovery_removes_stale_sockets_and_ignores_other_files` (`host/tests/profiles.rs`) |
+| Tampering | a profile dir reaching a shell | `open` runs with an argument array; the URL fragment is percent-encoded | `the_claim_url_encodes_spaces_in_the_dir` (`host/tests/mcp.rs`) |
+| Repudiation | browser actions nobody can see | each session works in a visible `browser-hand` tab group | `creates one titled group per session, in its own window` (`extension/test/tabs.test.ts`) |
+| Information disclosure | another user reads the socket | dir `0700`, socket `0600` | no test yet |
+| Information disclosure | a result reaches the wrong client | ids rewritten per client, routed back | `results_go_back_to_the_client_that_called_under_its_own_id` (`host/tests/relay.rs`) |
+| Information disclosure | profile emails leave `Local State` | only dir, name and last used are read | `never_reads_out_email_addresses` (`host/tests/profiles.rs`) |
+| Denial of service | a huge or garbled frame | frames over 64 MiB refused; a bad frame is skipped | `an_unknown_frame_is_invalid_data_and_the_stream_continues` (`host/tests/wire.rs`); no test yet for the cap |
+| Elevation of privilege | a session acts on the user's own tabs | tab tools act only inside the session's group | `never touches another session's tabs` (`extension/test/tabs.test.ts`) |
+
+Data: profile names and dirs, not stored; the claimed `dir` in
+`chrome.storage.local`. No secret, no network host. Logged: frame types and
+errors to stderr, never args or results. Followed: OWASP Browser Extension
+Vulnerabilities Cheat Sheet (searched 18/10/2026); no dependency audit yet.
 
 ## Rollback
 
 `browser-hand install --uninstall` removes the host manifest; removing the
-unpacked extension from each profile removes the rest. No stored data beyond
-`chrome.storage.local` in the extension.
+unpacked extension from each profile removes the rest, `chrome.storage` too.
 
 ## Risks
 
-- The claim launch may not route as source suggests: Phase 1 proves it before
-  anything depends on it (decision 5).
+- The claim launch may not route as source suggests: Phase 1 proves it.
+- A worker restart drops in-flight calls: MCP retries once on `not_connected`.
 - `rmcp` moves fast (three majors in 2026): pinned to the minor version.
 
 ## Declined
 
-- CDP remote debugging port and Playwright persistent context (decision 1):
-  both fail the must of driving the user's running profiles.
-- Extension WebSocket to localhost (decision 1): lost on security and
-  reliability.
-- Node and Bun for the host (decision 2): 23 and 14 times Rust's idle memory,
-  per host process.
+- CDP port and Playwright (decision 1): fail the must of running profiles.
+- Extension WebSocket (decision 1): lost on security and reliability.
+- Node and Bun (decision 2): 23 and 14 times Rust's idle memory per host.
 - Plain JavaScript and Rust-to-wasm for the extension (decision 3).
 - MCP server as the listener (decision 4): several sessions per profile.
-- Email match and on-disk storage scan for profile identity (decision 5):
-  failed musts.
+- Email match and on-disk scan for identity (decision 5): failed musts.
 - Newline-delimited JSON and MessagePack framing (decision 6).
 
 ## What the tests hold
 
-`wire.rs` round-trips every frame type and splits and rejoins chunks at the
-1 MB boundary; the TS side decodes the same fixtures. The host relays a call
-from two socket clients to a fake native port and returns each result to the
-client that sent it. `profiles.rs` parses a fixture `Local State` and pairs
-profiles with live sockets. The extension's dispatcher keeps each session's
-tabs in its own group, tested against a `chrome` API fake. The walk in Phase 6
-is the only check against real Chrome.
+Frames, chunks, relay, profile parsing and per-session tab groups, against
+fakes (`docs/research/01-bridge.md` § What the tests hold; security tests in
+`## Security`). The Phase 6 walk is the only check against real Chrome.
 
 ## Repository knowledge
 
@@ -334,10 +316,8 @@ repository instructions for recording useful development findings.
   and chunker land in `host/src/wire.rs`, pinned by `host/tests/wire.rs`.
 - [x] `extension/src/wire.gen.ts` generated by `ts-rs` from `wire.rs`, with an
   extension decoder test reading the same fixtures (`extension/test/wire.test.ts`).
-  Landed 17/10/2026: ts-rs 12.0.1 output checked and written up in
-  `docs/external/ts-rs.md`; it also emits `extension/src/serde_json/JsonValue.ts`.
-  Fixtures shared by both sides: `host/tests/fixtures/frames.json` and
-  `chunked-call.json`; the TS rejoiner is `extension/src/wire.ts`.
+  Landed 17/10/2026: shared fixtures in `host/tests/fixtures/`, rejoiner in
+  `extension/src/wire.ts` (`docs/research/01-bridge.md` § Build notes).
 - [x] Check: `cargo test` and `npm --prefix extension test` pass.
 
 ### Phase 3: the native host relays
@@ -346,11 +326,9 @@ repository instructions for recording useful development findings.
   `$TMPDIR/bh/<pid>.sock` in a `0700` directory, sends `hello` to each
   client, rewrites call ids per client and routes results back (expected in
   `host/src/native_host.rs`), pinned by `host/tests/relay.rs`.
-  Landed 17/10/2026: the socket dir is the per-user temp dir from
-  `confstr(_CS_DARWIN_USER_TEMP_DIR)` (`host/src/paths.rs`), not `$TMPDIR`,
-  since Chrome and Claude Code may start with different environments. Chrome
-  passes only the extension origin, so `host/src/main.rs` treats a
-  `chrome-extension://` first argument as `native-host`.
+  Landed 17/10/2026: socket dir from `confstr`, not `$TMPDIR`
+  (`host/src/paths.rs`); a `chrome-extension://` first argument means
+  `native-host` (`docs/research/01-bridge.md` § Build notes).
 - [x] The host removes its socket on exit and on stdin EOF; its idle RSS with
   one socket client is recorded in `docs/research/runtime-baseline.md`.
 - [x] Check: `cargo test` passes and the RSS line is under 20 MB.
@@ -365,10 +343,8 @@ repository instructions for recording useful development findings.
 - [x] `claim.html` stores its `dir` and sends `claimed`; `tabs_context`,
   `tabs_create`, `tabs_close` and `navigate` act only inside the session's
   `browser-hand` tab group, pinned by `extension/test/tabs.test.ts`.
-  Landed 17/10/2026: tab logic in `extension/src/tabs.ts` behind an injected
-  Chrome API; session to group ids kept in `chrome.storage.session` so a
-  service worker restart keeps them; claim page script `extension/src/claim.ts`,
-  bundled by `extension/build.mjs`.
+  Landed 17/10/2026: tab logic in `extension/src/tabs.ts`, groups kept in
+  `chrome.storage.session` (`docs/research/01-bridge.md` § Build notes).
 - [x] Check: `npm --prefix extension run build` emits `extension/dist/` and
   `npm --prefix extension test` passes.
 
@@ -381,12 +357,9 @@ repository instructions for recording useful development findings.
   the claim and waits up to 10 s, and the tab tools forward to that socket
   (expected in `host/src/mcp.rs`), pinned by `host/tests/mcp.rs` against a
   fake host.
-  Landed 17/10/2026: the socket client is `host/src/host_conn.rs`. A profile
-  is found by dir or by name in any case. With exactly one connected
-  profile, tab tools bind it without `select_profile`; with several they
-  refuse and ask for a selection. Server instructions come from a
-  hand-written `get_info`, since `#[tool_handler(instructions)]` takes only a
-  literal.
+  Landed 17/10/2026: client in `host/src/host_conn.rs`; one connected profile
+  binds without `select_profile`, several refuse to guess
+  (`docs/research/01-bridge.md` § Build notes).
 - [x] Check: `cargo test` passes.
 
 ### Phase 6: install and the walk (needs you at Chrome)
@@ -398,14 +371,13 @@ repository instructions for recording useful development findings.
   two profiles and the server added via `claude mcp add`, Claude lists the
   profiles, selects each in turn, opens a tab, navigates and closes it, and
   the other profile's windows stay untouched.
-- [ ] Check: `## Verified` in `plans/plan-bridge.md` records the walk as
+- [ ] Check: `## Verified` in `plans/01-bridge.md` records the walk as
   `passed`, with what was seen.
 
 ### Phase 7: open the profile when it is not open
 
-> Added 17/10/2026 at the user's request: the MCP server uses Chrome's own
-> command line to open a profile that is not open yet, as part of
-> `select_profile`, starting Chrome when it is not running.
+> Added 17/10/2026 at the user's request: `select_profile` opens a profile
+> that is not open with Chrome's command line, starting Chrome if needed.
 
 - [x] `select_profile` on a profile with no live host opens that profile with
   `open -na "Google Chrome" --args --profile-directory=<dir>` and the claim
@@ -416,9 +388,8 @@ repository instructions for recording useful development findings.
 - [x] `list_profiles` and the `select_profile` description say a profile that
   is not open will be opened, and `README.md` says the same.
 - [x] Check: `cargo test --manifest-path host/Cargo.toml` passes.
-  Landed 17/10/2026: the launcher returns whether it started Chrome
-  (`pgrep -x "Google Chrome"` before `open`); pinned by
-  `opening_a_profile_whose_extension_never_answers_says_what_happened`.
+  Landed 17/10/2026: the launcher says if it started Chrome (`pgrep` first);
+  pinned by `opening_a_profile_whose_extension_never_answers_says_what_happened`.
 
 ### Phase 8: open the PR
 
