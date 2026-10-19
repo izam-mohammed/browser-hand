@@ -120,7 +120,7 @@ pub struct NetworkArgs {
 
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct FormInputArgs {
-    /// Element reference from read_page or find, e.g. "ref_4".
+    /// Element reference from read_page or find, e.g. "ref_k3x9_4".
     #[serde(rename = "ref")]
     pub reference: String,
     /// The value: a boolean for checkboxes, an option's value or text for selects, text otherwise.

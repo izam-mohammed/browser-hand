@@ -9,10 +9,18 @@ export class ConsoleBuffer {
   private entries: ConsoleEntry[] = [];
 
   listen(win: Window) {
-    win.addEventListener("message", (e) => {
-      if (e.source !== win || !e.data || e.data[HOOK_TAG] !== true) return;
-      // The page can post a tagged message itself, so cap it here too.
-      this.push({ level: String(e.data.level), text: String(e.data.text).slice(0, MAX_ENTRY_CHARS), time: Number(e.data.time) });
+    win.document.addEventListener(HOOK_TAG, (e) => {
+      const detail = (e as CustomEvent).detail;
+      if (typeof detail !== "string") return;
+      let d: { level?: unknown; text?: unknown; time?: unknown };
+      try {
+        d = JSON.parse(detail);
+      } catch {
+        return;
+      }
+      if (!d || typeof d !== "object") return;
+      // The page can dispatch the event itself, so cap it here too.
+      this.push({ level: String(d.level), text: String(d.text).slice(0, MAX_ENTRY_CHARS), time: Number(d.time) });
     });
   }
 

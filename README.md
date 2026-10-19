@@ -62,7 +62,7 @@ travel time and typing gaps.
 | `select_profile` | Binds the session to a profile; opens it with Chrome's command line (starting Chrome if needed) when it is not open |
 | `tabs_context`, `tabs_create`, `tabs_close` | The session's own `browser-hand` tab group |
 | `navigate` | Opens a URL, or goes back or forward, and waits for the load |
-| `read_page` | The page as a tree of roles, names and refs (`ref_12`) |
+| `read_page` | The page as a tree of roles, names and refs (`ref_k3x9_12`) |
 | `find` | Elements matching plain words ("email field", "log in button") |
 | `get_page_text` | The article's text, or the page's |
 | `read_console_messages` | Console output and uncaught errors since the page loaded |

@@ -584,7 +584,7 @@ impl Server {
     }
 
     #[tool(
-        description = "Get the page as an accessibility-style tree: roles, names and element refs (ref_N) that computer clicks, scroll_to and form_input accept. Returns all elements by default, including non-visible ones; filter \"interactive\" keeps only controls. Output is capped at 50000 characters (cut at a line boundary with the full size noted); pass max_chars, a smaller depth, or ref_id to focus.",
+        description = "Get the page as an accessibility-style tree: roles, names and element refs (ref_<page tag>_N) that computer clicks, scroll_to and form_input accept. Returns all elements by default, including non-visible ones; filter \"interactive\" keeps only controls. Output is capped at 50000 characters (cut at a line boundary with the full size noted); pass max_chars, a smaller depth, or ref_id to focus.",
         annotations(read_only_hint = true)
     )]
     pub async fn read_page(&self, Parameters(args): Parameters<ReadPageArgs>) -> Result<CallToolResult, McpError> {

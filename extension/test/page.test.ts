@@ -49,7 +49,7 @@ describe("walker", () => {
     const first = readPage(document);
     const second = readPage(document);
     expect(first).toBe(second);
-    const ref = /button "Log in" \[(ref_\d+)\]/.exec(first)![1]!;
+    const ref = /button "Log in" \[(ref_\w+)\]/.exec(first)![1]!;
     expect(resolveRef(ref)).toBe(document.getElementById("go"));
   });
 
@@ -69,7 +69,7 @@ describe("walker", () => {
 
   it("ref_id focuses on one element", () => {
     const all = readPage(document);
-    const formRef = /- form \[(ref_\d+)\]/.exec(all)![1]!;
+    const formRef = /- form \[(ref_\w+)\]/.exec(all)![1]!;
     const out = readPage(document, { ref_id: formRef });
     expect(out).toContain("Log in");
     expect(out).not.toContain("About us");
@@ -79,6 +79,16 @@ describe("walker", () => {
     readPage(document);
     document.body.innerHTML = "<p>new</p>";
     expect(() => readPage(document, { ref_id: "ref_1" })).toThrow(/read_page again/);
+  });
+
+  it("a ref from the previous document never resolves on the next one", () => {
+    const old = /button "Log in" \[(ref_\w+)\]/.exec(readPage(document))![1]!;
+    resetRefs();
+    document.body.innerHTML = FORM;
+    const fresh = /button "Log in" \[(ref_\w+)\]/.exec(readPage(document))![1]!;
+    expect(fresh).not.toBe(old);
+    expect(resolveRef(old)).toBeNull();
+    expect(() => readPage(document, { ref_id: old })).toThrow(/read_page again/);
   });
 });
 
@@ -107,7 +117,7 @@ describe("form_input", () => {
   const refOf = (id: string) => {
     const out = readPage(document);
     const line = { email: 'textbox "Email address"', remember: 'checkbox "Remember me"', go: 'button "Log in"' }[id]!;
-    return new RegExp(`${line} \\[(ref_\\d+)\\]`).exec(out)?.[1] ?? "";
+    return new RegExp(`${line} \\[(ref_\\w+)\\]`).exec(out)?.[1] ?? "";
   };
 
   it("sets a text field and fires input and change", () => {
@@ -128,7 +138,7 @@ describe("form_input", () => {
   it("selects an option by its text or says which exist", () => {
     readPage(document);
     const sel = document.getElementById("lang") as HTMLSelectElement;
-    const ref = /combobox \[(ref_\d+)\]/.exec(readPage(document))![1]!;
+    const ref = /combobox \[(ref_\w+)\]/.exec(readPage(document))![1]!;
     formInput(ref, "Français");
     expect(sel.value).toBe("fr");
     expect(() => formInput(ref, "German")).toThrow(/Options: "English", "Français"/);
@@ -140,40 +150,47 @@ describe("form_input", () => {
 });
 
 describe("console hooks", () => {
-  // jsdom leaves event.source null for postMessage; Chrome sets it to the
-  // window, which the buffer checks. Deliver messages the way Chrome does.
-  const chromeLikePostMessage = () => {
-    window.postMessage = ((data: unknown) =>
-      setTimeout(() => window.dispatchEvent(new MessageEvent("message", { data, source: window })), 0)) as never;
-  };
+  const tick = () => new Promise((r) => setTimeout(r, 10));
 
   it("records logs and errors without breaking the page's console", async () => {
-    chromeLikePostMessage();
     const buffer = new ConsoleBuffer();
     buffer.listen(window);
     installHooks(window as Window & typeof globalThis);
     console.log("hello", { a: 1 });
     console.error("boom");
-    await new Promise((r) => setTimeout(r, 10));
+    await tick();
     expect(buffer.read({ pattern: "hello" })).toContain('log: hello {"a":1}');
     expect(buffer.read({ onlyErrors: true })).toContain("error: boom");
     expect(buffer.read({ onlyErrors: true })).not.toContain("hello");
   });
 
-  it("ignores messages that are not from the hooks", async () => {
+  it("the page's message listeners never see console entries", async () => {
+    installHooks(window as Window & typeof globalThis);
+    const seen: unknown[] = [];
+    const onMessage = (e: MessageEvent) => seen.push(e.data);
+    window.addEventListener("message", onMessage);
+    console.log("quiet");
+    await tick();
+    window.removeEventListener("message", onMessage);
+    expect(seen).toEqual([]);
+  });
+
+  it("ignores events that are not from the hooks", async () => {
     const buffer = new ConsoleBuffer();
     buffer.listen(window);
-    window.postMessage({ level: "log", text: "fake" }, "*");
-    await new Promise((r) => setTimeout(r, 10));
+    window.postMessage({ [HOOK_TAG]: true, level: "log", text: "posted" }, "*");
+    document.dispatchEvent(new CustomEvent(HOOK_TAG, { detail: { level: "log", text: "object" } }));
+    document.dispatchEvent(new CustomEvent(HOOK_TAG, { detail: "not json" }));
+    await tick();
     expect(buffer.read({})).toBe("No console messages match.");
   });
 
-  it("caps a tagged message the page posts itself at 4,000 characters", async () => {
-    chromeLikePostMessage();
+  it("caps a tagged message the page posts itself at 4,000 characters", () => {
     const buffer = new ConsoleBuffer();
     buffer.listen(window);
-    window.postMessage({ [HOOK_TAG]: true, level: "log", text: "x".repeat(50_000), time: 0 }, "*");
-    await new Promise((r) => setTimeout(r, 10));
+    document.dispatchEvent(
+      new CustomEvent(HOOK_TAG, { detail: JSON.stringify({ level: "log", text: "x".repeat(50_000), time: 0 }) }),
+    );
     const out = buffer.read({});
     expect(out.length).toBeLessThan(4100);
     expect(out).toContain("x".repeat(4000));

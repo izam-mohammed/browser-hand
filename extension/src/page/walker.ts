@@ -1,6 +1,8 @@
 // The page as a tree of roles and names, with refs that later tools (click,
 // form_input, scroll_to) resolve back to elements. Runs in the content
-// script's isolated world; refs stay stable for the life of the page.
+// script's isolated world; refs stay stable for the life of the page, and
+// carry a per-document tag so a ref from a page Claude navigated away from
+// never resolves on the next one.
 
 export interface WalkOptions {
   filter?: "interactive" | "all";
@@ -15,11 +17,16 @@ export const DEFAULT_MAX_CHARS = 50_000;
 const refToEl = new Map<string, WeakRef<Element>>();
 const elToRef = new WeakMap<Element, string>();
 let nextRef = 1;
+let docTag = newTag();
+
+function newTag(): string {
+  return Math.floor(Math.random() * 36 ** 4).toString(36).padStart(4, "0");
+}
 
 export function refFor(el: Element): string {
   let ref = elToRef.get(el);
   if (!ref) {
-    ref = `ref_${nextRef++}`;
+    ref = `ref_${docTag}_${nextRef++}`;
     elToRef.set(el, ref);
     refToEl.set(ref, new WeakRef(el));
   }
@@ -33,10 +40,11 @@ export function resolveRef(ref: string): Element | null {
   return el;
 }
 
-/** For tests: forget every ref. */
+/** For tests: forget every ref, as a new document does. */
 export function resetRefs() {
   refToEl.clear();
   nextRef = 1;
+  docTag = newTag();
 }
 
 const INPUT_ROLES: Record<string, string> = {
