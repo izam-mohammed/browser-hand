@@ -1,7 +1,9 @@
 // MAIN-world script at document_start: copies console output and uncaught
-// errors to the isolated content script (plans/plan-page-tools.md,
+// errors to the isolated content script (plans/02-page-tools.md,
 // decision 3). It calls the original console methods unchanged.
 export const HOOK_TAG = "__browserHandConsole";
+/** Longest console entry kept, in characters. */
+export const MAX_ENTRY_CHARS = 4000;
 
 export interface ConsoleEntry {
   level: string;
@@ -21,7 +23,7 @@ function stringify(v: unknown): string {
 
 export function installHooks(win: Window & typeof globalThis) {
   const post = (level: string, text: string) =>
-    win.postMessage({ [HOOK_TAG]: true, level, text: text.slice(0, 4000), time: Date.now() }, "*");
+    win.postMessage({ [HOOK_TAG]: true, level, text: text.slice(0, MAX_ENTRY_CHARS), time: Date.now() }, "*");
 
   for (const level of ["log", "info", "warn", "error", "debug"] as const) {
     const original = win.console[level];

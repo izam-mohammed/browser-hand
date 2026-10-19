@@ -1,6 +1,6 @@
 // Cursor paths: a cubic Bezier bowed to one side, sampled on a minimum-jerk
 // profile so the cursor speeds up and slows into the target, with an
-// overshoot and correction on long moves (plans/plan-humane-input.md,
+// overshoot and correction on long moves (plans/03-humane-input.md,
 // decision 3).
 import { PARAMS, type Params } from "./params";
 import { clamp, uniform, type Rng } from "./random";

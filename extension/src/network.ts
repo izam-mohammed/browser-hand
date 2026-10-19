@@ -1,5 +1,5 @@
 // `read_network_requests`: a per-tab log from chrome.webRequest, cleared when
-// the tab's top page moves to another host (plans/plan-page-tools.md,
+// the tab's top page moves to another host (plans/02-page-tools.md,
 // decision 3). No bodies, no headers.
 
 export const MAX_PER_TAB = 500;

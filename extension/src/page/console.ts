@@ -1,7 +1,7 @@
 // The isolated world's buffer of what the MAIN-world hooks saw. A new
 // document starts a new buffer, which is what "current domain only" means
 // for a page that navigated.
-import { HOOK_TAG, type ConsoleEntry } from "./hooks";
+import { HOOK_TAG, MAX_ENTRY_CHARS, type ConsoleEntry } from "./hooks";
 
 export const MAX_ENTRIES = 1000;
 
@@ -11,7 +11,8 @@ export class ConsoleBuffer {
   listen(win: Window) {
     win.addEventListener("message", (e) => {
       if (e.source !== win || !e.data || e.data[HOOK_TAG] !== true) return;
-      this.push({ level: String(e.data.level), text: String(e.data.text), time: Number(e.data.time) });
+      // The page can post a tagged message itself, so cap it here too.
+      this.push({ level: String(e.data.level), text: String(e.data.text).slice(0, MAX_ENTRY_CHARS), time: Number(e.data.time) });
     });
   }
 

@@ -12,14 +12,17 @@ use tokio::net::UnixListener;
 
 /// A native host on `<sockets>/<n>.sock` whose "Chrome" end says hello as
 /// `hello_dir` (and `claimed` as `claim_dir` when set), then answers every
-/// call with `<tool> <args>` as text.
-fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Option<&str>) {
+/// call with `<tool> <args>` as text. Returns the sessions it was told to
+/// `end`.
+fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Option<&str>) -> Arc<Mutex<Vec<String>>> {
     let listener = UnixListener::bind(sockets.join(format!("{n}.sock"))).unwrap();
     let (chrome, host) = tokio::io::duplex(1 << 20);
     let (hr, hw) = tokio::io::split(host);
     tokio::spawn(native_host::run(hr, hw, listener, format!("inst-{n}")));
     let hello_dir = hello_dir.map(String::from);
     let claim_dir = claim_dir.map(String::from);
+    let ends: Arc<Mutex<Vec<String>>> = Arc::default();
+    let ended = ends.clone();
     tokio::spawn(async move {
         let (mut r, mut w) = tokio::io::split(chrome);
         let hello = Frame::Hello {
@@ -33,6 +36,9 @@ fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Opti
             wire::write_frame(&mut w, &Frame::Claimed { profile_dir: dir, nonce: "n".into() }).await.unwrap();
         }
         while let Ok(Some(frame)) = wire::read_frame(&mut r).await {
+            if let Frame::End { session } = &frame {
+                ended.lock().unwrap().push(session.clone());
+            }
             if let Frame::Call { id, tool, args, .. } = frame {
                 let reply = if tool == "computer" && args["action"] == "screenshot" {
                     Frame::ok(
@@ -49,6 +55,7 @@ fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Opti
             }
         }
     });
+    ends
 }
 
 /// A 60x30 grey PNG, base64.
@@ -89,7 +96,7 @@ impl Setup {
         let launch: Launcher = Arc::new(move |dir: &str, url: &str| {
             launched.lock().unwrap().push((dir.to_owned(), url.to_owned()));
             if claim {
-                fake_profile(&sockets, 900, None, Some(dir));
+                let _ = fake_profile(&sockets, 900, None, Some(dir));
             }
             Ok(false)
         });
@@ -155,6 +162,22 @@ async fn selecting_a_connected_profile_by_name_forwards_tab_calls_to_it() {
     assert_eq!(text(&r), r#"tabs_context {"createIfEmpty":true}"#);
     let r = server.navigate(Parameters(NavigateArgs { url: "example.com".into(), tab_id: Some(7) })).await.unwrap();
     assert_eq!(text(&r), r#"navigate {"tabId":7,"url":"example.com"}"#);
+}
+
+#[tokio::test]
+async fn selecting_the_bound_profile_again_keeps_the_session_and_its_tab_group() {
+    // A second connection used to replace the first, and the host then sent
+    // `end` for the session, so the extension forgot its tab group.
+    let s = Setup::new();
+    let ends = fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+    let server = s.server(false);
+    server.select_profile(Parameters(SelectProfileArgs { profile: "work".into() })).await.unwrap();
+    server.tabs_create().await.unwrap();
+    let r = server.select_profile(Parameters(SelectProfileArgs { profile: "Profile 3".into() })).await.unwrap();
+    assert!(!is_error(&r), "{}", text(&r));
+    server.tabs_create().await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert!(ends.lock().unwrap().is_empty(), "ended {:?}", ends.lock().unwrap());
 }
 
 #[tokio::test]
@@ -289,6 +312,18 @@ mod more {
         assert!(is_error(&r) && text(&r).contains("repeat"));
         let r = server.computer(Parameters(ComputerArgs { duration: Some(11.0), ..computer(ComputerAction::Wait) })).await.unwrap();
         assert!(is_error(&r) && text(&r).contains("duration"));
+        for amount in [0, 11] {
+            let r = server
+                .computer(Parameters(ComputerArgs {
+                    coordinate: Some([5.0, 6.0]),
+                    scroll_direction: Some(ScrollDirection::Down),
+                    scroll_amount: Some(amount),
+                    ..computer(ComputerAction::Scroll)
+                }))
+                .await
+                .unwrap();
+            assert!(is_error(&r) && text(&r).contains("scroll_amount"), "{}", text(&r));
+        }
     }
 
     #[tokio::test]

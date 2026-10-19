@@ -93,6 +93,11 @@ describe("find", () => {
     expect(find(document.body, "remember checkbox").matches[0]?.name).toBe("Remember me");
   });
 
+  it("never matches on a password field's value", () => {
+    // The fixture's password field holds "secret"; find must not confirm it.
+    expect(find(document.body, "secret").matches).toEqual([]);
+  });
+
   it("says when nothing matches", () => {
     expect(formatFind("zebra", find(document.body, "zebra"))).toMatch(/No elements match/);
   });
@@ -161,6 +166,17 @@ describe("console hooks", () => {
     window.postMessage({ level: "log", text: "fake" }, "*");
     await new Promise((r) => setTimeout(r, 10));
     expect(buffer.read({})).toBe("No console messages match.");
+  });
+
+  it("caps a tagged message the page posts itself at 4,000 characters", async () => {
+    chromeLikePostMessage();
+    const buffer = new ConsoleBuffer();
+    buffer.listen(window);
+    window.postMessage({ [HOOK_TAG]: true, level: "log", text: "x".repeat(50_000), time: 0 }, "*");
+    await new Promise((r) => setTimeout(r, 10));
+    const out = buffer.read({});
+    expect(out.length).toBeLessThan(4100);
+    expect(out).toContain("x".repeat(4000));
   });
 
   it("clear empties the buffer and a bad pattern is bad_args", () => {

@@ -187,8 +187,18 @@ impl Server {
     }
 
     async fn bind(&self, profile: Profile, host: &LiveHost) -> Result<(), String> {
+        let mut bound = self.inner.bound.lock().await;
+        // Already bound to this profile's live host: keep the connection.
+        // Dropping it would make the host send `end` for this session, and
+        // the extension would forget the session's tab group.
+        if let Some(b) = bound.as_mut() {
+            if b.profile.dir == profile.dir && b.conn.is_alive() && b.conn.path == host.path {
+                b.profile = profile;
+                return Ok(());
+            }
+        }
         let conn = HostConn::connect(&host.path).await.map_err(|e| format!("could not connect to {}: {e}", profile.dir))?;
-        *self.inner.bound.lock().await = Some(Bound { profile, conn });
+        *bound = Some(Bound { profile, conn });
         Ok(())
     }
 
@@ -378,6 +388,11 @@ impl Server {
         if let Some(r) = args.repeat {
             if !(1..=100).contains(&r) {
                 return Err("bad_args: repeat must be 1 to 100".into());
+            }
+        }
+        if let Some(n) = args.scroll_amount {
+            if !(1..=10).contains(&n) {
+                return Err("bad_args: scroll_amount must be 1 to 10".into());
             }
         }
         let mut call = to_args(&args);

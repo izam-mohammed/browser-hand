@@ -139,6 +139,29 @@ describe("computer actions", () => {
     expect(events.find((e) => e.params.key === "i")!.params.text).toBe("i");
   });
 
+  it("spaces key presses by the research inter-key interval, hold included", async () => {
+    // Dhakal et al.'s 238.7 ms is press to press, so the hold must not be
+    // added on top of the gap.
+    const events: { t: number; type: string }[] = [];
+    let now = 0;
+    const input = new Input({
+      send: async (_m, params) => void events.push({ t: now, type: String(params.type) }),
+      sleep: async (ms) => void (now += ms),
+      rng: seeded(21),
+      isMac: true,
+      rect: async () => ({ x: 0, y: 0, width: 1, height: 1, inViewport: true }),
+      scrollIntoView: async () => {},
+      viewport: async () => ({ width: 1200, height: 800 }),
+    });
+    await input.run({ action: "type", text: "a".repeat(2000) }, "human");
+    const downs = events.filter((e) => e.type === "keyDown").map((e) => e.t);
+    const gaps = downs.slice(1).map((t, i) => t - downs[i]!);
+    const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    expect(mean).toBeGreaterThan(PARAMS.keyGapMeanMs * 0.92);
+    expect(mean).toBeLessThan(PARAMS.keyGapMeanMs * 1.1);
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(PARAMS.keyGapFloorMs);
+  });
+
   it("inserts characters no key types", async () => {
     const { input, events } = recorder();
     await input.run({ action: "type", text: "é😀" }, "fast");
@@ -169,6 +192,14 @@ describe("computer actions", () => {
     await input.run({ action: "scroll", coordinate: [300, 300], scroll_direction: "down", scroll_amount: 4 }, "fast");
     const wheels = events.filter((e) => e.params.type === "mouseWheel");
     expect(wheels.map((w) => w.params.deltaY)).toEqual([100, 100, 100, 100]);
+  });
+
+  it("refuses a bad scroll_amount before moving the mouse", async () => {
+    const { input, events } = recorder();
+    await expect(
+      input.run({ action: "scroll", coordinate: [300, 300], scroll_direction: "down", scroll_amount: 11 }, "fast"),
+    ).rejects.toMatchObject({ code: "bad_args" });
+    expect(events).toEqual([]);
   });
 
   it("drags with the button held along the way", async () => {

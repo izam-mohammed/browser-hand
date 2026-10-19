@@ -1,6 +1,6 @@
 // `find`: rank elements against a plain-language query by words in their
 // role, name, placeholder, value and text. Local and offline by design
-// (plans/plan-page-tools.md, decision 2).
+// (plans/02-page-tools.md, decision 2).
 import { allElements, isInteractiveRole, nameOf, refFor, roleOf } from "./walker";
 
 export const MAX_RESULTS = 20;
@@ -52,7 +52,9 @@ export function find(root: Element, query: string): { matches: Match[]; total: n
     const role = roleOf(el);
     if (!role) continue;
     const name = nameOf(el);
-    const extra = [el.getAttribute("placeholder"), (el as HTMLInputElement).value, el.getAttribute("title"), el.id]
+    // A password's value is never matched: a hit would confirm the secret.
+    const value = (el as HTMLInputElement).type === "password" ? "" : (el as HTMLInputElement).value;
+    const extra = [el.getAttribute("placeholder"), value, el.getAttribute("title"), el.id]
       .filter(Boolean)
       .join(" ");
     const hay = new Set(words(`${name} ${extra}`));

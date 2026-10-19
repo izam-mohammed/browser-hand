@@ -1,6 +1,6 @@
 // The `computer` tool's acting half: each action becomes a timed run of CDP
 // Input events shaped like a hand on a mouse and keyboard
-// (plans/plan-humane-input.md). Screenshots are `screenshot.ts`.
+// (plans/03-humane-input.md). Screenshots are `screenshot.ts`.
 import { PARAMS, type Params } from "./humane/params";
 import { aimPoint, movePath, type Pt } from "./humane/path";
 import type { Rng } from "./humane/random";
@@ -152,12 +152,13 @@ export class Input {
     });
   }
 
-  /** Presses one key, holding Shift first when the character needs it. */
-  private async typeChar(ch: string, pace: Pace) {
+  /** Presses one key, holding Shift first when the character needs it.
+   * Returns how long the key was held, in ms. */
+  private async typeChar(ch: string, pace: Pace): Promise<number> {
     const key = charKey(ch);
     if (!key) {
       await this.d.send("Input.insertText", { text: ch });
-      return;
+      return 0;
     }
     let mods = 0;
     if (key.shift) {
@@ -166,9 +167,11 @@ export class Input {
     }
     const text = key.text;
     await this.keyEvent(text ? "keyDown" : "rawKeyDown", key, mods, text ? { text, unmodifiedText: text } : {});
-    await this.wait(keyHoldMs(this.d.rng, this.p), pace);
+    const hold = keyHoldMs(this.d.rng, this.p);
+    await this.wait(hold, pace);
     await this.keyEvent("keyUp", key, mods);
     if (key.shift) await this.keyEvent("keyUp", modifierKey("shift"), 0);
+    return hold;
   }
 
   private async pressCombo(c: Combo, pace: Pace) {
@@ -258,9 +261,11 @@ export class Input {
       case "type": {
         if (args.text === undefined) throw new ToolError("bad_args", "type needs text");
         let prev = "";
+        let held = 0;
         for (const ch of args.text) {
-          if (prev) await this.wait(keyGapMs(this.d.rng, prev, this.p), pace);
-          await this.typeChar(ch, pace);
+          // keyGapMs is press to press, and the last key's hold is part of it.
+          if (prev) await this.wait(Math.max(0, keyGapMs(this.d.rng, prev, this.p) - held), pace);
+          held = await this.typeChar(ch, pace);
           prev = ch;
         }
         return `Typed ${[...args.text].length} characters`;
@@ -286,10 +291,10 @@ export class Input {
       }
       case "scroll": {
         if (!args.scroll_direction) throw new ToolError("bad_args", "scroll needs scroll_direction");
+        const ticks = args.scroll_amount ?? 3;
+        if (!Number.isInteger(ticks) || ticks < 1 || ticks > 10) throw new ToolError("bad_args", "scroll_amount must be 1 to 10");
         const { at, width } = await this.target(args, pace);
         await this.moveTo(at, width, pace);
-        const ticks = args.scroll_amount ?? 3;
-        if (ticks < 1 || ticks > 10) throw new ToolError("bad_args", "scroll_amount must be 1 to 10");
         const d = this.p.wheelDelta;
         const [dx, dy] = { up: [0, -d], down: [0, d], left: [-d, 0], right: [d, 0] }[args.scroll_direction];
         for (let i = 0; i < ticks; i++) {

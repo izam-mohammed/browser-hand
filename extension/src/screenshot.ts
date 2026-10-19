@@ -1,6 +1,6 @@
 // `screenshot` and `zoom`: CDP Page.captureScreenshot on the tab, in the
 // viewport's CSS pixel frame so coordinates Claude reads off the image are
-// the ones `computer` takes (plans/plan-humane-input.md, decision 5).
+// the ones `computer` takes (plans/03-humane-input.md, decision 5).
 import type { DebuggerManager } from "./debugger";
 import { ToolError } from "./wire";
 

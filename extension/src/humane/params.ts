@@ -1,5 +1,5 @@
 // Every humane constant in one place, each with its source or marked as an
-// ASSUMPTION to tune in the walk (plans/plan-humane-input.md, Open decisions).
+// ASSUMPTION to tune in the walk (plans/03-humane-input.md, Open decisions).
 // Sources: docs/research/humane-input.md.
 
 export const PARAMS = {

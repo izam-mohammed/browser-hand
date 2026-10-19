@@ -1,5 +1,5 @@
 //! `file_upload` reads files here and sends their bytes, since the
-//! extension cannot read the disk (plans/plan-page-tools.md, decision 5).
+//! extension cannot read the disk (plans/02-page-tools.md, decision 5).
 
 use std::path::Path;
 
