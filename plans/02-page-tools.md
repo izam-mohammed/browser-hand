@@ -324,7 +324,7 @@ repository instructions for recording useful development findings.
   `extension/src/page/content.ts`, reached through
   `extension/src/page-client.ts`, which injects it into tabs opened before the
   extension loaded. Tests: `extension/test/page.test.ts`.
-- [ ] Baseline: the walker's time and output size on three real pages
+- [x] Baseline: the walker's time and output size on three real pages
   (a news article, a web app, a long form) recorded in
   `docs/research/page-tools-baseline.md`.
 - [x] Check: `npm --prefix extension test` and `cargo test` pass.
@@ -391,3 +391,21 @@ repository instructions for recording useful development findings.
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+
+## Verified
+
+20/10/2026, Default profile ("Izam"), on a local test page with a form, a
+console log, an uncaught error and a `fetch` (`http://127.0.0.1:8765/`).
+
+- `read_page` gave the tree with refs; `find "email field"` put the Email
+  textbox first; `get_page_text` gave the text.
+- `read_console_messages` showed the log, the `info` from the fetch and
+  `exception: Uncaught Error: walk test error`; `onlyErrors` kept only the
+  exception. Times print in UTC, not local time.
+- `read_network_requests` showed the page, `GET /api/ping.json
+  [xmlhttprequest] 200` and the favicon 404.
+- `form_input` set the email, chose "pro" and ticked the checkbox;
+  `file_upload` put `upload.txt` (20 bytes) on the file input;
+  `javascript_tool` submitted the form and returned
+  `["submitted walk@example.com", "file upload.txt 20 bytes", "pro", true]`.
+- Debugging bar during the read-only steps: waiting on the user's eye.

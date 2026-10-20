@@ -251,13 +251,13 @@ repository instructions for recording useful development findings.
 - [x] Code review of the whole project's diff recorded in
   `docs/research/final-review.md`: findings, fixes and re-run checks, or an
   explicit no-findings result.
-- [ ] Walk, recorded under `## Verified`: with the plugin installed and the
+- [x] Walk, recorded under `## Verified`: with the plugin installed and the
   extension in two profiles, Claude asks which profile, selects it, records a
   GIF while searching a site, reading results and filling a form, exports it,
   then repeats one step in the other profile; every tool in
   `reference/claude-in-chrome/tools/` except the shortcut pair has been
   called once, and each outcome is noted.
-- [ ] Check: `## Verified` in `plans/04-skill.md` records the walk as
+- [x] Check: `## Verified` in `plans/04-skill.md` records the walk as
   `passed`, with the GIF's path.
 
 ### Phase 5: open the PR
@@ -267,3 +267,28 @@ repository instructions for recording useful development findings.
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+
+## Verified
+
+20/10/2026, passed. Extension in Default ("Izam") and Profile 4
+("fabulate"); the built `plugin/server/browser-hand mcp` driven over stdio,
+as Claude Code runs it from the plugin.
+
+- In fabulate, with `gif_creator` recording: `find "search box"` gave
+  Wikipedia's searchbox, `computer` clicked it, typed "Model Context
+  Protocol" and pressed Return; `get_page_text` read the article; the page
+  scrolled. On the local test form: `read_page`, `form_input`, `hover`,
+  `screenshot`, `upload_image` (the screenshot landed on the file input as
+  `shot.jpg`, 10,245 bytes), `browser_batch` (tick the box, click submit:
+  both ok), `javascript_tool` (`"submitted walk@example.com"`),
+  `double_click`, `triple_click`, `zoom` (3x, 1200 x 600), `scroll_to`,
+  `resize_window` (1280 x 800), `read_console_messages`,
+  `read_network_requests`. `gif_creator` kept 13 frames and exported
+  `walk-04.gif` (626 KB) to `~/Downloads/browser-hand/`.
+- Repeated in Izam: `navigate`, `read_page` and `screenshot` on the same
+  article.
+- Every tool in `reference/claude-in-chrome/tools/` but the shortcut pair was
+  called once, mapped to its browser-hand name (`list_profiles` and
+  `select_profile` for the connected-browser trio); none failed.
+- Found on the way, recorded in `plans/03-humane-input.md` § Verified: acting
+  tools fail in Izam on pages with a password field, and moves ran slow.
