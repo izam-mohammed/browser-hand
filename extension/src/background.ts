@@ -64,6 +64,7 @@ function inputFor(tabId: number): Input {
     input = new Input({
       send: (method, params) => dbg.send(tabId, method, params),
       sleep,
+      now: () => performance.now(),
       rng: seeded((Date.now() ^ (tabId * 2654435761)) >>> 0),
       get isMac() {
         return isMac;

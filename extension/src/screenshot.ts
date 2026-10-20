@@ -10,6 +10,9 @@ export const MAX_WIDTH = 1280;
 export const MAX_HEIGHT = 800;
 export const CAPTURE_TIMEOUT_MS = 10_000;
 const JPEG_QUALITY = 80;
+/** Chrome shows its "started debugging" bar on attach and shrinks the
+ * viewport a moment later; metrics read before that are too tall. */
+export const INFOBAR_SETTLE_MS = 300;
 
 export interface Shot {
   data: string;
@@ -47,6 +50,10 @@ export async function capture(
   tabId: number,
   opts: { scale?: number; region?: [number, number, number, number] },
 ): Promise<Shot> {
+  if (!dbg.isAttached(tabId)) {
+    await dbg.attach(tabId);
+    await new Promise((r) => setTimeout(r, INFOBAR_SETTLE_MS));
+  }
   const metrics = await dbg.send<Metrics>(tabId, "Page.getLayoutMetrics");
   const vv = metrics.cssVisualViewport;
   const dprEval = await dbg.send<{ result: { value: number } }>(tabId, "Runtime.evaluate", {

@@ -82,6 +82,7 @@ function recorder(rect = { x: 200, y: 150, width: 80, height: 30, inViewport: tr
   const deps: InputDeps = {
     send: async (method, params) => void events.push({ method, params }),
     sleep: async (ms) => void (slept += ms),
+    now: () => 0,
     rng: seeded(5),
     isMac: true,
     rect: async () => rect,
@@ -147,6 +148,7 @@ describe("computer actions", () => {
     const input = new Input({
       send: async (_m, params) => void events.push({ t: now, type: String(params.type) }),
       sleep: async (ms) => void (now += ms),
+      now: () => now,
       rng: seeded(21),
       isMac: true,
       rect: async () => ({ x: 0, y: 0, width: 1, height: 1, inViewport: true }),
@@ -160,6 +162,37 @@ describe("computer actions", () => {
     expect(mean).toBeGreaterThan(PARAMS.keyGapMeanMs * 0.92);
     expect(mean).toBeLessThan(PARAMS.keyGapMeanMs * 1.1);
     expect(Math.min(...gaps)).toBeGreaterThanOrEqual(PARAMS.keyGapFloorMs);
+  });
+
+  it("keeps its timing when Chrome takes 100 ms to answer each event", async () => {
+    // A window behind others answers slowly; that time is part of each pause.
+    const events: { t: number; type: string }[] = [];
+    let now = 0;
+    const input = new Input({
+      send: async (_m, params) => {
+        events.push({ t: now, type: String(params.type) });
+        now += 100;
+      },
+      sleep: async (ms) => void (now += ms),
+      now: () => now,
+      rng: seeded(21),
+      isMac: true,
+      rect: async () => ({ x: 0, y: 0, width: 1, height: 1, inViewport: true }),
+      scrollIntoView: async () => {},
+      viewport: async () => ({ width: 1200, height: 800 }),
+    });
+    await input.run({ action: "left_click", coordinate: [100, 100] }, "human");
+    const moves = events.filter((e) => e.type === "mouseMoved");
+    const planned = movePath({ x: 0, y: 0 }, { x: 100, y: 100 }, PARAMS.defaultTargetWidth, seeded(1)).length * PARAMS.moveIntervalMs;
+    // The last point lands, and the glide takes about its planned time, not 100 ms per point.
+    expect(moves.at(-1)!.t - moves[0]!.t).toBeLessThan(planned * 2 + 200);
+
+    events.length = 0;
+    await input.run({ action: "type", text: "a".repeat(400) }, "human");
+    const downs = events.filter((e) => e.type === "keyDown").map((e) => e.t);
+    const gaps = downs.slice(1).map((t, i) => t - downs[i]!);
+    const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    expect(mean).toBeLessThan(PARAMS.keyGapMeanMs * 1.25);
   });
 
   it("inserts characters no key types", async () => {

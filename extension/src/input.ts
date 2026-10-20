@@ -31,6 +31,8 @@ export interface Rect {
 export interface InputDeps {
   send(method: string, params: { [key: string]: unknown }): Promise<unknown>;
   sleep(ms: number): Promise<void>;
+  /** Milliseconds on a monotonic clock. */
+  now(): number;
   rng: Rng;
   isMac: boolean;
   rect(ref: string): Promise<Rect>;
@@ -56,6 +58,8 @@ const BUTTON_BITS = { left: 1, right: 2, middle: 4 } as const;
 /** One per tab: remembers where this tab's cursor is. */
 export class Input {
   private cursor: Pt | undefined;
+  /** When the last wait ended; see `wait`. */
+  private mark = 0;
 
   constructor(
     private d: InputDeps,
@@ -66,8 +70,14 @@ export class Input {
     return this.cursor;
   }
 
+  /** Pauses `ms` from the end of the last wait. Chrome can take 100 ms to
+   * answer each event in a window behind others, and that time counts
+   * toward the pause, so slow answers do not stretch every gap. */
   private async wait(ms: number, pace: Pace) {
-    if (pace === "human" && ms > 0) await this.d.sleep(ms);
+    if (pace !== "human") return;
+    const left = ms - (this.d.now() - this.mark);
+    if (left > 0) await this.d.sleep(left);
+    this.mark = this.d.now();
   }
 
   private mouse(type: string, at: Pt, extra: { [key: string]: unknown } = {}) {
@@ -86,7 +96,12 @@ export class Input {
     const from = await this.start();
     const path = pace === "fast" ? [to] : movePath(from, to, width, this.d.rng, this.p);
     const extra = { button: buttons ? "left" : "none", buttons, modifiers };
-    for (const pt of path) {
+    const t0 = this.d.now();
+    for (const [i, pt] of path.entries()) {
+      // Behind schedule (slow answers from Chrome): skip points, never the
+      // last, so the move keeps its planned duration.
+      const late = this.d.now() - t0 > (i + 1) * this.p.moveIntervalMs;
+      if (pace === "human" && late && i < path.length - 1) continue;
       await this.mouse("mouseMoved", pt, extra);
       this.cursor = pt;
       await this.wait(this.p.moveIntervalMs, pace);
@@ -219,6 +234,8 @@ export class Input {
 
   /** Runs one acting action and says what happened. */
   async run(args: ComputerArgs, pace: Pace): Promise<string> {
+    // Time between tool calls is not part of the first pause.
+    this.mark = this.d.now();
     switch (args.action) {
       case "left_click": {
         const at = await this.click(args, "left", 1, pace);
