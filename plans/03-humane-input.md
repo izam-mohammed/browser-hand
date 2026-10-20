@@ -361,13 +361,13 @@ repository instructions for recording useful development findings.
 - [x] Code review of this plan's diff recorded in
   `docs/research/humane-input-review.md`: findings, fixes and re-run checks,
   or an explicit no-findings result.
-- [ ] Walk, recorded under `## Verified`: in one profile Claude fills a login
+- [x] Walk, recorded under `## Verified`: in one profile Claude fills a login
   form on a test page by clicking and typing, scrolls a long page and drags a
   slider, while a page script logs every pointer and key event to the console;
   the log shows curved paths, uneven gaps and trusted events. Fitts constants
   and dwell defaults adjusted in `params.ts` if moves look wrong, each change
   noted.
-- [ ] Check: `## Verified` in `plans/03-humane-input.md` records the walk
+- [x] Check: `## Verified` in `plans/03-humane-input.md` records the walk
   as `passed`, with what was seen.
 
 ### Phase 6: open the PR
@@ -377,3 +377,35 @@ repository instructions for recording useful development findings.
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+
+## Verified
+
+20/10/2026, Profile 4 ("fabulate"), on a local test page with a login form,
+a range slider and a 3000 px tall block, where a capture-phase script logs
+every pointer, mouse, key and wheel event (`http://127.0.0.1:8765/hands.html`).
+passed.
+
+- Clicked Username, typed `izam.walk`, clicked Password, typed 8 characters,
+  clicked Log in: the page showed `login izam.walk / 8 chars`.
+- Every one of the 99 logged events had `isTrusted: true`.
+- Moves curve: on the way to the drag start the path went through y 264 and
+  then down to 286, and the drag itself bowed down to y 328 before landing on
+  [344, 286]. Gaps between moves ran from 4 ms to 113 ms (median), with dwell
+  pauses up to 4 s while typing.
+- Key gaps were uneven, 257 ms to 667 ms, with one 1227 ms pause.
+- Scroll sent 5 `wheel` events at [600, 500] with uneven gaps (80 to 200 ms).
+- Drag from [70, 286] to [344, 286] took the slider from 10 to 81. In the full
+  walk it missed, because the login line appears above the slider and pushes
+  it down by one line; the walk's fixed coordinates were stale, the drag was
+  fine. 66 px is the thumb's edge and misses, 70 px hits.
+- Timing: before the fix in `input.ts`, slow Chrome event dispatch (about
+  100 ms per event) stretched every move, so a 100 px move took 3 to 6 s and
+  sent 82 points. After it, the same two clicks took 1.5 s and 1.1 s and sent
+  19 points. `params.ts` constants were left as they are.
+- Screenshot: the first one after a fresh debugger attach reported the
+  viewport 56 px too tall, while Chrome's debugging bar slid in. Fixed with a
+  300 ms settle wait in `screenshot.ts`.
+- Default profile ("Izam"): clicks and typing on pages with a password field
+  fail with `debugger_refused: ... Cannot access a chrome-extension:// URL of
+  different extension`. Another extension (likely a password manager) puts a
+  frame in the page. Wikipedia works in the same profile. Not fixed.
