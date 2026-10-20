@@ -424,11 +424,21 @@ repository instructions for recording useful development findings.
   § chrome.declarativeNetRequest; `openOptionsPage` opens it, a rule with
   tab A's id blocks a link click, a `tabs.update` and an iframe in tab A
   but not tab B, and it prints `PASS` with each result.
-- [ ] `scripts/prove/config-toml.sh` builds `scripts/prove/config-toml/`
+- [x] `scripts/prove/config-toml.sh` builds `scripts/prove/config-toml/`
   against `toml` 1.1.8, round-trips the Contract's file and prints a parse
   error's line and column, per `docs/external/toml.md`, then `PASS`.
+  Landed 20/10/2026: prints `PASS`; the default features hold `from_str`
+  and `to_string_pretty`, and an error reads "TOML parse error at line 3,
+  column 14" with the line quoted (`docs/external/toml.md` § Errors).
 - [ ] Check: both print `PASS`; a rule that misses `tabs.update` is noted in
   `docs/research/06-settings.md` and the gate covers it.
+
+Written 20/10/2026; not run yet, needs the person at Chrome. The site-rules
+proof reports to a local server the script runs (`serve.py` on
+127.0.0.1:8790, which also serves the pages and counts each request for
+the blocked page) instead of a native host, so it needs no `key` and no
+host manifest; the blocked host is `localhost:8790`, the same server under
+another name.
 
 ### Phase 2: the rough cut (needs you: try it)
 

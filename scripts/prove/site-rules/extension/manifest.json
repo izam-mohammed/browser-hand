@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "browser-hand site rules proof",
+  "version": "0.0.1",
+  "description": "Throwaway proof: options_ui in a tab, and declarativeNetRequest session rules scoped to one tab. Remove after scripts/prove/site-rules.sh passes.",
+  "permissions": ["declarativeNetRequestWithHostAccess", "tabs", "webNavigation"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
