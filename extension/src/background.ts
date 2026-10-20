@@ -1,10 +1,15 @@
-// Service worker: holds the native port to browser-hand, answers calls, and
-// takes profile claims from claim.html (`docs/protocol.md`).
+// Service worker: holds the native port to browser-hand, answers calls,
+// takes profile claims from claim.html (`docs/protocol.md`), and runs the
+// toolbar button that records the person's steps (`recorder.ts`).
 import { DebuggerManager } from "./debugger";
 import { seeded } from "./humane/random";
 import { Input, type ComputerArgs, type Pace, type Rect } from "./input";
 import { NetworkLog } from "./network";
 import { toPage } from "./page-client";
+import type { RecMsg } from "./page/content";
+import type { Step } from "./page/record";
+import { Recorder, type RecorderDeps, type TabLike } from "./recorder";
+import { replayStep, type ReplayDeps, type Resolved } from "./replay";
 import { capture, captureVisible, type Shot } from "./screenshot";
 import { TabTools, type GroupStore } from "./tabs";
 import { PROTOCOL, Reassembler, ToolError, err, ok, text, type CallFrame, type Content, type Frame } from "./wire";
@@ -76,6 +81,35 @@ function inputFor(tabId: number): Input {
     inputs.set(tabId, input);
   }
   return input;
+}
+
+const recorder = new Recorder({
+  action: chrome.action,
+  tabs: {
+    query: (q) => chrome.tabs.query(q),
+    get: (tabId) => chrome.tabs.get(tabId) as Promise<TabLike>,
+    sendMessage: (tabId, msg) => chrome.tabs.sendMessage(tabId, msg),
+  },
+  local: chrome.storage.local as unknown as RecorderDeps["local"],
+  session: chrome.storage.session as unknown as RecorderDeps["session"],
+  now: () => Date.now(),
+});
+
+/** Replay acts through the tab's `Input`, marked as Claude's while it does. */
+function replayDeps(session: string, pace: Pace): ReplayDeps {
+  return {
+    resolve: (tabId, selectors) => toPage<Resolved>(tabId, { op: "resolve", selectors }),
+    act: (tabId, args) => recorder.busy(tabId, () => inputFor(tabId).run(args, pace)),
+    formInput: (tabId, ref, value) => recorder.busy(tabId, () => toPage(tabId, { op: "form_input", ref, value })),
+    scroll: (tabId, ref, x, y) => toPage(tabId, { op: "scroll_xy", ref, x, y }),
+    navigate: (tabId, url) => tabs.navigate(session, { tabId, url }),
+    waitForLoad,
+    sleep,
+    now: () => Date.now(),
+    get isMac() {
+      return isMac;
+    },
+  };
 }
 
 /** A tool answers with content blocks; a plain value becomes one text block. */
@@ -170,12 +204,22 @@ const tools: Record<string, Tool> = {
       return shotContent(await screenshot(s, a.tabId, { scale: a.scale, region: a.region }));
     }
     await tabs.ownTab(s, a.tabId);
-    return inputFor(a.tabId).run(a, a.pace === "fast" ? "fast" : "human");
+    return recorder.busy(a.tabId, () => inputFor(a.tabId).run(a, a.pace === "fast" ? "fast" : "human"));
   },
   resize_window: async (s, a) => {
     const tab = await tabs.ownTab(s, a.tabId);
     const win = await chrome.windows.update(tab.windowId, { width: Math.round(a.width), height: Math.round(a.height), state: "normal" });
     return `Window resized to ${win.width}x${win.height}`;
+  },
+
+  // Recordings are the profile's, not the session's: any session reads them.
+  recording_list: () => recorder.list(),
+  recording_get: (_s, a: { id?: string }) => recorder.get(a.id),
+  recording_delete: (_s, a: { id: string }) => recorder.remove(a.id),
+  replay_step: async (s, a: { tabId: number; step: Step; pace?: Pace }) => {
+    await tabs.ownTab(s, a.tabId);
+    if (!a.step || typeof a.step.type !== "string") throw new ToolError("bad_args", "replay_step needs a step");
+    return replayStep(replayDeps(s, a.pace === "fast" ? "fast" : "human"), a.tabId, a.step);
   },
 };
 
@@ -233,6 +277,36 @@ function connect() {
   });
   void hello();
 }
+
+// Recording: the button, the shortcut, and what moves tabs in and out.
+chrome.action.onClicked.addListener((tab) => void recorder.toggle(tab as TabLike));
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (command !== "toggle-recording") return;
+  const target = tab ?? (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
+  if (target) await recorder.toggle(target as TabLike);
+});
+chrome.webNavigation.onCommitted.addListener((d) => void recorder.navigated(d));
+chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => void recorder.openedFrom(d.sourceTabId, d.tabId));
+chrome.tabs.onCreated.addListener((tab) => void recorder.tabCreated(tab as TabLike));
+chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  if (info.status === "loading") void recorder.tabUpdated(tabId, tab.windowId);
+});
+chrome.windows.onRemoved.addListener((windowId) => void recorder.windowRemoved(windowId));
+
+// Content scripts ask whether their window records, and send steps.
+chrome.runtime.onMessage.addListener((msg: RecMsg, sender, reply) => {
+  const tab = sender.tab;
+  if (sender.id !== chrome.runtime.id || tab?.id === undefined || typeof msg?.__bhRec !== "string") return;
+  let on: Promise<boolean>;
+  if (msg.__bhRec === "hello") on = recorder.isRecording(tab.windowId);
+  else if (msg.__bhRec === "step" && typeof msg.step?.type === "string") on = recorder.step(tab.id, tab.windowId, msg);
+  else return;
+  on.then(
+    (v) => reply({ on: v }),
+    () => reply({ on: false }),
+  );
+  return true;
+});
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   // Only the extension's own claim page may claim.

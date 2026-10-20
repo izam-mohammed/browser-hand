@@ -13,11 +13,27 @@
     "scripting",
     "webRequest",
     "debugger",
-    "webNavigation"
+    "webNavigation",
+    "unlimitedStorage"
   ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
+  },
+  "action": {
+    "default_title": "browser-hand: click to record your steps in this window (Alt+Shift+R)",
+    "default_icon": {
+      "16": "icons/idle-16.png",
+      "32": "icons/idle-32.png"
+    }
+  },
+  "commands": {
+    "toggle-recording": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Start or stop recording your steps in this window"
+    }
   },
   "host_permissions": [
     "<all_urls>"
@@ -42,7 +58,7 @@
         "content.js"
       ],
       "run_at": "document_start",
-      "all_frames": false
+      "all_frames": true
     }
   ]
 }

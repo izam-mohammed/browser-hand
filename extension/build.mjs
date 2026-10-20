@@ -14,3 +14,4 @@ await build({ ...common, entryPoints: ["src/background.ts", "src/claim.ts"], for
 await build({ ...common, entryPoints: ["src/page/content.ts", "src/page/main-world.ts"], format: "iife" });
 
 for (const file of ["manifest.json", "claim.html"]) cpSync(file, `dist/${file}`);
+cpSync("icons", "dist/icons", { recursive: true });
