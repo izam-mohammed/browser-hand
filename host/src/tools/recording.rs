@@ -151,6 +151,9 @@ pub fn step_line(n: usize, step: &Value, meta: &Value) -> String {
     if meta["unrecorded"].as_bool() == Some(true) {
         add("(Chrome lets no extension into this page: nothing on it was recorded)".into());
     }
+    if meta["blocked"].as_bool() == Some(true) {
+        add("(a site blocked in browser-hand settings: nothing on it was recorded, not even its address)".into());
+    }
     line
 }
 

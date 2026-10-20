@@ -39,3 +39,19 @@ Findings that cost time once. Read before each phase.
   macro's `tool_router()` is private by default; with it public,
   `Server::tool_router().list_all()` gives every tool's name
   (`host/tests/mcp.rs`).
+- **`Frame`'s tag is `snake_case`, not `lowercase`.** With `lowercase`
+  serde writes `SettingsSet` as `settingsset`; `snake_case` gives
+  `settings_set` and leaves the one-word frames as they were. A field held
+  as `serde_json::Value` (so a bad value is refused by key, not by the
+  frame failing to parse) still gets a real TypeScript type with
+  `#[ts(as = "Settings")]`.
+- **A test importing `extension/theme.mjs` needs `theme.d.mts` beside
+  it**: tsc is strict and has no `allowJs`, so a plain `.mjs` import is
+  TS7016. `build.mjs` imports the same module, so the generator stays
+  JavaScript Node runs as is.
+- **The settings page can be looked at without loading the extension**:
+  bundle a preview that mounts `SettingsPage` on a fake port (esbuild from
+  `extension/node_modules`), serve it over HTTP (module scripts refuse
+  `file://`), and screenshot it with headless Chrome and a throwaway
+  `--user-data-dir`; `--blink-settings=preferredColorScheme=0` gives dark
+  mode, `1` light.

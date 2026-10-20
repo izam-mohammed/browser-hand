@@ -1,0 +1,12 @@
+[package]
+name = "prove-config-toml"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Standalone: proves the toml crate alone, never part of the project's build.
+[workspace]
+
+[dependencies]
+toml = "=1.1.8"
+serde = { version = "1", features = ["derive"] }

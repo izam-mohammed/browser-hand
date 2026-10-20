@@ -60,3 +60,40 @@ Inter for everything (the face already bundled in `host/assets/`, OFL), and
 JetBrains Mono for values a person copies: URL patterns, paths, numbers with
 units. Sizes from the 8-based scale: 24 page title, 16 section heading,
 14 body and labels, 12 help text and captions (the floor).
+
+## Global tokens
+
+The Penpot set `global` (`design/penpot/tokens.js`), the same in both
+modes. `extension/build.mjs` writes `extension/src/options/theme.gen.css`
+from this table and the colour table above: each token becomes a CSS
+custom property (`font.size.body` is `--font-size-body`, `light/bg` is
+`--color-bg`, with the `dark/` values under `prefers-color-scheme: dark`).
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `font.text` | `Inter` | everything |
+| `font.mono` | `JetBrains Mono` | patterns, paths, numbers with units |
+| `font.size.caption` | `12px` | help text, captions, mono values |
+| `font.size.body` | `14px` | body, labels, buttons |
+| `font.size.heading` | `16px` | section headings |
+| `font.size.title` | `24px` | the page title |
+| `font.weight.regular` | `400` | body |
+| `font.weight.medium` | `500` | labels |
+| `font.weight.semibold` | `600` | headings, the primary button |
+| `space.xs` | `4px` | |
+| `space.sm` | `8px` | between a list and its add field |
+| `space.md` | `12px` | inside list rows |
+| `space.lg` | `16px` | row padding |
+| `space.xl` | `24px` | section padding, the gap between sections |
+| `space.xxl` | `32px` | |
+| `space.page` | `48px` | the page's top and bottom |
+| `radius.sm` | `6px` | fields, buttons |
+| `radius.md` | `8px` | segmented controls, pattern lists |
+| `radius.lg` | `12px` | sections |
+| `radius.pill` | `999px` | the connection pill, toggles |
+| `border.width.hairline` | `1px` | edges |
+| `border.width.focus` | `2px` | focus and error rings |
+| `size.control.height` | `32px` | fields, buttons, segmented controls |
+| `size.toggle.width` | `36px` | toggles |
+| `size.toggle.height` | `20px` | toggles |
+| `opacity.tint` | `0.14` | a status colour behind its own text (the pill) |

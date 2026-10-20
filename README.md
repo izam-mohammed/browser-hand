@@ -3,7 +3,7 @@
 Lets Claude Code drive your own Chrome profiles: pick a profile, open and read
 pages, and click, type and scroll the way a person does, through a local MCP
 server and a Chrome extension whose only UI is a Record button for your own
-steps, which Claude can then read and replay. Modelled on Claude in Chrome
+steps, which Claude can then read and replay, and a settings page. Modelled on Claude in Chrome
 (`reference/claude-in-chrome/`), with profiles in place of a connected-browser
 list. macOS and Google Chrome for now.
 
@@ -52,8 +52,32 @@ Needs Rust (1.88+), Node (to build the extension) and Google Chrome.
    claude mcp add --scope user browser-hand -- "$PWD/plugin/server/browser-hand" mcp
    ```
 
-Set `BROWSER_HAND_PACE=fast` in the server's environment to skip the human
-travel time and typing gaps.
+## Settings
+
+Right-click the extension's toolbar button and choose **Options** (or
+`chrome://extensions`, Details, Extension options). The page sets, for
+every Chrome profile at once: pace (Human or Fast), typing and mouse speed,
+a default profile, whether a session opens a new window and closes its tabs
+at the end, blocked and read-only sites, screenshot size and quality, the
+GIF folder and frame delay, and how soon the debugger detaches.
+
+The native host saves them to `~/.config/browser-hand/config.toml`
+(`$XDG_CONFIG_HOME/browser-hand/` when set), mode `0600`, and every open
+profile picks a change up within 2 seconds. The page needs the host: with
+it not running, the page shows the last values read-only. Deleting the file
+brings the defaults back.
+
+Blocked and read-only sites are patterns like `*.bank.com/*` (`host/path`,
+`*` for anything, no scheme). The extension enforces them, so no request
+from the MCP server gets past them: every tool checks the tab's site, and
+Claude's tabs cannot load a blocked site at all (a network rule, on Claude's
+tab groups only). Read-only sites can be read and screenshotted but not
+clicked, typed in or scripted. Claude is told never to edit the file;
+nothing stops a Bash command that does, so keep that in mind.
+
+`BROWSER_HAND_PACE=fast` (or `human`) in a server's environment still
+overrides the page's pace for that server, and `BROWSER_HAND_OUTPUT_DIR`
+the GIF folder.
 
 ## Tools
 
@@ -75,7 +99,7 @@ travel time and typing gaps.
 | `resize_window` | Resizes the tab's window |
 | `browser_batch` | Several tool calls in one round trip |
 | `upload_image` | Uploads a recent screenshot to a file input or drop target |
-| `gif_creator` | Records the session's actions as an animated GIF |
+| `gif_creator` | Records the session's actions as an animated GIF, into the settings' GIF folder |
 | `recording_list`, `recording_get`, `recording_delete` | Steps you recorded with the toolbar button: list, read (as text or DevTools Recorder JSON), delete |
 | `recording_replay` | Does a recording's steps again in Claude's tab, moving like a person, with values changed where asked |
 
@@ -109,7 +133,8 @@ source or marked as an assumption, is in `extension/src/humane/params.ts`;
 the research is `docs/research/humane-input.md`.
 
 Reading tools never attach the debugger, so Chrome's "started debugging this
-browser" bar only shows while Claude is acting, and goes 30 s after.
+browser" bar only shows while Claude is acting, and goes 30 s after (the
+settings' "Detach after idle").
 
 ## Tests
 
