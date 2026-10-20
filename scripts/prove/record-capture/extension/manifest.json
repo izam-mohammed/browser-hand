@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "browser-hand record proof",
+  "version": "0.0.1",
+  "description": "Throwaway proof: a toolbar button and capture-phase listeners record trusted steps. Remove after scripts/prove/record-capture.sh passes.",
+  "permissions": ["debugger", "storage", "tabs"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "action": { "default_title": "Record proof: click to start" },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

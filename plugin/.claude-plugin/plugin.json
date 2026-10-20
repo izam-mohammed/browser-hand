@@ -1,0 +1,8 @@
+{
+  "name": "browser-hand",
+  "version": "0.1.0",
+  "description": "Drive your own Chrome profiles from Claude Code: pick a profile, read pages, click and type like a person, record GIFs.",
+  "author": {
+    "name": "Izam Mohammed"
+  }
+}

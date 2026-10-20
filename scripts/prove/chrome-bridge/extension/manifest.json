@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "browser-hand bridge proof",
+  "version": "0.0.1",
+  "description": "Throwaway proof: native port and profile claim. Remove after scripts/prove/chrome-bridge.sh passes.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApXjHTid3U0U09S3w3tzjBHS+GIcKDiyKWQNnzH1aoyNUAtT/yzeol1DexvAU1Hg5UnO7/MvJRXX+BYw2PAKFiVnLzLBNgMJm167JLuT6aMbTDDrkaONumvifiasJInILlge1pWZBr2/mTdUbFapQmI9bz/Uj2xL5WFJ/GB5fYPJG/WOeAmBp5c6f2zk/sR3g75mJfkjUIobbfnE4e/PzxfB2A7Bc/vWZpChwN+f7AWavLcMQjWRJgnCdF4i9qzsVyeLYhODqRrdKICSCpxwD3BYzdSp11b1B8gtwuBh4ubMlQacT8ECzuLPDP6fJbFw31X+0lP7K0cohK/dv68t67QIDAQAB",
+  "permissions": ["nativeMessaging", "storage"],
+  "background": { "service_worker": "background.js" }
+}
