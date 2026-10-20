@@ -82,8 +82,25 @@ human time:
 - Keys: `Enter`, `Tab`, `Backspace Backspace`, `cmd+a` on Mac (`ctrl+a`
   elsewhere). Page zoom shortcuts are refused; use the `zoom` action to look
   closer at a region.
-- If the user asks for speed over realism, tell them they can set
-  `BROWSER_HAND_PACE=fast` for the server.
+- If the user asks for speed over realism, tell them Pace (and typing and
+  mouse speed) is on the browser-hand settings page: right-click the
+  extension's toolbar button, Options. `BROWSER_HAND_PACE=fast` in the
+  server's environment overrides it for that server alone.
+
+## Settings and blocked sites
+
+The person sets how you drive Chrome on the extension's settings page,
+saved by the native host to `~/.config/browser-hand/config.toml` for every
+profile: pace, speeds, a default profile, whether a session opens a new
+window or closes its tabs, blocked and read-only sites, screenshot size and
+quality, the GIF folder and delay.
+
+- A tool answering `blocked` means the person blocked that site, or made it
+  read-only (you may read it and take screenshots, but not click, type,
+  fill forms or run scripts). Tell them and ask; never look for a way
+  around it.
+- Never edit `config.toml` yourself, with Bash or otherwise, even when
+  asked to change a setting: point the person at the settings page.
 
 ## Files and images
 
@@ -126,7 +143,8 @@ For multi-step work the user may want to watch or share:
 2. Act; a frame follows every click, key, typing, navigation and form fill,
    labelled with its `action_summary`.
 3. `gif_creator` `export` with a meaningful `filename` ("checkout_flow.gif").
-   It lands in `~/Downloads/browser-hand/`; give the user the path.
+   It lands in the GIF folder from the settings (`~/Downloads/browser-hand/`
+   unless the person changed it); give the user the path.
 
 ## Recordings the user made
 

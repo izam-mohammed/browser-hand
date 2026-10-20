@@ -36,7 +36,15 @@ hello    {"type":"hello","protocol":1,"profileDir":"<dir>"|null,"extensionVersio
 claimed  {"type":"claimed","profileDir":"<dir>","nonce":"<n>"}
 chunk    {"type":"chunk","id":u64,"seq":u32,"last":bool,"data":"<base64>"}
 end      {"type":"end","session":"<uuid>"}
+settings        {"type":"settings","settings":{...},"revision":"<mtime ns>","path":"<abs>",
+                 "profiles":[{"dir","name"}],"warnings":["<key>: ..."]}
+settings_set    {"type":"settings_set","id":u64,"settings":{...},"revision":"<base>"}
+settings_saved  {"type":"settings_saved","id":u64,"ok":bool,"path"?:"<abs>",
+                 "error"?:{"field":"<key>"|null,"message":"..."}}
 ```
+
+`settings` holds `config.toml`'s keys (`plans/06-settings.md` § Contract),
+typed as `Settings` in `host/src/config.rs`.
 
 `imageId` is optional. Unknown frame types are rejected as invalid and
 skipped; the stream continues.
@@ -52,6 +60,14 @@ skipped; the stream continues.
   forwards `claimed` to its clients.
 - **Call.** A client sends `call`; the host gives it a host-wide id, forwards
   it, and returns the `result` to that client under the client's own id.
+- **Settings.** The host sends `settings` to the extension after each
+  `hello` from it and whenever `config.toml` changes on disk (it looks every
+  2 s). The settings page sends `settings_set` through the service worker;
+  the host saves it unless a value is refused or the file's revision is no
+  longer the one the page edited ("changed in another profile"), answers
+  `settings_saved` with the same `id`, then sends `settings` again.
+  `settings_set` is taken only from Chrome's port: a socket client's is
+  dropped, so no MCP server can change the settings.
 - **End.** When a client disconnects, the host sends `end` for every session
   that client used, so the extension forgets its tab groups. Tabs stay open.
 
@@ -69,7 +85,9 @@ chunked (Chrome allows 64 MiB that way).
 ## Errors
 
 `not_connected`, `no_tab`, `debugger_refused`, `timeout`, `bad_args`,
-`page_error`.
+`page_error`, `blocked` (the tab's site is blocked, or read-only for an
+acting tool, in the settings: "<host> is blocked in browser-hand settings;
+ask the person.").
 
 ## Compatibility
 
@@ -93,3 +111,12 @@ new frame):
   them one at a time.
 - An extension of protocol 1 without these answers `bad_args` "Unknown
   tool".
+
+Frames added since protocol 1 shipped: `settings`, `settings_set` and
+`settings_saved` (`plans/06-settings.md`). Peers that predate them skip
+them as unknown, so `protocol` stays 1: an older host never answers
+`settings_set` and never sends `settings`, which the settings page shows as
+"Not connected" with the host named older than the extension. `computer`
+and `replay_step` carry `pace` only when the MCP server has
+`BROWSER_HAND_PACE` set; without it the extension uses the settings'
+pace.

@@ -5,11 +5,27 @@ import type { DebuggerManager } from "./debugger";
 import { ToolError } from "./wire";
 
 /** Long edges past these are scaled down (Anthropic's guidance for web
- * apps, docs/research/humane-input.md § 5). */
+ * apps, docs/research/humane-input.md § 5). The settings' screenshot size
+ * replaces them (plans/06-settings.md). */
 export const MAX_WIDTH = 1280;
 export const MAX_HEIGHT = 800;
 export const CAPTURE_TIMEOUT_MS = 10_000;
 const JPEG_QUALITY = 80;
+
+/** Screenshot size and JPEG quality from the settings. */
+export interface ShotPrefs {
+  maxWidth: number;
+  maxHeight: number;
+  quality: number;
+}
+
+export const DEFAULT_SHOT: ShotPrefs = { maxWidth: MAX_WIDTH, maxHeight: MAX_HEIGHT, quality: JPEG_QUALITY };
+
+/** The settings' `"1280x800"` and quality as `ShotPrefs`. */
+export function shotPrefs(size: string, quality: number): ShotPrefs {
+  const [w, h] = size.split("x").map(Number);
+  return { maxWidth: w || MAX_WIDTH, maxHeight: h || MAX_HEIGHT, quality: quality || JPEG_QUALITY };
+}
 /** Chrome shows its "started debugging" bar on attach and shrinks the
  * viewport a moment later; metrics read before that are too tall. */
 export const INFOBAR_SETTLE_MS = 300;
@@ -34,14 +50,14 @@ function withTimeout<T>(p: Promise<T>, what: string): Promise<T> {
 }
 
 /** Output size per CSS pixel for a full screenshot. */
-export function fitScale(width: number, height: number, userScale = 1): number {
-  const fit = Math.min(1, MAX_WIDTH / width, MAX_HEIGHT / height);
+export function fitScale(width: number, height: number, userScale = 1, prefs: ShotPrefs = DEFAULT_SHOT): number {
+  const fit = Math.min(1, prefs.maxWidth / width, prefs.maxHeight / height);
   return fit * Math.min(1, Math.max(0.1, userScale));
 }
 
 /** Output size per CSS pixel for a zoomed region: enlarged up to 3x. */
-export function zoomScale(width: number, height: number, userScale = 1): number {
-  const enlarge = Math.min(3, Math.max(1, Math.min(MAX_WIDTH / width, MAX_HEIGHT / height)));
+export function zoomScale(width: number, height: number, userScale = 1, prefs: ShotPrefs = DEFAULT_SHOT): number {
+  const enlarge = Math.min(3, Math.max(1, Math.min(prefs.maxWidth / width, prefs.maxHeight / height)));
   return enlarge * Math.min(1, Math.max(0.1, userScale));
 }
 
@@ -49,6 +65,7 @@ export async function capture(
   dbg: DebuggerManager,
   tabId: number,
   opts: { scale?: number; region?: [number, number, number, number] },
+  prefs: ShotPrefs = DEFAULT_SHOT,
 ): Promise<Shot> {
   if (!dbg.isAttached(tabId)) {
     await dbg.attach(tabId);
@@ -68,10 +85,10 @@ export async function capture(
     const [x0, y0, x1, y1] = opts.region;
     if (!(x1 > x0 && y1 > y0)) throw new ToolError("bad_args", "region must be [x0, y0, x1, y1] with x1 > x0 and y1 > y0");
     clip = { x: vv.pageX + x0, y: vv.pageY + y0, width: x1 - x0, height: y1 - y0 };
-    outScale = zoomScale(clip.width, clip.height, opts.scale);
+    outScale = zoomScale(clip.width, clip.height, opts.scale, prefs);
   } else {
     clip = { x: vv.pageX, y: vv.pageY, width: vv.clientWidth, height: vv.clientHeight };
-    outScale = fitScale(clip.width, clip.height, opts.scale);
+    outScale = fitScale(clip.width, clip.height, opts.scale, prefs);
   }
 
   // The clip's scale multiplies device pixels, so divide out the ratio to
@@ -79,7 +96,7 @@ export async function capture(
   const shot = await withTimeout(
     dbg.send<{ data: string }>(tabId, "Page.captureScreenshot", {
       format: "jpeg",
-      quality: JPEG_QUALITY,
+      quality: prefs.quality,
       fromSurface: true,
       captureBeyondViewport: false,
       clip: { ...clip, scale: outScale / dpr },
@@ -97,11 +114,11 @@ export async function capture(
 }
 
 /** For a tab Chrome will not attach to: the visible area of the active tab. */
-export async function captureVisible(tab: chrome.tabs.Tab): Promise<Shot> {
+export async function captureVisible(tab: chrome.tabs.Tab, prefs: ShotPrefs = DEFAULT_SHOT): Promise<Shot> {
   if (!tab.active || tab.windowId === undefined) {
     throw new ToolError("debugger_refused", "Cannot screenshot this tab: Chrome refused to attach and it is not the active tab");
   }
-  const url = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: JPEG_QUALITY });
+  const url = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: prefs.quality });
   return {
     data: url.slice(url.indexOf(",") + 1),
     mimeType: "image/jpeg",

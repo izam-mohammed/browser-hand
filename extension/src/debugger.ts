@@ -1,5 +1,6 @@
 // Attaches chrome.debugger to a tab only when a tool needs it, and detaches
-// after 30 s idle so Chrome's "started debugging this browser" bar goes away
+// after 30 s idle (the settings' "detach after idle") so Chrome's "started
+// debugging this browser" bar goes away
 // (docs/external/chrome-debugger-cdp.md § Infobar while attached).
 import { ToolError } from "./wire";
 
@@ -21,6 +22,11 @@ export class DebuggerManager {
     api.onDetach.addListener((source) => {
       if (source.tabId !== undefined) this.forget(source.tabId);
     });
+  }
+
+  /** A new idle time from the settings; it counts from each tab's next use. */
+  setIdleMs(ms: number) {
+    this.idleMs = ms;
   }
 
   isAttached(tabId: number) {
