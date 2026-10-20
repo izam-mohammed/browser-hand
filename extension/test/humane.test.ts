@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PARAMS } from "../src/humane/params";
+import { PARAMS, scaledParams } from "../src/humane/params";
 import { minimumJerk, movePath, segment } from "../src/humane/path";
 import { seeded } from "../src/humane/random";
 import { fittsMs, keyGapMs, keyHoldMs } from "../src/humane/timing";
@@ -248,5 +248,39 @@ describe("computer actions", () => {
   it("wait is capped at 10 s", async () => {
     const { input } = recorder();
     await expect(input.run({ action: "wait", duration: 11 }, "fast")).rejects.toMatchObject({ code: "bad_args" });
+  });
+});
+
+describe("speeds from the settings", () => {
+  it("typing speed multiplies the gap between keys and nothing else", () => {
+    const p = scaledParams(0.5, 1);
+    expect([p.keyGapMeanMs, p.keyGapSdMs, p.keyGapFloorMs]).toEqual([PARAMS.keyGapMeanMs / 2, PARAMS.keyGapSdMs / 2, PARAMS.keyGapFloorMs / 2]);
+    expect(p.wordPauseMs).toEqual([0, 60]);
+    expect([p.keyHoldMeanMs, p.fittsA, p.fittsB, p.moveIntervalMs]).toEqual([PARAMS.keyHoldMeanMs, PARAMS.fittsA, PARAMS.fittsB, PARAMS.moveIntervalMs]);
+  });
+
+  it("mouse speed multiplies the cursor's travel time", () => {
+    const p = scaledParams(1, 2);
+    expect(fittsMs(800, 40, p)).toBeCloseTo(2 * fittsMs(800, 40));
+    expect(p.keyGapMeanMs).toBe(PARAMS.keyGapMeanMs);
+    expect(scaledParams()).toEqual(PARAMS);
+  });
+
+  it("an open tab's Input picks new speeds up for its next action", async () => {
+    const slow = recorder();
+    await slow.input.run({ action: "type", text: "hello world" }, "human");
+    const fast = recorder();
+    fast.input.setParams(scaledParams(0.25, 1));
+    await fast.input.run({ action: "type", text: "hello world" }, "human");
+    // Holds stay as measured, so only the gaps shrink.
+    expect(fast.slept()).toBeLessThan(slow.slept() * 0.75);
+
+    const moveSlow = recorder();
+    await moveSlow.input.run({ action: "left_click", coordinate: [900, 600] }, "human");
+    const moveFast = recorder();
+    moveFast.input.setParams(scaledParams(1, 0.25));
+    await moveFast.input.run({ action: "left_click", coordinate: [900, 600] }, "human");
+    const moves = (e: { params: { type: string } }[]) => e.filter((x) => x.params.type === "mouseMoved").length;
+    expect(moves(moveFast.events)).toBeLessThan(moves(moveSlow.events) / 2);
   });
 });

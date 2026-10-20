@@ -1,4 +1,4 @@
-//! Where the host sockets live. Chrome and Claude Code may start their
+//! Where the host sockets and the settings file live. Chrome and Claude Code may start their
 //! children with different environments, so on macOS the per-user temp dir
 //! is asked of the OS (`confstr`), not read from `$TMPDIR`.
 
@@ -50,4 +50,14 @@ pub fn ensure_socket_dir() -> std::io::Result<PathBuf> {
     std::fs::create_dir_all(&dir)?;
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
     Ok(dir)
+}
+
+/// `config.toml`, shared by every profile (plans/06-settings.md):
+/// `$XDG_CONFIG_HOME/browser-hand/`, else `~/.config/browser-hand/`.
+pub fn config_path() -> PathBuf {
+    let base = match std::env::var_os("XDG_CONFIG_HOME") {
+        Some(d) if PathBuf::from(&d).is_absolute() => PathBuf::from(d),
+        _ => PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config"),
+    };
+    base.join("browser-hand").join("config.toml")
 }

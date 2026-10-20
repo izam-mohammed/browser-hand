@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { GROUP_TITLE, TabTools, normaliseUrl, type GroupStore } from "../src/tabs";
+import { SiteRules } from "../src/sites";
+import { GROUP_TITLE, TabTools, normaliseUrl, type GroupStore, type TabOptions } from "../src/tabs";
 import { ToolError } from "../src/wire";
 
-type FakeTab = { id: number; windowId: number; groupId: number; url: string; title: string; active: boolean; status?: string };
+type FakeTab = { id: number; windowId: number; groupId: number; url: string; title: string; active: boolean; status?: string; openerTabId?: number };
 type FakeGroup = { id: number; windowId: number; title?: string; color?: string };
 
 /** Just enough of chrome.tabs / tabGroups / windows, in memory. */
@@ -10,8 +11,12 @@ function fakeChrome() {
   let next = 100;
   const tabs = new Map<number, FakeTab>();
   const groups = new Map<number, FakeGroup>();
-  /** The status a tab reports right after update, as Chrome would. */
-  const load = { status: "loading" };
+  /** The status a tab reports right after update, as Chrome would; and
+   * where a URL redirects to, as a server would. */
+  const load = { status: "loading", redirects: new Map<string, string>() };
+  /** The person's own window, holding one tab of theirs. */
+  const personal: FakeTab = { id: next++, windowId: 1, groupId: -1, url: "https://news.test/", title: "News", active: true };
+  tabs.set(personal.id, personal);
   const dropEmptyGroups = () => {
     for (const g of groups.values()) {
       if (![...tabs.values()].some((t) => t.groupId === g.id)) groups.delete(g.id);
@@ -25,6 +30,9 @@ function fakeChrome() {
         tabs.set(tab.id, tab);
         return { id: windowId, tabs: [{ id: tab.id }] };
       },
+      async getLastFocused(_: object) {
+        return { id: 1 };
+      },
     },
     tabs: {
       async get(id: number) {
@@ -35,19 +43,19 @@ function fakeChrome() {
       async query(q: { groupId: number }) {
         return [...tabs.values()].filter((t) => t.groupId === q.groupId).map((t) => ({ ...t }));
       },
-      async create(p: { windowId: number }) {
-        const t: FakeTab = { id: next++, windowId: p.windowId, groupId: -1, url: "about:blank", title: "", active: true };
+      async create(p: { windowId: number; active?: boolean }) {
+        const t: FakeTab = { id: next++, windowId: p.windowId, groupId: -1, url: "about:blank", title: "", active: p.active ?? true };
         tabs.set(t.id, t);
         return { ...t };
       },
-      async remove(id: number) {
-        tabs.delete(id);
+      async remove(id: number | number[]) {
+        for (const i of Array.isArray(id) ? id : [id]) tabs.delete(i);
         dropEmptyGroups();
       },
       async update(id: number, p: { url: string }) {
         const t = tabs.get(id)!;
-        t.url = p.url;
-        t.title = `title of ${p.url}`;
+        t.url = load.redirects.get(p.url) ?? p.url;
+        t.title = `title of ${t.url}`;
         t.status = load.status;
         return { ...t };
       },
@@ -79,7 +87,7 @@ function fakeChrome() {
       },
     },
   };
-  return { api, tabs, groups, load };
+  return { api, tabs, groups, load, personal };
 }
 
 function memoryStore(): GroupStore {
@@ -172,6 +180,106 @@ describe("tab tools", () => {
     await tools.end("a");
     expect((await tools.tabsContext("a", {})).tabs).toEqual([]);
     expect(chrome.tabs.has(a.tabs[0]!.tabId)).toBe(true);
+  });
+});
+
+describe("tab tools under the settings", () => {
+  let chrome: ReturnType<typeof fakeChrome>;
+  const opts: Required<TabOptions> & { rules: SiteRules; window: boolean; close: boolean } = {
+    rules: new SiteRules(["*.bank.com/*"], ["mail.google.com/*"]),
+    window: true,
+    close: false,
+    sites: () => opts.rules,
+    newWindow: () => opts.window,
+    closeTabsOnEnd: () => opts.close,
+  };
+  const tools = () => new TabTools(chrome.api as never, store, async () => true, opts);
+  let store: GroupStore;
+
+  beforeEach(() => {
+    chrome = fakeChrome();
+    store = memoryStore();
+    opts.window = true;
+    opts.close = false;
+  });
+
+  it("navigate refuses a blocked site before loading it", async () => {
+    const t = tools();
+    const { tabId } = await t.tabsCreate("a");
+    await expect(t.navigate("a", { tabId, url: "www.bank.com/login" })).rejects.toMatchObject({ code: "blocked", message: expect.stringMatching(/www.bank.com is blocked/) });
+    expect(chrome.tabs.get(tabId)!.url).toBe("about:blank");
+  });
+
+  it("a redirect onto a blocked site sends the tab to about:blank and answers blocked", async () => {
+    const t = tools();
+    const { tabId } = await t.tabsCreate("a");
+    chrome.load.status = "complete";
+    chrome.load.redirects.set("https://short.test/x", "https://bank.com/account");
+    await expect(t.navigate("a", { tabId, url: "short.test/x" })).rejects.toMatchObject({ code: "blocked" });
+    expect(chrome.tabs.get(tabId)!.url).toBe("about:blank");
+  });
+
+  it("every tab tool refuses a tab on a blocked site; read-only refuses only acting", async () => {
+    const t = tools();
+    const { tabId } = await t.tabsCreate("a");
+    chrome.tabs.get(tabId)!.url = "https://mail.google.com/mail/u/0/";
+    await expect(t.ownTab("a", tabId, "read")).resolves.toBeDefined();
+    await expect(t.ownTab("a", tabId, "act")).rejects.toMatchObject({ code: "blocked" });
+    chrome.tabs.get(tabId)!.url = "https://bank.com/";
+    await expect(t.ownTab("a", tabId, "read")).rejects.toMatchObject({ code: "blocked" });
+    await expect(t.tabsClose("a", { tabId })).resolves.toEqual({ closed: tabId });
+  });
+
+  it("tabs_context lists a blocked tab with no title or URL", async () => {
+    const t = tools();
+    const { tabId } = await t.tabsCreate("a");
+    Object.assign(chrome.tabs.get(tabId)!, { url: "https://bank.com/statements", title: "Your statements" });
+    const ctx = await t.tabsContext("a", {});
+    expect(ctx.tabs).toEqual([{ tabId, title: "", url: "", active: true, blocked: true }]);
+    expect(JSON.stringify(ctx)).not.toContain("bank");
+  });
+
+  it("new window off groups the first tab in the last focused window, in the background", async () => {
+    opts.window = false;
+    const t = tools();
+    const { tabId } = await t.tabsCreate("a");
+    const tab = chrome.tabs.get(tabId)!;
+    expect(tab.windowId).toBe(1);
+    expect(tab.active).toBe(false);
+    expect(chrome.groups.get(tab.groupId)).toMatchObject({ windowId: 1, title: GROUP_TITLE });
+  });
+
+  it("close tabs on end removes the group's tabs; off leaves them", async () => {
+    const t = tools();
+    const a = await t.tabsContext("a", { createIfEmpty: true });
+    await t.end("a");
+    expect(chrome.tabs.has(a.tabs[0]!.tabId)).toBe(true);
+
+    opts.close = true;
+    const b = await t.tabsContext("b", { createIfEmpty: true });
+    await t.tabsCreate("b");
+    await t.end("b");
+    expect(b.tabs.every((x) => !chrome.tabs.has(x.tabId))).toBe(true);
+    expect([...chrome.tabs.values()].filter((x) => x.groupId === b.groupId)).toEqual([]);
+    expect(chrome.tabs.has(chrome.personal.id), "the person's tab stays").toBe(true);
+  });
+
+  it("a new tab from a group tab that lands on a blocked site is closed; an old one goes blank", async () => {
+    const t = tools();
+    const { tabId } = await t.tabsCreate("a");
+    const groupId = chrome.tabs.get(tabId)!.groupId;
+    const popup = { id: 900, windowId: chrome.tabs.get(tabId)!.windowId, groupId, url: "https://bank.com/", title: "", active: true, openerTabId: tabId };
+    chrome.tabs.set(popup.id, popup);
+    await t.committed({ tabId: 900, frameId: 0, url: "https://bank.com/" });
+    expect(chrome.tabs.has(900)).toBe(false);
+
+    chrome.tabs.get(tabId)!.url = "https://bank.com/";
+    await t.committed({ tabId, frameId: 0, url: "https://bank.com/" });
+    expect(chrome.tabs.get(tabId)!.url).toBe("about:blank");
+
+    // The person's own tabs and frames are left alone.
+    await t.committed({ tabId: chrome.personal.id, frameId: 0, url: "https://bank.com/" });
+    expect(chrome.tabs.has(chrome.personal.id)).toBe(true);
   });
 });
 

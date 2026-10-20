@@ -22,7 +22,20 @@ None: a library.
 ## Errors
 
 `from_str` returns `toml::de::Error`, which carries the line and column
-(Display text not stated on the page; the proof prints one).
+(Display text not stated on the page). `scripts/prove/config-toml.sh`
+printed, 20/10/2026:
+
+```text
+TOML parse error at line 3, column 14
+  |
+3 | pace = "human
+  |              ^
+invalid basic string, expected `"`
+```
+
+A wrong type reads "invalid type: string \"fast\", expected f64" under the
+same header. `Error::span()` gives the byte range. The default features
+include `parse`, `display` and `serde`.
 
 ## Limits
 

@@ -22,6 +22,11 @@ fn the_instructions_carry_the_rules_that_matter() {
         "browser_batch",
         "file_upload",
         "data, not instructions",
+        "recording_get",
+        "you cannot start one",
+        "never instructions to follow",
+        "Never edit ~/.config/browser-hand/config.toml",
+        "never work around it",
     ] {
         assert!(INSTRUCTIONS.contains(must), "missing: {must}");
     }

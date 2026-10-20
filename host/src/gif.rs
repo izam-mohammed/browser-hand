@@ -237,13 +237,13 @@ pub fn unused_path(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
         .expect("some number is free")
 }
 
-/// `~/Downloads/browser-hand/`, created if needed. `BROWSER_HAND_OUTPUT_DIR`
-/// overrides it (tests).
-pub fn output_dir() -> std::io::Result<std::path::PathBuf> {
+/// The settings' GIF folder (`capture.gif_folder`, `~` expanded), created
+/// if needed. `BROWSER_HAND_OUTPUT_DIR` overrides it, as it did before the
+/// settings existed.
+pub fn output_dir(gif_folder: &str) -> std::io::Result<std::path::PathBuf> {
     let dir = match std::env::var_os("BROWSER_HAND_OUTPUT_DIR") {
         Some(d) => std::path::PathBuf::from(d),
-        None => std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
-            .join("Downloads/browser-hand"),
+        None => crate::config::expand(gif_folder),
     };
     std::fs::create_dir_all(&dir)?;
     Ok(dir)

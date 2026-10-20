@@ -351,3 +351,52 @@ pub struct GifArgs {
     #[serde(default)]
     pub options: Option<GifOptions>,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum RecordingFormat {
+    Text,
+    Devtools,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct RecordingGetArgs {
+    /// The recording's id from recording_list; the newest when left out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// "text" (default): one line per step. "devtools": the Chrome DevTools Recorder UserFlow JSON
+    /// alone, which DevTools' Recorder panel can import.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<RecordingFormat>,
+    /// Also show the steps Claude's own actions made during the recording (hidden by default).
+    #[serde(
+        default,
+        rename = "includeClaude",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub include_claude: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct RecordingDeleteArgs {
+    /// The recording's id from recording_list.
+    pub id: String,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct RecordingReplayArgs {
+    /// The recording's id from recording_list; the newest when left out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// Step number to start at, as recording_get numbers them (default 1). Use it to resume
+    /// after the step that stopped a replay.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<u32>,
+    /// New values for change steps, by step number: {"4": "new search words"}. Masked steps
+    /// (passwords, card numbers) need one, or the replay stops there.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub values: Option<std::collections::BTreeMap<String, String>>,
+    /// Tab to replay in. Must be in this session's group; a new tab is created when left out.
+    #[serde(default, rename = "tabId", skip_serializing_if = "Option::is_none")]
+    pub tab_id: Option<i64>,
+}

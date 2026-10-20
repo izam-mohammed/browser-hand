@@ -53,4 +53,22 @@ export const PARAMS = {
   fastStepMs: 0,
 } as const;
 
-export type Params = typeof PARAMS;
+/** The shape of `PARAMS`, with numbers free to change (`scaledParams`). */
+export type Params = {
+  readonly [K in keyof typeof PARAMS]: (typeof PARAMS)[K] extends number ? number : readonly [number, number];
+};
+
+/** `PARAMS` with the settings' speeds (plans/06-settings.md): `typing`
+ * multiplies the gap between keys and `mouse` the cursor's travel time, so
+ * 0.5 is twice as fast. Holds, dwells and the event rate stay as measured. */
+export function scaledParams(typing = 1, mouse = 1): Params {
+  return {
+    ...PARAMS,
+    fittsA: PARAMS.fittsA * mouse,
+    fittsB: PARAMS.fittsB * mouse,
+    keyGapMeanMs: PARAMS.keyGapMeanMs * typing,
+    keyGapSdMs: PARAMS.keyGapSdMs * typing,
+    keyGapFloorMs: PARAMS.keyGapFloorMs * typing,
+    wordPauseMs: [PARAMS.wordPauseMs[0] * typing, PARAMS.wordPauseMs[1] * typing] as const,
+  };
+}
