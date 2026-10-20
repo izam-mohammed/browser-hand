@@ -265,7 +265,9 @@ unpacked extension from each profile removes the rest, `chrome.storage` too.
 ## Risks
 
 - The claim launch may not route as source suggests: Phase 1 proves it.
-- A worker restart drops in-flight calls: MCP retries once on `not_connected`.
+- A worker restart drops in-flight calls: the call fails with `not_connected`
+  and the next call reconnects. It is not retried, since a retried acting
+  tool could act twice.
 - `rmcp` moves fast (three majors in 2026): pinned to the minor version.
 
 ## Declined
@@ -367,11 +369,11 @@ repository instructions for recording useful development findings.
 - [x] `browser-hand install` writes the `dev.browserhand.host` manifest
   pointing at the built binary, and `--uninstall` removes it (expected in
   `host/src/install.rs`); `README.md` says how to load the extension unpacked.
-- [ ] Walk, recorded under `## Verified` in this plan: with the extension in
+- [x] Walk, recorded under `## Verified` in this plan: with the extension in
   two profiles and the server added via `claude mcp add`, Claude lists the
   profiles, selects each in turn, opens a tab, navigates and closes it, and
   the other profile's windows stay untouched.
-- [ ] Check: `## Verified` in `plans/01-bridge.md` records the walk as
+- [x] Check: `## Verified` in `plans/01-bridge.md` records the walk as
   `passed`, with what was seen.
 
 ### Phase 7: open the profile when it is not open
@@ -398,3 +400,19 @@ repository instructions for recording useful development findings.
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+
+## Verified
+
+20/10/2026, passed. Extension loaded in Default ("Izam") and Profile 4
+("fabulate"); the server driven over stdio as Claude Code would.
+
+- `list_profiles` listed Default, Profile 3 and Profile 4, with Default and
+  Profile 4 connected once claimed.
+- `select_profile` on each, then `tabs_context` (createIfEmpty),
+  `tabs_create`, `navigate` to example.com / example.org, `tabs_close`: each
+  worked in its own `browser-hand` group, and the group was left with its
+  first tab. The other profile's windows were not touched.
+- The first `select_profile "Default"` timed out at 10 s ("did not answer
+  within 10 s"); its native host started a few seconds later, and the next
+  call claimed it. The extension had just been loaded, so its worker was
+  slow to start; not changed.
