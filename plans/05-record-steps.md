@@ -488,12 +488,12 @@ host, so it needs no `key`, no host manifest and no `--install` step.
   replay it with one value changed; a `## Verified` section in this plan
   records the date, what was recorded, what replayed and any step that
   missed.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
 
 ### Phase 6: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to date)
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
