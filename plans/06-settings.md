@@ -442,24 +442,50 @@ another name.
 
 ### Phase 2: the rough cut (needs you: try it)
 
-- [ ] `config.toml` loads with defaults, validates and saves atomically,
+- [x] `config.toml` loads with defaults, validates and saves atomically,
   mode `0600` (expected in `host/src/config.rs`), pinned by
   `host/tests/config.rs`.
-- [ ] The three frames and `blocked` exist (expected in `host/src/wire.rs`,
+  Landed 20/10/2026: `config::parse` reads key by key, so a wrong type or a
+  value out of range falls back alone with a warning, and a bad pattern
+  drops only itself; a file that is not TOML at all keeps the native
+  host's last good settings (the MCP server uses the defaults). The
+  revision is the file's mtime in ns, "0" with no file. The path is
+  `paths::config_path()`.
+- [x] The three frames and `blocked` exist (expected in `host/src/wire.rs`,
   regenerating `extension/src/wire.gen.ts`, with fixtures and
   `docs/protocol.md`); the native host sends `settings` on the extension's
   hello and saves `settings_set` from Chrome only (expected in
   `host/src/native_host.rs`), pinned by `host/tests/relay.rs`.
-- [ ] Options opens every section of `design/settings--light.png` with plain
+  Landed 20/10/2026: `Frame`'s tag is now `snake_case` (one-word frames
+  unchanged). `settings_set` carries its settings as JSON and is checked by
+  key (`config::from_page`), so a bad value is refused with its field
+  rather than the frame being skipped. After every `settings_set`, saved or
+  refused, the host sends `settings` again. Socket clients' `settings_set`
+  falls through the relay's catch-all and is dropped.
+- [x] Options opens every section of `design/settings--light.png` with plain
   controls, a Connected pill and a Save that writes the file (expected in
   `extension/options.html`, `extension/src/options/` and
   `extension/src/settings.ts`), pinned by `extension/test/settings.test.ts`.
-- [ ] Pace follows the setting unless `BROWSER_HAND_PACE` is set, and a
+  Landed 20/10/2026: `extension/src/options/page.ts` (`SettingsPage`, plain
+  DOM, one render function per section) on a `runtime.connect` port to
+  `SettingsHub` in `extension/src/settings.ts`, which serves only ports
+  from this extension's `options.html`. Profiles for the default profile
+  come in the `settings` frame from Chrome's `Local State`.
+- [x] Pace follows the setting unless `BROWSER_HAND_PACE` is set, and a
   blocked site is refused by `navigate` and every tab tool (expected in
   `extension/src/sites.ts`, `extension/src/tabs.ts`, `host/src/mcp.rs`),
   pinned by `extension/test/sites.test.ts` and `host/tests/mcp.rs`.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 20/10/2026: the server sends `pace` only when `BROWSER_HAND_PACE` is
+  set (any value but `fast` is `human`); the extension uses the settings
+  otherwise. The gate is `TabTools.ownTab(session, tab, use)` with
+  `useFor(tool, args)` from `sites.ts`; `navigate` checks the target URL
+  and never refuses leaving a site, and `tabs_close` is never refused.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 20/10/2026: 188 extension tests and 97 host tests pass; of
+  `scripts/build.sh` the build steps ran (`cargo build --release`,
+  `npm --prefix extension run build`) but not its `install`, which writes
+  under `~/Library` and was left for the person.
 - [ ] You try it: reload the extension, right-click its button, Options,
   set Pace to Fast and block a site you use, Save, open
   `~/.config/browser-hand/config.toml`, then ask Claude to open that site
@@ -468,68 +494,141 @@ another name.
 
 ### Phase 3: every setting takes effect
 
-- [ ] Typing and mouse speed scale a copy of `PARAMS` that open tabs'
+- [x] Typing and mouse speed scale a copy of `PARAMS` that open tabs'
   `Input` pick up (expected in `extension/src/humane/params.ts`), pinned by
   `extension/test/humane.test.ts`.
-- [ ] Read-only sites allow only Edge cases' reading tools (expected in
+  Landed 20/10/2026: `scaledParams(typing, mouse)` multiplies the key gap's
+  mean, SD, floor and word pause by typing speed, and Fitts's a and b by
+  mouse speed; holds and dwells stay as measured. `Input.setParams` takes
+  the new copy, and the worker gives it to every open tab's `Input`.
+- [x] Read-only sites allow only Edge cases' reading tools (expected in
   `extension/src/sites.ts`), pinned by `sites.test.ts`.
-- [ ] Screenshot size and quality and detach after idle follow the settings
+  Landed 20/10/2026: as the Edge cases list them, so `computer` `wait` and
+  `hover` are refused too; `resize_window` is allowed (it touches the
+  window, not the page).
+- [x] Screenshot size and quality and detach after idle follow the settings
   (expected in `extension/src/screenshot.ts`, `extension/src/debugger.ts`),
   pinned by `extension/test/tools.test.ts`.
-- [ ] New window off groups a tab in the last focused window; close tabs
+  Landed 20/10/2026: `ShotPrefs` replaces `MAX_WIDTH`, `MAX_HEIGHT` and
+  the JPEG quality for `fitScale`, `zoomScale`, `capture` and
+  `captureVisible`; `DebuggerManager.setIdleMs` takes the idle time, from
+  each tab's next use.
+- [x] New window off groups a tab in the last focused window; close tabs
   removes the group's tabs on `end` (expected in `extension/src/tabs.ts`),
   pinned by `extension/test/tabs.test.ts`.
-- [ ] The MCP server binds the default profile when none is bound, and GIF
+  Landed 20/10/2026: with new window off the group's first tab opens in the
+  background (`active: false`) of `windows.getLastFocused` (normal
+  windows), so it does not take the person's view; with no window open it
+  falls back to a new one.
+- [x] The MCP server binds the default profile when none is bound, and GIF
   export and saved screenshots use the file's folder and delay (expected in
   `host/src/mcp.rs`, `host/src/gif.rs`), pinned by `host/tests/mcp.rs`;
   `README.md`, `host/src/instructions.md` and the skill describe the page,
   the override and never editing the file.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 20/10/2026: before any call with no profile bound, a default
+  profile that Chrome still lists is selected as `select_profile` would,
+  opening it when it is not connected. `BROWSER_HAND_OUTPUT_DIR` still
+  overrides the GIF folder, as it did. Replay stops at a step that stands
+  for a blocked site.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 20/10/2026: 188 extension tests and 97 host tests pass; of
+  `scripts/build.sh` the build steps ran (`cargo build --release`,
+  `npm --prefix extension run build`) but not its `install`, which writes
+  under `~/Library` and was left for the person.
 
 ### Phase 4: site rules in the network stack
 
-- [ ] Blocked patterns become `main_frame` and `sub_frame` session rules
+- [x] Blocked patterns become `main_frame` and `sub_frame` session rules
   for browser-hand group tabs, kept current as tabs and settings change,
   with the permission in `extension/manifest.json` (expected in
   `extension/src/site-rules.ts`), pinned by `sites.test.ts`.
-- [ ] Redirects, new tabs and `tabs_context` behave as Edge cases say
+  Landed 20/10/2026: `SiteRuleSync` rewrites the whole set (remove every
+  old id, add one rule per pattern with every tab of every group titled
+  browser-hand) on a settings change, `tabs.onUpdated` with a `groupId`,
+  `tabs.onRemoved` and `tabGroups.onUpdated`; calls made together share
+  one rewrite. The `regexFilter` comes from the same pieces as the gate's
+  regex, pinned by a test that they agree.
+- [x] Redirects, new tabs and `tabs_context` behave as Edge cases say
   (expected in `extension/src/tabs.ts`), pinned by `tabs.test.ts`.
-- [ ] Plan 05's recorder drops steps from blocked tabs and notes the gap
+  Landed 20/10/2026: `TabTools.committed` handles `webNavigation.onCommitted`
+  for tabs of any browser-hand group: one with an opener is closed, an
+  older one goes to about:blank.
+- [x] Plan 05's recorder drops steps from blocked tabs and notes the gap
   (expected in `extension/src/recorder.ts`), pinned by
   `extension/test/record.test.ts`.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 20/10/2026: a step whose frame URL (`sender.url`) is blocked is
+  dropped, and one stand-in step per stay (`navigate` to about:blank with
+  `meta.blocked`) notes the gap, with no address; a recording started on a
+  blocked page keeps no title. `recording_get` reads it as a gap.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 20/10/2026: 188 extension tests and 97 host tests pass; of
+  `scripts/build.sh` the build steps ran (`cargo build --release`,
+  `npm --prefix extension run build`) but not its `install`, which writes
+  under `~/Library` and was left for the person.
 
 ### Phase 5: the states
 
-- [ ] Editing as `design/settings--editing.png`: the bar counts changes,
+- [x] Editing as `design/settings--editing.png`: the bar counts changes,
   Discard reverts, a bad pattern is refused inline with the design's words;
   saving as `design/settings--saved.png`: a 4 s toast with the path, and a
   stale revision says "changed in another profile" (expected in
   `extension/src/options/`), pinned by `settings.test.ts`.
-- [ ] Disconnected as `design/settings--disconnected.png`: pill and banner
+  Landed 20/10/2026: one change per value and per pattern added or
+  removed. A page with edits keeps them when the file changes elsewhere;
+  saving then is refused as stale, and the page shows the file as it is
+  now with a toast "Not saved: changed in another profile". The GIF delay,
+  idle time and folder are checked on the page too; Save waits for them.
+- [x] Disconnected as `design/settings--disconnected.png`: pill and banner
   follow the port, controls read-only from `settings:last`, Retry reconnects
   at once (expected in `extension/src/settings.ts`), pinned by
   `settings.test.ts`.
-- [ ] Each native host polls the file every 2 s and pushes a change
+  Landed 20/10/2026: the banner says "Run browser-hand install, then Retry"
+  (the Open decision's default) with Chrome's reason when there is one;
+  an open port with no `settings` after 3 s reads as an older host. While
+  the port is connecting the pill says Not connected and no banner shows.
+- [x] Each native host polls the file every 2 s and pushes a change
   (expected in `host/src/config.rs`), pinned by `host/tests/relay.rs`.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 20/10/2026: in `host/src/native_host.rs` (`poll_loop`), reading
+  `config::revision`; the file's functions are in `host/src/config.rs`.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 20/10/2026: 188 extension tests and 97 host tests pass; of
+  `scripts/build.sh` the build steps ran (`cargo build --release`,
+  `npm --prefix extension run build`) but not its `install`, which writes
+  under `~/Library` and was left for the person.
 
 ### Phase 6: the look (needs you: the icon)
 
-- [ ] `design/theme.md` gains the `global` token table, and
+- [x] `design/theme.md` gains the `global` token table, and
   `extension/build.mjs` writes `extension/src/options/theme.gen.css` from
   it, pinned by `extension/test/theme.test.ts`.
-- [ ] The page matches `design/settings--light.png` and
+  Landed 20/10/2026: the generator is `extension/theme.mjs` (typed by
+  `theme.d.mts`), used by `build.mjs` and the test; the page's own CSS
+  names no colour, also pinned.
+- [x] The page matches `design/settings--light.png` and
   `design/settings--dark.png` in the system's mode, with fonts from
   `extension/fonts/` (expected in `extension/src/options/`), checked by eye.
+  Landed 20/10/2026: checked against the exported PNGs from headless Chrome
+  screenshots of the page (light, dark, editing, saved, disconnected) on a
+  fake port, not yet in the extension itself. Inter is copied from
+  `host/assets/` at build; JetBrains Mono v2.304 Regular (woff2) and its
+  OFL are in `extension/fonts/`. The sliders put 1.0x at a quarter of the
+  0.25 to 3.0 track, where the drawing has it in the middle.
 - [ ] The person draws Penpot board `icon--app` and exports
   `design/icon--app.png`; 48 and 128 px join plan 05's `extension/icons/`
   under the `icons` key in `extension/manifest.json`.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Written 20/10/2026, not drawn yet: stand-ins `extension/icons/app-48.png`
+  and `app-128.png` (the idle ring and dot in the accent orange, made with
+  a standard-library script) are under the `icons` key until the board
+  exists; 16 and 32 px use plan 05's idle icons.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 20/10/2026: 188 extension tests and 97 host tests pass; of
+  `scripts/build.sh` the build steps ran (`cargo build --release`,
+  `npm --prefix extension run build`) but not its `install`, which writes
+  under `~/Library` and was left for the person.
 
 ### Phase 7: the walk (needs you at Chrome)
 
