@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use browser_hand::mcp::{Launcher, Server, EXTENSION_ID};
+use browser_hand::config::{self, Settings};
+use browser_hand::mcp::{Launcher, Server, ServerOptions, EXTENSION_ID};
 use browser_hand::tools::args::{NavigateArgs, SelectProfileArgs, TabsContextArgs};
 use browser_hand::native_host;
 use browser_hand::wire::{self, Content, ErrorCode, Frame};
@@ -18,7 +19,12 @@ fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Opti
     let listener = UnixListener::bind(sockets.join(format!("{n}.sock"))).unwrap();
     let (chrome, host) = tokio::io::duplex(1 << 20);
     let (hr, hw) = tokio::io::split(host);
-    tokio::spawn(native_host::run(hr, hw, listener, format!("inst-{n}")));
+    let opts = native_host::HostOptions {
+        config: sockets.join("no-config.toml"),
+        chrome_dir: sockets.join("no-chrome"),
+        poll: std::time::Duration::from_secs(3600),
+    };
+    tokio::spawn(native_host::run(hr, hw, listener, format!("inst-{n}"), opts));
     let hello_dir = hello_dir.map(String::from);
     let claim_dir = claim_dir.map(String::from);
     let ends: Arc<Mutex<Vec<String>>> = Arc::default();
@@ -93,6 +99,8 @@ struct Setup {
     _chrome: tempfile::TempDir,
     sockets: tempfile::TempDir,
     launched: Arc<Mutex<Vec<(String, String)>>>,
+    /// `config.toml` for this setup's servers; absent until a test writes it.
+    config: tempfile::TempDir,
 }
 
 impl Setup {
@@ -103,7 +111,22 @@ impl Setup {
             chrome.path().join("Local State"),
         )
         .unwrap();
-        Setup { _chrome: chrome, sockets: tempfile::tempdir().unwrap(), launched: Arc::default() }
+        Setup { _chrome: chrome, sockets: tempfile::tempdir().unwrap(), launched: Arc::default(), config: tempfile::tempdir().unwrap() }
+    }
+
+    fn config_path(&self) -> PathBuf {
+        self.config.path().join("config.toml")
+    }
+
+    /// Saves settings for this setup's servers to read.
+    fn settings(&self, edit: impl FnOnce(&mut Settings)) {
+        let mut s = Settings::default();
+        edit(&mut s);
+        config::save(&self.config_path(), &s).unwrap();
+    }
+
+    fn opts(&self, pace: Option<&str>) -> ServerOptions {
+        ServerOptions { pace: pace.map(String::from), config: self.config_path() }
     }
 
     fn chrome_dir(&self) -> PathBuf {
@@ -122,7 +145,7 @@ impl Setup {
             }
             Ok(false)
         });
-        Server::new(self.chrome_dir(), self.sockets.path().to_owned(), launch)
+        Server::with_options(self.chrome_dir(), self.sockets.path().to_owned(), launch, self.opts(None))
     }
 }
 
@@ -250,6 +273,44 @@ async fn with_several_connected_profiles_tab_tools_refuse_to_guess() {
     assert!(text(&r).contains("select_profile"));
 }
 
+// Settings (plans/06-settings.md).
+
+#[tokio::test]
+async fn the_settings_default_profile_is_bound_when_several_are_connected() {
+    let s = Setup::new();
+    fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+    fake_profile(s.sockets.path(), 2, Some("Default"), None);
+    s.settings(|c| c.sessions.default_profile = "Default".into());
+    let server = s.server(false);
+    let r = server.tabs_create().await.unwrap();
+    assert!(!is_error(&r), "{}", text(&r));
+    let list = json(&server.list_profiles().await.unwrap());
+    let selected: Vec<&str> = list["profiles"].as_array().unwrap().iter().filter(|p| p["selected"] == true).map(|p| p["dir"].as_str().unwrap()).collect();
+    assert_eq!(selected, ["Default"]);
+}
+
+#[tokio::test]
+async fn a_default_profile_that_is_not_open_is_opened_like_select_profile() {
+    let s = Setup::new();
+    s.settings(|c| c.sessions.default_profile = "Profile 4".into());
+    let server = s.server(true);
+    let r = server.tabs_create().await.unwrap();
+    assert!(!is_error(&r), "{}", text(&r));
+    assert_eq!(s.launched.lock().unwrap()[0].0, "Profile 4");
+}
+
+#[tokio::test]
+async fn a_default_profile_chrome_no_longer_has_is_as_if_none_were_set() {
+    let s = Setup::new();
+    fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+    fake_profile(s.sockets.path(), 2, Some("Default"), None);
+    s.settings(|c| c.sessions.default_profile = "Profile 77".into());
+    let r = s.server(false).tabs_create().await.unwrap();
+    assert!(is_error(&r));
+    assert!(text(&r).contains("select_profile"));
+    assert!(s.launched.lock().unwrap().is_empty());
+}
+
 #[tokio::test]
 async fn opening_a_profile_whose_extension_never_answers_says_what_happened() {
     let s = Setup::new();
@@ -257,7 +318,7 @@ async fn opening_a_profile_whose_extension_never_answers_says_what_happened() {
     // so pause time and let tokio run the clock forward.
     tokio::time::pause();
     let launch: Launcher = Arc::new(|_: &str, _: &str| Ok(true));
-    let server = Server::new(s.chrome_dir(), s.sockets.path().to_owned(), launch);
+    let server = Server::with_options(s.chrome_dir(), s.sockets.path().to_owned(), launch, s.opts(None));
     let r = server.select_profile(Parameters(SelectProfileArgs { profile: "Work".into() })).await.unwrap();
     assert!(is_error(&r));
     let t = text(&r);
@@ -303,15 +364,25 @@ mod more {
     }
 
     #[tokio::test]
-    async fn computer_passes_the_pace_and_screenshots_get_an_image_id() {
+    async fn computer_leaves_the_pace_to_the_settings_and_screenshots_get_an_image_id() {
         let (_s, server) = connected().await;
         let r = server.computer(Parameters(ComputerArgs { coordinate: Some([5.0, 6.0]), ..computer(ComputerAction::LeftClick) })).await.unwrap();
-        assert!(text(&r).contains(r#""pace":"human""#), "{}", text(&r));
+        assert!(!text(&r).contains("pace"), "{}", text(&r));
 
         let r = server.computer(Parameters(computer(ComputerAction::Screenshot))).await.unwrap();
         let v = serde_json::to_value(&r).unwrap();
         assert_eq!(v["content"][1]["type"], "image");
         assert!(all_text(&r).contains("imageId: img_1"));
+    }
+
+    #[tokio::test]
+    async fn browser_hand_pace_overrides_the_settings_for_that_server() {
+        let s = Setup::new();
+        fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+        let launch: Launcher = Arc::new(|_: &str, _: &str| Ok(false));
+        let server = Server::with_options(s.chrome_dir(), s.sockets.path().to_owned(), launch, s.opts(Some("fast")));
+        let r = server.computer(Parameters(ComputerArgs { coordinate: Some([5.0, 6.0]), ..computer(ComputerAction::LeftClick) })).await.unwrap();
+        assert!(text(&r).contains(r#""pace":"fast""#), "{}", text(&r));
     }
 
     #[tokio::test]
@@ -390,10 +461,14 @@ mod more {
     }
 
     #[tokio::test]
-    async fn a_recording_takes_a_frame_per_action_and_exports_a_gif() {
+    async fn a_recording_takes_a_frame_per_action_and_exports_a_gif_to_the_settings_folder() {
         let out = tempfile::tempdir().unwrap();
-        std::env::set_var("BROWSER_HAND_OUTPUT_DIR", out.path());
-        let (_s, server) = connected().await;
+        let (s, server) = connected().await;
+        let folder = out.path().join("gifs");
+        s.settings(|c| {
+            c.capture.gif_folder = folder.display().to_string();
+            c.capture.gif_frame_delay_ms = 1200;
+        });
         let gif = |action| GifArgs { action, tab_id: 1, download: None, filename: Some("walk".into()), options: None };
 
         let r = server.gif_creator(Parameters(gif(GifAction::StartRecording))).await.unwrap();
@@ -408,8 +483,12 @@ mod more {
 
         let r = server.gif_creator(Parameters(gif(GifAction::Export))).await.unwrap();
         assert!(!is_error(&r), "{}", text(&r));
-        let bytes = std::fs::read(out.path().join("walk.gif")).unwrap();
+        let bytes = std::fs::read(folder.join("walk.gif")).unwrap();
         assert_eq!(&bytes[..6], b"GIF89a");
+        // The settings' 1,200 ms is 120 hundredths in the first frame's
+        // Graphic Control Extension (21 F9 04, flags, delay low, high).
+        let gce = bytes.windows(3).position(|w| w == [0x21, 0xF9, 0x04]).unwrap();
+        assert_eq!(u16::from_le_bytes([bytes[gce + 4], bytes[gce + 5]]), 120);
     }
 
     // Recordings (plans/05-record-steps.md).
@@ -503,7 +582,7 @@ mod more {
         assert!(is_error(&r), "{t}");
         assert!(t.contains("Replaying recording rec_new, steps 2 to 11, in tab 1"), "{t}");
         let step4 = t.lines().find(|l| l.starts_with("4. [person] change")).unwrap();
-        assert!(step4.contains("\"dogs\"") && step4.contains(r#""pace":"human""#), "{step4}");
+        assert!(step4.contains("\"dogs\"") && !step4.contains("pace"), "{step4}");
         assert!(t.contains("7. [claude] click"), "Claude's steps replay too: {t}");
         assert!(t.contains("Stopped at step 9:") && t.contains("masked"), "{t}");
         assert!(t.contains("values: {\"9\": \"...\"}"), "{t}");

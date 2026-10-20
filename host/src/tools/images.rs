@@ -41,14 +41,15 @@ impl ImageStore {
     }
 }
 
-/// Writes an image under `~/Downloads/browser-hand/`, returning its path.
-pub fn save(data: &str, mime_type: &str, stem: &str) -> std::io::Result<PathBuf> {
+/// Writes an image into the GIF folder (`gif::output_dir`), returning its
+/// path.
+pub fn save(data: &str, mime_type: &str, stem: &str, gif_folder: &str) -> std::io::Result<PathBuf> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(data)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let ext = if mime_type == "image/png" { "png" } else { "jpg" };
     let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
-    let path = crate::gif::output_dir()?.join(format!("{stem}-{ms}.{ext}"));
+    let path = crate::gif::output_dir(gif_folder)?.join(format!("{stem}-{ms}.{ext}"));
     std::fs::write(&path, bytes)?;
     Ok(path)
 }

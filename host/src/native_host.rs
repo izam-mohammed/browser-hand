@@ -1,18 +1,121 @@
 //! `browser-hand` as Chrome's native messaging host: relays frames between
 //! the extension's native port (stdin/stdout) and any number of MCP servers
-//! on a local socket (`docs/protocol.md` § Flows).
+//! on a local socket (`docs/protocol.md` § Flows). It also owns
+//! `config.toml` for its extension: sends it on hello, saves what the
+//! settings page asks, and pushes the file again when another profile
+//! changes it (plans/06-settings.md).
 
 use std::collections::{HashMap, HashSet};
 use std::io;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::mpsc;
 
-use crate::wire::{self, ErrorCode, Frame, PROTOCOL};
+use crate::config::{self, Settings};
+use crate::wire::{self, ErrorCode, Frame, ProfileRef, SettingsError, PROTOCOL};
 
 type Tx = mpsc::UnboundedSender<Frame>;
+
+/// Where the native host finds the settings file and the profiles the
+/// settings page may name.
+#[derive(Debug, Clone)]
+pub struct HostOptions {
+    pub config: PathBuf,
+    pub chrome_dir: PathBuf,
+    /// How often to look for a change to the file.
+    pub poll: Duration,
+}
+
+impl HostOptions {
+    pub fn from_env() -> Self {
+        HostOptions { config: crate::paths::config_path(), chrome_dir: crate::profiles::chrome_dir(), poll: config::POLL }
+    }
+}
+
+/// The settings side of the host: what it last sent its extension.
+struct Conf {
+    opts: HostOptions,
+    /// The extension has said hello, so settings may go to it.
+    hello: bool,
+    /// The revision last sent, so the poll sends each change once.
+    sent: Option<String>,
+    /// The last settings that parsed, kept when a hand edit breaks the file.
+    last_good: Option<Settings>,
+}
+
+pub const STALE: &str = "Settings changed in another profile. The page now shows them; make your change again.";
+
+impl Conf {
+    /// A `settings` frame for the file as it is now.
+    fn read(&mut self) -> Frame {
+        let path = &self.opts.config;
+        let (settings, warnings, revision) = match config::load(path) {
+            Ok(l) => {
+                self.last_good = Some(l.settings.clone());
+                (l.settings, l.warnings, l.revision)
+            }
+            Err(e) => {
+                let first = e.lines().next().unwrap_or_default().to_owned();
+                let keep = self.last_good.clone().unwrap_or_default();
+                (keep, vec![format!("config.toml: {first}; keeping the last settings that read")], config::revision(path))
+            }
+        };
+        let profiles = crate::profiles::read_profiles(&self.opts.chrome_dir)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| ProfileRef { dir: p.dir, name: p.name })
+            .collect();
+        self.sent = Some(revision.clone());
+        Frame::Settings { settings, revision, path: path.display().to_string(), profiles, warnings }
+    }
+
+    /// Saves what the page sent, unless the file changed since the page
+    /// read it or a value is refused.
+    fn save(&mut self, id: u64, value: &serde_json::Value, base: &str) -> Frame {
+        let path = self.opts.config.clone();
+        let refuse = |field: Option<&str>, message: String| Frame::SettingsSaved {
+            id,
+            ok: false,
+            path: None,
+            error: Some(SettingsError { field: field.map(String::from), message }),
+        };
+        if config::revision(&path) != base {
+            return refuse(None, STALE.into());
+        }
+        let settings = match config::from_page(value) {
+            Ok(s) => s,
+            Err((field, message)) => return refuse(field, message),
+        };
+        match config::save(&path, &settings) {
+            Ok(_) => Frame::SettingsSaved { id, ok: true, path: Some(path.display().to_string()), error: None },
+            Err(e) => refuse(None, format!("could not write {}: {e}", path.display())),
+        }
+    }
+}
+
+fn send_settings(conf: &Mutex<Conf>, chrome: &Tx) {
+    let frame = conf.lock().unwrap().read();
+    let _ = chrome.send(frame);
+}
+
+/// Looks at the file every `poll` and sends it again when it changed.
+async fn poll_loop(conf: Arc<Mutex<Conf>>, chrome: Tx) {
+    let every = conf.lock().unwrap().opts.poll;
+    loop {
+        tokio::time::sleep(every).await;
+        let changed = {
+            let c = conf.lock().unwrap();
+            c.hello && c.sent.as_deref() != Some(config::revision(&c.opts.config).as_str())
+        };
+        if changed {
+            send_settings(&conf, &chrome);
+        }
+    }
+}
 
 struct State {
     instance: String,
@@ -53,6 +156,7 @@ pub async fn run<R, W>(
     mut to_chrome: W,
     listener: UnixListener,
     instance: String,
+    opts: HostOptions,
 ) -> io::Result<()>
 where
     R: AsyncRead + Unpin,
@@ -81,6 +185,8 @@ where
     });
 
     let accept = tokio::spawn(accept_loop(listener, state.clone(), chrome_tx.clone()));
+    let conf = Arc::new(Mutex::new(Conf { opts, hello: false, sent: None, last_good: None }));
+    let poll = tokio::spawn(poll_loop(conf.clone(), chrome_tx.clone()));
 
     loop {
         let frame = match wire::read_frame(&mut from_chrome).await {
@@ -95,6 +201,13 @@ where
                 break;
             }
         };
+        if let Frame::SettingsSet { id, settings, revision } = &frame {
+            let reply = conf.lock().unwrap().save(*id, settings, revision);
+            let _ = chrome_tx.send(reply);
+            // Saved or refused, the page shows the file as it is now.
+            send_settings(&conf, &chrome_tx);
+            continue;
+        }
         let st = &mut *state.lock().unwrap();
         match frame {
             Frame::Hello { protocol, profile_dir, extension_version, .. } => {
@@ -105,6 +218,8 @@ where
                 st.profile_dir = profile_dir;
                 st.extension_version = extension_version;
                 st.broadcast(&st.hello());
+                conf.lock().unwrap().hello = true;
+                send_settings(&conf, &chrome_tx);
             }
             claimed @ Frame::Claimed { .. } => {
                 if let Frame::Claimed { profile_dir, .. } = &claimed {
@@ -125,6 +240,7 @@ where
     }
 
     accept.abort();
+    poll.abort();
     drop(chrome_tx);
     let _ = writer.await;
     Ok(())
@@ -138,6 +254,9 @@ fn frame_type(frame: &Frame) -> &'static str {
         Frame::Claimed { .. } => "claimed",
         Frame::Chunk { .. } => "chunk",
         Frame::End { .. } => "end",
+        Frame::Settings { .. } => "settings",
+        Frame::SettingsSet { .. } => "settings_set",
+        Frame::SettingsSaved { .. } => "settings_saved",
     }
 }
 
@@ -193,6 +312,8 @@ async fn serve_client(stream: UnixStream, state: Arc<Mutex<State>>, chrome: Tx) 
                 st.sessions.entry(client).or_default().insert(session.clone());
                 let _ = chrome.send(Frame::Call { id: host_id, session, tool, args });
             }
+            // Anything else, `settings_set` included, is not a client's to
+            // send: settings change only from the page in Chrome.
             Ok(Some(_)) => {}
             Err(e) if e.kind() == io::ErrorKind::InvalidData => {}
             Ok(None) | Err(_) => break,
@@ -235,7 +356,7 @@ pub async fn main() -> anyhow::Result<()> {
     let mut term = signal(SignalKind::terminate())?;
     let mut int = signal(SignalKind::interrupt())?;
     tokio::select! {
-        r = run(tokio::io::stdin(), tokio::io::stdout(), listener, instance) => r?,
+        r = run(tokio::io::stdin(), tokio::io::stdout(), listener, instance, HostOptions::from_env()) => r?,
         _ = term.recv() => {}
         _ = int.recv() => {}
     }

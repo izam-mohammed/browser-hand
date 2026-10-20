@@ -12,6 +12,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
+use crate::config::{self, Settings};
 use crate::gif::{self, Overlays, Recorded, Recorder};
 use crate::host_conn::{self, HostConn};
 use crate::profiles::{self, LiveHost, Profile};
@@ -39,7 +40,6 @@ const NAVIGATE_WAIT: Duration = Duration::from_secs(45);
 const COMPUTER_WAIT: Duration = Duration::from_secs(300);
 /// GIF frames are smaller than the screenshots Claude sees.
 const GIF_FRAME_SCALE: f64 = 0.6;
-const GIF_FRAME_DELAY_MS: u32 = 700;
 
 /// Opens `url` in Chrome's profile `dir`, opening the profile (and starting
 /// Chrome) when needed. Returns whether Chrome had to be started.
@@ -73,11 +73,30 @@ pub fn open_in_chrome() -> Launcher {
     })
 }
 
-/// `human` (default) or `fast`, from `BROWSER_HAND_PACE`.
-pub fn pace_from_env() -> String {
+/// `BROWSER_HAND_PACE` when set: `fast`, or `human` for any other value.
+/// It overrides the settings' pace for this server alone (plans/06-settings.md,
+/// Decision 11); unset, the extension uses the settings.
+pub fn pace_from_env() -> Option<String> {
     match std::env::var("BROWSER_HAND_PACE").as_deref() {
-        Ok("fast") => "fast".into(),
-        _ => "human".into(),
+        Ok("fast") => Some("fast".into()),
+        Ok(_) => Some("human".into()),
+        Err(_) => None,
+    }
+}
+
+/// How a server is set up beyond where it finds Chrome.
+#[derive(Debug, Clone)]
+pub struct ServerOptions {
+    /// Sent as `pace` on acting calls when set; else the extension's
+    /// settings decide.
+    pub pace: Option<String>,
+    /// `config.toml`: the default profile and the GIF folder and delay.
+    pub config: PathBuf,
+}
+
+impl Default for ServerOptions {
+    fn default() -> Self {
+        ServerOptions { pace: None, config: crate::paths::config_path() }
     }
 }
 
@@ -91,7 +110,8 @@ pub struct Inner {
     chrome_dir: PathBuf,
     socket_dir: PathBuf,
     launch: Launcher,
-    pace: String,
+    pace: Option<String>,
+    config: PathBuf,
     bound: Mutex<Option<Bound>>,
     images: std::sync::Mutex<ImageStore>,
     recorder: Mutex<Recorder>,
@@ -181,22 +201,36 @@ pub fn bare_tool_name(name: &str) -> &str {
 
 impl Server {
     pub fn new(chrome_dir: PathBuf, socket_dir: PathBuf, launch: Launcher) -> Self {
-        Self::with_pace(chrome_dir, socket_dir, launch, "human".into())
+        Self::with_options(chrome_dir, socket_dir, launch, ServerOptions::default())
     }
 
-    pub fn with_pace(chrome_dir: PathBuf, socket_dir: PathBuf, launch: Launcher, pace: String) -> Self {
+    pub fn with_options(chrome_dir: PathBuf, socket_dir: PathBuf, launch: Launcher, opts: ServerOptions) -> Self {
         Server {
             inner: Arc::new(Inner {
                 session: uuid::Uuid::new_v4().to_string(),
                 chrome_dir,
                 socket_dir,
                 launch,
-                pace,
+                pace: opts.pace,
+                config: opts.config,
                 bound: Mutex::new(None),
                 images: Default::default(),
                 recorder: Default::default(),
             }),
         }
+    }
+
+    /// `config.toml` as it is now (the defaults when it cannot be read).
+    fn settings(&self) -> Settings {
+        config::current(&self.inner.config)
+    }
+
+    /// An acting call's args with this server's pace, when it has one.
+    fn with_pace(&self, mut args: Value) -> Value {
+        if let Some(pace) = &self.inner.pace {
+            args["pace"] = json!(pace);
+        }
+        args
     }
 
     async fn hosts(&self) -> Vec<LiveHost> {
@@ -252,10 +286,32 @@ impl Server {
         }
     }
 
-    /// Sends a tool call to the bound profile, binding the only connected
-    /// profile when none is selected, and reconnecting once if the host
-    /// restarted.
+    /// With no profile bound and a default profile in the settings that
+    /// Chrome still has, selects it as `select_profile` would.
+    async fn bind_default(&self) -> Result<(), String> {
+        if self.inner.bound.lock().await.is_some() {
+            return Ok(());
+        }
+        let want = self.settings().sessions.default_profile;
+        if want.is_empty() {
+            return Ok(());
+        }
+        let profiles = profiles::read_profiles(&self.inner.chrome_dir).unwrap_or_default();
+        let Some(profile) = profiles.into_iter().find(|p| p.dir == want) else {
+            return Ok(()); // gone from Chrome: as if none were set
+        };
+        let host = match Self::host_for(&self.hosts().await, &profile.dir) {
+            Some(h) => h.clone(),
+            None => self.claim(&profile).await?,
+        };
+        self.bind(profile, &host).await
+    }
+
+    /// Sends a tool call to the bound profile, binding the settings' default
+    /// profile, or else the only connected one, when none is selected, and
+    /// reconnecting once if the host restarted.
     async fn call(&self, tool: &str, args: Value, wait: Duration) -> Outcome {
+        self.bind_default().await?;
         let mut bound = self.inner.bound.lock().await;
 
         if bound.is_none() {
@@ -325,7 +381,7 @@ impl Server {
                 let id = self.inner.images.lock().unwrap().keep(data.clone(), mime_type.clone());
                 notes.push(format!("imageId: {id}"));
                 if save {
-                    match images::save(data, mime_type, "screenshot") {
+                    match images::save(data, mime_type, "screenshot", &self.settings().capture.gif_folder) {
                         Ok(path) => notes.push(format!("Saved to {}", path.display())),
                         Err(e) => notes.push(format!("Could not save: {e}")),
                     }
@@ -416,8 +472,7 @@ impl Server {
                 return Err("bad_args: scroll_amount must be 1 to 10".into());
             }
         }
-        let mut call = to_args(&args);
-        call["pace"] = json!(self.inner.pace);
+        let call = self.with_pace(to_args(&args));
         let mut out = self.call("computer", call, COMPUTER_WAIT).await?;
         if matches!(args.action, ComputerAction::Screenshot | ComputerAction::Zoom) {
             self.keep_images(&mut out, args.save_to_disk.unwrap_or(false));
@@ -487,11 +542,13 @@ impl Server {
                     quality: o.quality.unwrap_or(10),
                 };
                 let frames = self.inner.recorder.lock().await.frames.clone();
-                let bytes = tokio::task::spawn_blocking(move || gif::encode(&frames, &overlays, GIF_FRAME_DELAY_MS))
+                let capture = self.settings().capture;
+                let delay = capture.gif_frame_delay_ms;
+                let bytes = tokio::task::spawn_blocking(move || gif::encode(&frames, &overlays, delay))
                     .await
                     .map_err(|e| format!("page_error: {e}"))?
                     .map_err(|e| format!("bad_args: {e:#}"))?;
-                let path = gif::unused_path(&gif::output_dir().map_err(|e| e.to_string())?, &name);
+                let path = gif::unused_path(&gif::output_dir(&capture.gif_folder).map_err(|e| e.to_string())?, &name);
                 std::fs::write(&path, &bytes).map_err(|e| format!("could not write {}: {e}", path.display()))?;
                 Ok(vec![text(format!("Exported {} ({} KB) to {}", path.file_name().unwrap_or_default().to_string_lossy(), bytes.len() / 1024, path.display()))])
             }
@@ -568,7 +625,7 @@ impl Server {
                     "the recorded value is masked (a password, card number or one-time code). Ask the person for it, then replay with from: {n} and values: {{\"{n}\": \"...\"}}"
                 ))
             } else {
-                let call = json!({ "tabId": tab_id, "step": step, "pace": self.inner.pace });
+                let call = self.with_pace(json!({ "tabId": tab_id, "step": step }));
                 self.call("replay_step", call, COMPUTER_WAIT).await
             };
             match failed {
@@ -800,7 +857,7 @@ impl Server {
     }
 
     #[tool(
-        description = "Record this session's browser actions as an animated GIF. start_recording takes a first frame, then a frame follows every action (clicks, typing, navigation, form fills); stop_recording keeps the frames; export writes the GIF with click circles, drag arrows, action labels and a progress bar to ~/Downloads/browser-hand/ and returns the path; clear drops the frames."
+        description = "Record this session's browser actions as an animated GIF. start_recording takes a first frame, then a frame follows every action (clicks, typing, navigation, form fills); stop_recording keeps the frames; export writes the GIF with click circles, drag arrows, action labels and a progress bar to the GIF folder in browser-hand's settings (~/Downloads/browser-hand/ unless the person changed it) and returns the path; clear drops the frames."
     )]
     pub async fn gif_creator(&self, Parameters(args): Parameters<GifArgs>) -> Result<CallToolResult, McpError> {
         Ok(respond(self.do_gif(args).await))
@@ -850,7 +907,8 @@ impl ServerHandler for Server {
 }
 
 pub async fn main() -> anyhow::Result<()> {
-    let server = Server::with_pace(profiles::chrome_dir(), crate::paths::socket_dir(), open_in_chrome(), pace_from_env());
+    let opts = ServerOptions { pace: pace_from_env(), ..Default::default() };
+    let server = Server::with_options(profiles::chrome_dir(), crate::paths::socket_dir(), open_in_chrome(), opts);
     let service = server.serve(rmcp::transport::stdio()).await?;
     service.waiting().await?;
     Ok(())

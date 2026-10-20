@@ -12,6 +12,8 @@ use serde_json::Value;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use ts_rs::TS;
 
+use crate::config::Settings;
+
 /// Bumped on any breaking change to the frames below.
 pub const PROTOCOL: u32 = 1;
 
@@ -29,7 +31,7 @@ pub const MAX_FRAME: usize = 64 * 1024 * 1024;
 compile_error!("native messaging uses native byte order; the wire assumes little-endian");
 
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "lowercase", rename_all_fields = "camelCase")]
+#[serde(tag = "type", rename_all = "snake_case", rename_all_fields = "camelCase")]
 #[ts(export, export_to = "wire.gen.ts")]
 pub enum Frame {
     Call {
@@ -65,6 +67,52 @@ pub enum Frame {
     End {
         session: String,
     },
+    /// Host to extension: `config.toml` as read now, on the extension's
+    /// hello and whenever the file changes (plans/06-settings.md).
+    Settings {
+        settings: Settings,
+        /// The file's modification time in ns, "0" with no file.
+        revision: String,
+        /// Where the file is, absolute.
+        path: String,
+        profiles: Vec<ProfileRef>,
+        /// One line per key the file got wrong.
+        warnings: Vec<String>,
+    },
+    /// Extension to host, from the settings page only: save these. Taken
+    /// only from Chrome's port, never from a socket client.
+    SettingsSet {
+        id: u64,
+        #[ts(as = "Settings")]
+        settings: Value,
+        /// The revision the page edited; a different one on disk is refused.
+        revision: String,
+    },
+    /// Host to extension: the answer to `settings_set`.
+    SettingsSaved {
+        id: u64,
+        ok: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        error: Option<SettingsError>,
+    },
+}
+
+/// A Chrome profile the settings page can name as the default.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[ts(export, export_to = "wire.gen.ts")]
+pub struct ProfileRef {
+    pub dir: String,
+    pub name: String,
+}
+
+/// Why a save was refused: the key at fault when there is one.
+#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[ts(export, export_to = "wire.gen.ts")]
+pub struct SettingsError {
+    pub field: Option<String>,
+    pub message: String,
 }
 
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
@@ -99,6 +147,8 @@ pub enum ErrorCode {
     Timeout,
     BadArgs,
     PageError,
+    /// A site the person blocked, or made read-only, in the settings.
+    Blocked,
 }
 
 impl Frame {
@@ -173,7 +223,11 @@ pub async fn write_frame_for_chrome<W: AsyncWrite + Unpin>(
 
 fn frame_id(frame: &Frame) -> u64 {
     match frame {
-        Frame::Call { id, .. } | Frame::Result { id, .. } | Frame::Chunk { id, .. } => *id,
+        Frame::Call { id, .. }
+        | Frame::Result { id, .. }
+        | Frame::Chunk { id, .. }
+        | Frame::SettingsSet { id, .. }
+        | Frame::SettingsSaved { id, .. } => *id,
         _ => 0,
     }
 }

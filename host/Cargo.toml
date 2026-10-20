@@ -21,6 +21,8 @@ gif = "0.14.2"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 imageproc = { version = "0.27.0", default-features = false, features = ["text"] }
 ab_glyph = "0.2.32"
+# config.toml (plans/06-settings.md, Decision 5; docs/external/toml.md).
+toml = "1.1.8"
 
 [dev-dependencies]
 tokio = { version = "1.53", features = ["test-util"] }
