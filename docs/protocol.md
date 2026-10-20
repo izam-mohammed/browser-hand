@@ -76,3 +76,20 @@ chunked (Chrome allows 64 MiB that way).
 `protocol` is bumped on any breaking change. A client that reads a `hello`
 with a different `protocol` treats the host as `not_connected` and says why.
 Adding an optional field or a new tool is not breaking.
+
+Tools added since protocol 1 shipped, each an ordinary `call` (none needs a
+new frame):
+
+- `recording_list` `{}`: the extension answers
+  `{"recordings":[{id,title,startedAt,stoppedAt,steps,stopReason?}],"recording":"<id>"|null}`,
+  newest first.
+- `recording_get` `{id?}`: the stored recording,
+  `{id,title,startedAt,stoppedAt,windowId,flow:UserFlow,meta:[{ts,tabId,actor,masked?,unrecorded?}]}`
+  (`plans/05-record-steps.md` § Contract). The MCP server renders it as
+  text or as the `UserFlow` alone.
+- `recording_delete` `{id}`.
+- `replay_step` `{tabId,step,pace}`: one `UserFlow` step acted out in a
+  tab of the session's group; the MCP server's `recording_replay` sends
+  them one at a time.
+- An extension of protocol 1 without these answers `bad_args` "Unknown
+  tool".

@@ -2,7 +2,8 @@
 
 Lets Claude Code drive your own Chrome profiles: pick a profile, open and read
 pages, and click, type and scroll the way a person does, through a local MCP
-server and a Chrome extension with no UI. Modelled on Claude in Chrome
+server and a Chrome extension whose only UI is a Record button for your own
+steps, which Claude can then read and replay. Modelled on Claude in Chrome
 (`reference/claude-in-chrome/`), with profiles in place of a connected-browser
 list. macOS and Google Chrome for now.
 
@@ -75,8 +76,27 @@ travel time and typing gaps.
 | `browser_batch` | Several tool calls in one round trip |
 | `upload_image` | Uploads a recent screenshot to a file input or drop target |
 | `gif_creator` | Records the session's actions as an animated GIF |
+| `recording_list`, `recording_get`, `recording_delete` | Steps you recorded with the toolbar button: list, read (as text or DevTools Recorder JSON), delete |
+| `recording_replay` | Does a recording's steps again in Claude's tab, moving like a person, with values changed where asked |
 
 Each Claude session works in its own tab group and cannot touch other tabs.
+
+### How to record
+
+Pin browser-hand from Chrome's puzzle-piece menu, then press its button (or
+Alt+Shift+R) in the window you want to record. "REC" shows on the badge of
+every tab in that window, and of windows its tabs open. Do the task, then
+press the button again. Clicks, what you typed into fields (as the final
+value), Enter, Tab and Escape, scrolls and page loads become steps that name
+each element the way a screen reader would ("button 'Save'"). Passwords,
+card numbers and one-time codes are stored as `<masked>`. Then ask Claude
+"what did I just record?", or to do it again.
+
+Recordings stay in this profile's extension storage: the newest 20, up to
+50 MB. A recording stops by itself after 30 minutes with no step, when its
+window closes, or at 5,000 steps; "FULL" on the badge means a write failed,
+and the steps up to then are kept. Only you start a recording; Claude has
+no tool for it. Steps reach Claude only when it reads a recording.
 
 ### How "humane" works
 
