@@ -38,7 +38,13 @@ export interface Meta {
   masked?: true;
   /** Chrome lets no extension into this page, so nothing on it was recorded. */
   unrecorded?: true;
+  /** A site the settings block (plans/06-settings.md): this step stands for
+   * everything done there, none of it recorded, not even the URL. */
+  blocked?: true;
 }
+
+/** The step that stands in for time on a blocked site. */
+export const BLOCKED_STEP: Step = { type: "navigate", url: "about:blank" };
 
 export interface Recording {
   id: string;
@@ -91,6 +97,8 @@ export interface RecorderDeps {
     get(tabId: number): Promise<TabLike>;
     sendMessage(tabId: number, msg: unknown): Promise<unknown>;
   };
+  /** Whether the settings block this URL; steps there are dropped. */
+  blocked?(url: string): boolean;
   local: {
     get(keys: string | string[]): Promise<Items>;
     set(items: Items): Promise<void>;
@@ -181,6 +189,23 @@ export class Recorder {
 
   private actor(tabId: number): Meta["actor"] {
     return (this.busyTabs.get(tabId) ?? 0) > 0 ? "claude" : "person";
+  }
+
+  private isBlocked(url: string | undefined): boolean {
+    return !!url && (this.d.blocked?.(url) ?? false);
+  }
+
+  /** Notes, once per stay, that the tab is on a blocked site. */
+  private gap(tabId: number, actor: Meta["actor"]) {
+    if (!this.rec) return;
+    const { meta } = this.rec;
+    for (let i = meta.length - 1; i >= 0; i--) {
+      if (meta[i]!.tabId !== tabId) continue;
+      if (meta[i]!.blocked) return;
+      break;
+    }
+    this.rec.flow.steps.push({ ...BLOCKED_STEP });
+    meta.push({ ts: this.d.now(), tabId, actor, blocked: true });
   }
 
   // Badge and content scripts.
@@ -318,11 +343,15 @@ export class Recorder {
       });
       meta.push({ ts: now, tabId, actor: "person" });
     }
-    if (tab.url) {
+    const blocked = this.isBlocked(tab.url);
+    if (blocked) {
+      steps.push({ ...BLOCKED_STEP });
+      meta.push({ ts: now, tabId, actor: "person", blocked: true });
+    } else if (tab.url) {
       steps.push({ type: "navigate", url: tab.url, assertedEvents: [{ type: "navigation", url: tab.url, title: tab.title ?? "" }] });
       meta.push({ ts: now, tabId, actor: "person", ...(isRestricted(tab.url) ? { unrecorded: true as const } : {}) });
     }
-    const title = titleFor(tab);
+    const title = blocked ? "Recording" : titleFor(tab);
     this.rec = { id, title, startedAt: now, stoppedAt: null, windowId: tab.windowId, flow: { title, steps }, meta };
     this.active = { id, homeWindowId: tab.windowId, windowIds: [tab.windowId], lastStepAt: now };
     await this.d.session.set({ [ACTIVE_KEY]: this.active });
@@ -366,12 +395,19 @@ export class Recorder {
     });
   }
 
-  /** A step from a content script. False tells it to stop listening. */
-  step(tabId: number, windowId: number, msg: StepMsg): Promise<boolean> {
+  /** A step from a content script on `url`. False tells it to stop listening. */
+  step(tabId: number, windowId: number, msg: StepMsg, url?: string): Promise<boolean> {
     return this.run(async () => {
       const a = await this.load();
       if (!a || !this.rec || !a.windowIds.includes(windowId)) return false;
       if (await this.idleCheck()) return false;
+      if (this.isBlocked(url)) {
+        // Dropped: the settings block this site. The gap is noted once.
+        this.gap(tabId, this.actor(tabId));
+        a.lastStepAt = this.d.now();
+        this.scheduleFlush();
+        return true;
+      }
       const { steps } = this.rec.flow;
       const { meta } = this.rec;
       const step = { ...msg.step };
@@ -416,6 +452,12 @@ export class Recorder {
         return;
       }
       if (!a.windowIds.includes(tab.windowId)) return;
+      if (this.isBlocked(d.url)) {
+        this.gap(d.tabId, this.actor(d.tabId));
+        a.lastStepAt = this.d.now();
+        this.scheduleFlush();
+        return;
+      }
       const { steps } = this.rec.flow;
       const { meta } = this.rec;
       const q = d.transitionQualifiers ?? [];

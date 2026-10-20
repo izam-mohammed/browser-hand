@@ -603,6 +603,13 @@ mod more {
         assert!(t.contains("imageId: img_1"), "{t}");
     }
 
+    #[test]
+    fn a_step_on_a_blocked_site_reads_as_a_gap_with_no_address() {
+        use browser_hand::tools::recording::step_line;
+        let line = step_line(3, &serde_json::json!({ "type": "navigate", "url": "about:blank" }), &serde_json::json!({ "actor": "person", "blocked": true }));
+        assert!(line.contains("blocked in browser-hand settings"), "{line}");
+    }
+
     #[tokio::test]
     async fn replay_refuses_values_for_steps_that_are_not_changes_and_a_bad_from() {
         let (_s, server) = connected().await;

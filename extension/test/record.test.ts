@@ -4,6 +4,7 @@ import { Capture, MASKED, Outbox, SCROLL_SETTLE_MS, framePath, resolveSelectors,
 import { resetRefs } from "../src/page/walker";
 import {
   ACTIVE_KEY,
+  BLOCKED_STEP,
   BUDGET_BYTES,
   BUSY_TAIL_MS,
   FLUSH_MS,
@@ -282,6 +283,7 @@ function fakeChrome() {
       remove: async (k) => void session.delete(k),
     },
     now: () => ctl.now,
+    blocked: (url) => /^https:\/\/([^/]*\.)?bank\.test\//.test(url),
   };
   return { deps, local, session, badges, titles, sent, windows, ctl };
 }
@@ -320,6 +322,33 @@ describe("recorder", () => {
     expect(r.flow.title).toBe("Shop");
     expect(r.flow.steps.map((s) => s.type)).toEqual(["setViewport", "navigate"]);
     expect(r.meta).toHaveLength(r.flow.steps.length);
+  });
+
+  it("drops steps on a blocked site and notes the gap once, with no address", async () => {
+    await rec.toggle(TAB);
+    await rec.step(11, 1, click("Before", 1), "https://shop.test/");
+    await rec.navigated({ tabId: 11, frameId: 0, url: "https://www.bank.test/login", transitionType: "link" });
+    expect(await rec.step(11, 1, click("Sign in", 2), "https://www.bank.test/login")).toBe(true);
+    await rec.step(11, 1, { step: { type: "change", selectors: [["#acct"]], value: "12345678" }, ts: 3 }, "https://www.bank.test/login");
+    await rec.navigated({ tabId: 11, frameId: 0, url: "https://shop.test/after", transitionType: "link" });
+    await rec.step(11, 1, click("After", 4), "https://shop.test/after");
+    await rec.toggle(TAB);
+    const r = stored(c, await newest());
+    const json = JSON.stringify(r);
+    expect(json).not.toContain("bank");
+    expect(json).not.toContain("12345678");
+    expect(json).not.toContain("Sign in");
+    expect(r.flow.steps.map((s) => s.type)).toEqual(["setViewport", "navigate", "click", "navigate", "navigate", "click"]);
+    expect(r.meta[3]).toMatchObject({ tabId: 11, blocked: true });
+    expect(r.flow.steps[3]).toEqual(BLOCKED_STEP);
+  });
+
+  it("a recording started on a blocked site keeps neither its address nor its title", async () => {
+    await rec.toggle({ ...TAB, url: "https://bank.test/", title: "My Bank" });
+    await rec.toggle(TAB);
+    const r = stored(c, await newest());
+    expect(JSON.stringify(r)).not.toMatch(/bank/i);
+    expect(r.meta.at(-1)).toMatchObject({ blocked: true });
   });
 
   it("stores steps under rec:<id> with meta, and refuses other windows", async () => {

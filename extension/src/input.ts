@@ -70,6 +70,11 @@ export class Input {
     return this.cursor;
   }
 
+  /** New speeds from the settings (`scaledParams`); the next action uses them. */
+  setParams(p: Params) {
+    this.p = p;
+  }
+
   /** Pauses `ms` from the end of the last wait. Chrome can take 100 ms to
    * answer each event in a window behind others, and that time counts
    * toward the pause, so slow answers do not stretch every gap. */

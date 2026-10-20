@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DebuggerManager } from "../src/debugger";
 import { NetworkLog } from "../src/network";
-import { fitScale, zoomScale } from "../src/screenshot";
+import { DEFAULT_SHOT, fitScale, shotPrefs, zoomScale } from "../src/screenshot";
 
 describe("network log", () => {
   const start = (log: NetworkLog, requestId: string, url: string, type = "xmlhttprequest") =>
@@ -69,6 +69,15 @@ describe("debugger manager", () => {
     expect(dbg.isAttached(5)).toBe(false);
   });
 
+  it("detaches after the settings' idle time once it changes", async () => {
+    const { api, calls } = fakeApi();
+    const dbg = new DebuggerManager(api as never, 30_000);
+    dbg.setIdleMs(5_000);
+    await dbg.send(5, "X");
+    await vi.advanceTimersByTimeAsync(5_001);
+    expect(calls.at(-1)).toBe("detach");
+  });
+
   it("a refused attach is debugger_refused naming the reason", async () => {
     const { api } = fakeApi(true);
     const dbg = new DebuggerManager(api as never);
@@ -90,6 +99,16 @@ describe("screenshot scaling", () => {
     expect(fitScale(1024, 700)).toBe(1);
     expect(fitScale(1440, 900)).toBeCloseTo(800 / 900);
     expect(fitScale(1440, 900, 0.5)).toBeCloseTo((800 / 900) * 0.5);
+  });
+
+  it("fits inside the settings' screenshot size instead", () => {
+    const big = shotPrefs("1568x980", 90);
+    expect(big).toEqual({ maxWidth: 1568, maxHeight: 980, quality: 90 });
+    expect(fitScale(1440, 900, 1, big)).toBe(1);
+    expect(fitScale(1600, 1000, 1, big)).toBeCloseTo(980 / 1000);
+    expect(fitScale(1440, 900, 1, shotPrefs("1024x640", 80))).toBeCloseTo(640 / 900);
+    expect(zoomScale(640, 400, 1, shotPrefs("1024x640", 80))).toBeCloseTo(1.6);
+    expect(DEFAULT_SHOT).toEqual({ maxWidth: 1280, maxHeight: 800, quality: 80 });
   });
 
   it("enlarges a small zoom region, at most 3x", () => {

@@ -620,7 +620,12 @@ impl Server {
                 step["value"] = json!(v);
             }
             let line = recording::step_line(n, &step, &m);
-            let failed = if step["value"].as_str() == Some(MASKED) {
+            let failed = if m["blocked"].as_bool() == Some(true) {
+                Err(format!(
+                    "this step stands for a site blocked in browser-hand settings; nothing done there was recorded. Ask the person, then replay with from: {}",
+                    n + 1
+                ))
+            } else if step["value"].as_str() == Some(MASKED) {
                 Err(format!(
                     "the recorded value is masked (a password, card number or one-time code). Ask the person for it, then replay with from: {n} and values: {{\"{n}\": \"...\"}}"
                 ))
