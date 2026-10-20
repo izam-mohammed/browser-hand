@@ -97,7 +97,12 @@ where
         };
         let st = &mut *state.lock().unwrap();
         match frame {
-            Frame::Hello { protocol, profile_dir, extension_version, .. } => {
+            Frame::Hello {
+                protocol,
+                profile_dir,
+                extension_version,
+                ..
+            } => {
                 if protocol != PROTOCOL {
                     eprintln!("browser-hand: the extension speaks protocol {protocol}, this host speaks {PROTOCOL}");
                 }
@@ -113,10 +118,20 @@ where
                 st.broadcast(&claimed);
                 st.broadcast(&st.hello());
             }
-            Frame::Result { id, ok, content, error } => {
+            Frame::Result {
+                id,
+                ok,
+                content,
+                error,
+            } => {
                 if let Some((client, own_id)) = st.pending.remove(&id) {
                     if let Some(tx) = st.clients.get(&client) {
-                        let _ = tx.send(Frame::Result { id: own_id, ok, content, error });
+                        let _ = tx.send(Frame::Result {
+                            id: own_id,
+                            ok,
+                            content,
+                            error,
+                        });
                     }
                 }
             }
@@ -177,21 +192,42 @@ async fn serve_client(stream: UnixStream, state: Arc<Mutex<State>>, chrome: Tx) 
 
     loop {
         match wire::read_frame(&mut read).await {
-            Ok(Some(Frame::Call { id, session, tool, args })) => {
+            Ok(Some(Frame::Call {
+                id,
+                session,
+                tool,
+                args,
+            })) => {
                 let st = &mut *state.lock().unwrap();
                 // A session belongs to the client that first used it, so
                 // another client cannot act in it or end it by leaving.
-                if st.sessions.iter().any(|(c, s)| *c != client && s.contains(&session)) {
+                if st
+                    .sessions
+                    .iter()
+                    .any(|(c, s)| *c != client && s.contains(&session))
+                {
                     if let Some(tx) = st.clients.get(&client) {
-                        let _ = tx.send(Frame::err(id, ErrorCode::BadArgs, "session id is in use by another client"));
+                        let _ = tx.send(Frame::err(
+                            id,
+                            ErrorCode::BadArgs,
+                            "session id is in use by another client",
+                        ));
                     }
                     continue;
                 }
                 let host_id = st.next_id;
                 st.next_id += 1;
                 st.pending.insert(host_id, (client, id));
-                st.sessions.entry(client).or_default().insert(session.clone());
-                let _ = chrome.send(Frame::Call { id: host_id, session, tool, args });
+                st.sessions
+                    .entry(client)
+                    .or_default()
+                    .insert(session.clone());
+                let _ = chrome.send(Frame::Call {
+                    id: host_id,
+                    session,
+                    tool,
+                    args,
+                });
             }
             Ok(Some(_)) => {}
             Err(e) if e.kind() == io::ErrorKind::InvalidData => {}

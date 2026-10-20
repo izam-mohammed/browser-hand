@@ -5,7 +5,10 @@ use browser_hand::profiles::{self, Profile};
 fn fixture_dir() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     std::fs::copy(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/local-state.json"),
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/local-state.json"
+        ),
         dir.path().join("Local State"),
     )
     .unwrap();
@@ -13,7 +16,11 @@ fn fixture_dir() -> tempfile::TempDir {
 }
 
 fn p(dir: &str, name: &str, last_used: bool) -> Profile {
-    Profile { dir: dir.into(), name: name.into(), last_used }
+    Profile {
+        dir: dir.into(),
+        name: name.into(),
+        last_used,
+    }
 }
 
 #[test]
@@ -22,7 +29,11 @@ fn reads_profiles_in_chromes_order_without_ephemeral_ones() {
     let got = profiles::read_profiles(dir.path()).unwrap();
     assert_eq!(
         got,
-        vec![p("Default", "Personal", false), p("Profile 3", "Work", true), p("Profile 4", "Testing", false)]
+        vec![
+            p("Default", "Personal", false),
+            p("Profile 3", "Work", true),
+            p("Profile 4", "Testing", false)
+        ]
     );
 }
 
@@ -46,7 +57,10 @@ fn resolves_by_dir_then_name_in_any_case() {
     let all = profiles::read_profiles(dir.path()).unwrap();
     assert_eq!(profiles::resolve(&all, "Profile 3").unwrap().name, "Work");
     assert_eq!(profiles::resolve(&all, "work").unwrap().dir, "Profile 3");
-    assert_eq!(profiles::resolve(&all, " profile 4 ").unwrap().name, "Testing");
+    assert_eq!(
+        profiles::resolve(&all, " profile 4 ").unwrap().name,
+        "Testing"
+    );
     assert!(profiles::resolve(&all, "nope").is_none());
 }
 
@@ -66,6 +80,10 @@ async fn discovery_removes_stale_sockets_and_ignores_other_files() {
 
 #[tokio::test]
 async fn discovery_of_a_missing_dir_is_empty() {
-    let live = profiles::discover(std::path::Path::new("/nonexistent/bh"), Duration::from_millis(100)).await;
+    let live = profiles::discover(
+        std::path::Path::new("/nonexistent/bh"),
+        Duration::from_millis(100),
+    )
+    .await;
     assert!(live.is_empty());
 }

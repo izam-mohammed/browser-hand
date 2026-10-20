@@ -18,8 +18,10 @@ fn every_fixture_frame_round_trips_unchanged() {
 #[tokio::test]
 async fn framing_reads_back_what_it_wrote_and_ends_cleanly() {
     let (mut a, mut b) = tokio::io::duplex(1 << 16);
-    let frames: Vec<Frame> =
-        fixtures().into_iter().map(|v| serde_json::from_value(v).unwrap()).collect();
+    let frames: Vec<Frame> = fixtures()
+        .into_iter()
+        .map(|v| serde_json::from_value(v).unwrap())
+        .collect();
     for f in &frames {
         wire::write_frame(&mut a, f).await.unwrap();
     }
@@ -33,11 +35,23 @@ async fn framing_reads_back_what_it_wrote_and_ends_cleanly() {
 #[tokio::test]
 async fn an_unknown_frame_is_invalid_data_and_the_stream_continues() {
     let (mut a, mut b) = tokio::io::duplex(1 << 16);
-    wire::write_body(&mut a, br#"{"type":"nope"}"#).await.unwrap();
-    wire::write_frame(&mut a, &Frame::End { session: "s".into() }).await.unwrap();
+    wire::write_body(&mut a, br#"{"type":"nope"}"#)
+        .await
+        .unwrap();
+    wire::write_frame(
+        &mut a,
+        &Frame::End {
+            session: "s".into(),
+        },
+    )
+    .await
+    .unwrap();
     let err = wire::read_frame(&mut b).await.unwrap_err();
     assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
-    assert!(matches!(wire::read_frame(&mut b).await.unwrap(), Some(Frame::End { .. })));
+    assert!(matches!(
+        wire::read_frame(&mut b).await.unwrap(),
+        Some(Frame::End { .. })
+    ));
 }
 
 fn big_call(bytes: usize) -> Frame {
@@ -95,6 +109,9 @@ fn chunks_out_of_order_are_refused() {
 #[test]
 fn writes_the_chunked_fixture_for_the_extension() {
     let chunks = wire::chunk(&big_call(1_200_000));
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/chunked-call.json");
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/chunked-call.json"
+    );
     std::fs::write(path, serde_json::to_vec(&chunks).unwrap()).unwrap();
 }

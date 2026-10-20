@@ -2,18 +2,26 @@ use std::io::Cursor;
 use std::time::Instant;
 
 use base64::Engine;
-use browser_hand::gif::{encode, safe_filename, unused_path, Overlays, Recorded, Recorder, MAX_FRAMES};
+use browser_hand::gif::{
+    encode, safe_filename, unused_path, Overlays, Recorded, Recorder, MAX_FRAMES,
+};
 use image::{ImageFormat, Rgba, RgbaImage};
 
 fn png(w: u32, h: u32, shade: u8) -> String {
     let img = RgbaImage::from_pixel(w, h, Rgba([shade, shade, shade, 255]));
     let mut bytes = Vec::new();
-    img.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).unwrap();
+    img.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+        .unwrap();
     base64::engine::general_purpose::STANDARD.encode(bytes)
 }
 
 fn frame(shade: u8) -> Recorded {
-    Recorded { image: png(320, 200, shade), label: Some("Clicks Log in".into()), click: Some((100.0, 80.0)), drag: None }
+    Recorded {
+        image: png(320, 200, shade),
+        label: Some("Clicks Log in".into()),
+        click: Some((100.0, 80.0)),
+        drag: None,
+    }
 }
 
 fn frames_of(gif: &[u8]) -> Vec<RgbaImage> {
@@ -30,7 +38,12 @@ fn frames_of(gif: &[u8]) -> Vec<RgbaImage> {
 
 #[test]
 fn exports_one_frame_per_recording_as_a_gif89a() {
-    let bytes = encode(&[frame(40), frame(90), frame(140)], &Overlays::default(), 600).unwrap();
+    let bytes = encode(
+        &[frame(40), frame(90), frame(140)],
+        &Overlays::default(),
+        600,
+    )
+    .unwrap();
     assert_eq!(&bytes[..6], b"GIF89a");
     assert_eq!(frames_of(&bytes).len(), 3);
 }
@@ -43,14 +56,63 @@ fn no_frames_is_an_error_saying_what_to_do() {
 
 #[test]
 fn each_overlay_option_draws_or_does_not() {
-    let plain = Overlays { click_indicators: false, drag_paths: false, action_labels: false, progress_bar: false, quality: 10 };
-    let f = Recorded { drag: Some(((20.0, 150.0), (250.0, 150.0))), ..frame(200) };
+    let plain = Overlays {
+        click_indicators: false,
+        drag_paths: false,
+        action_labels: false,
+        progress_bar: false,
+        quality: 10,
+    };
+    let f = Recorded {
+        drag: Some(((20.0, 150.0), (250.0, 150.0))),
+        ..frame(200)
+    };
 
     let none = &frames_of(&encode(std::slice::from_ref(&f), &plain, 500).unwrap())[0];
-    let ring = &frames_of(&encode(std::slice::from_ref(&f), &Overlays { click_indicators: true, ..plain.clone() }, 500).unwrap())[0];
-    let bar = &frames_of(&encode(std::slice::from_ref(&f), &Overlays { progress_bar: true, ..plain.clone() }, 500).unwrap())[0];
-    let drag = &frames_of(&encode(std::slice::from_ref(&f), &Overlays { drag_paths: true, ..plain.clone() }, 500).unwrap())[0];
-    let text = &frames_of(&encode(std::slice::from_ref(&f), &Overlays { action_labels: true, ..plain.clone() }, 500).unwrap())[0];
+    let ring = &frames_of(
+        &encode(
+            std::slice::from_ref(&f),
+            &Overlays {
+                click_indicators: true,
+                ..plain.clone()
+            },
+            500,
+        )
+        .unwrap(),
+    )[0];
+    let bar = &frames_of(
+        &encode(
+            std::slice::from_ref(&f),
+            &Overlays {
+                progress_bar: true,
+                ..plain.clone()
+            },
+            500,
+        )
+        .unwrap(),
+    )[0];
+    let drag = &frames_of(
+        &encode(
+            std::slice::from_ref(&f),
+            &Overlays {
+                drag_paths: true,
+                ..plain.clone()
+            },
+            500,
+        )
+        .unwrap(),
+    )[0];
+    let text = &frames_of(
+        &encode(
+            std::slice::from_ref(&f),
+            &Overlays {
+                action_labels: true,
+                ..plain.clone()
+            },
+            500,
+        )
+        .unwrap(),
+    )[0];
 
     let grey = |img: &RgbaImage, x: u32, y: u32| {
         let p = img.get_pixel(x, y).0;
@@ -66,7 +128,10 @@ fn each_overlay_option_draws_or_does_not() {
 
 #[test]
 fn frames_of_another_size_are_scaled_to_the_first() {
-    let small = Recorded { image: png(160, 100, 50), ..frame(50) };
+    let small = Recorded {
+        image: png(160, 100, 50),
+        ..frame(50)
+    };
     let bytes = encode(&[frame(10), small], &Overlays::default(), 500).unwrap();
     let frames = frames_of(&bytes);
     assert_eq!(frames[1].dimensions(), (320, 200));
@@ -77,7 +142,12 @@ fn sixty_frames_export_in_under_five_seconds() {
     // Debug builds are far slower; the plan's 5 s for 60 frames is a
     // release figure (`cargo test --release --test gif`).
     let n = if cfg!(debug_assertions) { 10 } else { 60 };
-    let frames: Vec<Recorded> = (0..n).map(|i| Recorded { image: png(1280, 800, (i * 4) as u8), ..frame(0) }).collect();
+    let frames: Vec<Recorded> = (0..n)
+        .map(|i| Recorded {
+            image: png(1280, 800, (i * 4) as u8),
+            ..frame(0)
+        })
+        .collect();
     let started = Instant::now();
     encode(&frames, &Overlays::default(), 500).unwrap();
     let took = started.elapsed();
@@ -101,16 +171,27 @@ fn an_export_never_overwrites_an_earlier_one() {
     let dir = tempfile::tempdir().unwrap();
     assert_eq!(unused_path(dir.path(), "a.gif"), dir.path().join("a.gif"));
     std::fs::write(dir.path().join("a.gif"), b"x").unwrap();
-    assert_eq!(unused_path(dir.path(), "a.gif"), dir.path().join("a (2).gif"));
+    assert_eq!(
+        unused_path(dir.path(), "a.gif"),
+        dir.path().join("a (2).gif")
+    );
     std::fs::write(dir.path().join("a (2).gif"), b"x").unwrap();
-    assert_eq!(unused_path(dir.path(), "a.gif"), dir.path().join("a (3).gif"));
+    assert_eq!(
+        unused_path(dir.path(), "a.gif"),
+        dir.path().join("a (3).gif")
+    );
 }
 
 #[test]
 fn the_recorder_keeps_only_the_newest_frames() {
     let mut r = Recorder::default();
     for i in 0..MAX_FRAMES + 5 {
-        r.push(Recorded { image: String::new(), label: Some(i.to_string()), click: None, drag: None });
+        r.push(Recorded {
+            image: String::new(),
+            label: Some(i.to_string()),
+            click: None,
+            drag: None,
+        });
     }
     assert_eq!(r.frames.len(), MAX_FRAMES);
     assert_eq!(r.frames[0].label.as_deref(), Some("5"));
@@ -118,7 +199,18 @@ fn the_recorder_keeps_only_the_newest_frames() {
 
 #[test]
 fn a_frame_shorter_than_the_progress_bar_still_encodes() {
-    let f = Recorded { image: png(40, 3, 90), label: None, click: None, drag: None };
-    let only_bar = Overlays { click_indicators: false, drag_paths: false, action_labels: false, progress_bar: true, quality: 10 };
+    let f = Recorded {
+        image: png(40, 3, 90),
+        label: None,
+        click: None,
+        drag: None,
+    };
+    let only_bar = Overlays {
+        click_indicators: false,
+        drag_paths: false,
+        action_labels: false,
+        progress_bar: true,
+        quality: 10,
+    };
     assert_eq!(frames_of(&encode(&[f], &only_bar, 500).unwrap()).len(), 1);
 }

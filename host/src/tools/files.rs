@@ -10,7 +10,12 @@ use serde_json::{json, Value};
 pub const MAX_UPLOAD_BYTES: u64 = 10 * 1024 * 1024;
 
 pub fn mime_for(path: &Path) -> &'static str {
-    match path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).as_deref() {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
         Some("png") => "image/png",
         Some("jpg" | "jpeg") => "image/jpeg",
         Some("gif") => "image/gif",
@@ -49,10 +54,16 @@ pub fn read_for_upload(paths: &[String]) -> Result<Vec<Value>, String> {
         }
         total += meta.len();
         if total > MAX_UPLOAD_BYTES {
-            return Err(format!("bad_args: the files add up to more than {} MB", MAX_UPLOAD_BYTES / 1024 / 1024));
+            return Err(format!(
+                "bad_args: the files add up to more than {} MB",
+                MAX_UPLOAD_BYTES / 1024 / 1024
+            ));
         }
         let bytes = std::fs::read(path).map_err(|e| format!("bad_args: {p}: {e}"))?;
-        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
         out.push(json!({
             "name": name,
             "mimeType": mime_for(path),
