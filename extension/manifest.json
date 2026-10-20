@@ -5,6 +5,12 @@
   "description": "Lets Claude drive this Chrome profile through the local browser-hand MCP server.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyN0wnssM9ofOC+S3X1iscWn3k8KMziQUl3UYqITxMbZYPgW9N6Aa667pLrGAF4Zj7ZxwDldNTsqtmfQ7tf+n0XVo2nRb+hMGqb04SvoTzIeHot5vc8lnfFH/qC8RZUh9L9VT0Ip5VHbDMWZ9MbwXcX0qFE8QSAZzr0R0CUFVzsV4CcbEKQ7MRKwGQ1eyayOItT2TqZvIrIOenWvu9LgH66oCljRreLJ6trgoFvvCnZukd/JbpTjFxi9duCf7ngRPbQ5N4HNiJ3t3uNLTX8oLHfzlO9s6gE8YyPr73FPNBz1cGQTcXOg96otLtxS2kM9JHMpw0FFzXzsmKPk/C/N2uQIDAQAB",
   "minimum_chrome_version": "120",
+  "icons": {
+    "16": "icons/idle-16.png",
+    "32": "icons/idle-32.png",
+    "48": "icons/app-48.png",
+    "128": "icons/app-128.png"
+  },
   "permissions": [
     "nativeMessaging",
     "tabs",
