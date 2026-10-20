@@ -365,6 +365,11 @@ repository instructions for recording useful development findings.
 - [ ] Check: the script exits 0 and prints `PASS`; a debugger click arriving
   untrusted reopens Decision 6.
 
+Written 20/10/2026; not run yet, needs the person at Chrome. The proof
+extension reports to a local server the script runs (`serve.py` on
+127.0.0.1:8765, which also serves the test page) instead of a native echo
+host, so it needs no `key`, no host manifest and no `--install` step.
+
 ### Phase 2: the rough cut (needs you: try it)
 
 - [ ] The toolbar button starts and stops a recording of its window, with
