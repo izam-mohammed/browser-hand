@@ -12,7 +12,9 @@ use crate::mcp::EXTENSION_ID;
 pub const HOST_NAME: &str = "dev.browserhand.host";
 
 pub fn manifest_path(chrome_dir: &Path) -> PathBuf {
-    chrome_dir.join("NativeMessagingHosts").join(format!("{HOST_NAME}.json"))
+    chrome_dir
+        .join("NativeMessagingHosts")
+        .join(format!("{HOST_NAME}.json"))
 }
 
 /// Writes the host manifest pointing at `exe`, returning its path.
@@ -37,7 +39,9 @@ pub fn main(uninstall: bool) -> anyhow::Result<()> {
         let path = manifest_path(&chrome_dir);
         match std::fs::remove_file(&path) {
             Ok(()) => println!("Removed {}", path.display()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => println!("Nothing to remove at {}", path.display()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                println!("Nothing to remove at {}", path.display())
+            }
             Err(e) => return Err(e).with_context(|| format!("removing {}", path.display())),
         }
         return Ok(());

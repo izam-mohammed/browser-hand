@@ -105,13 +105,21 @@ impl Default for Settings {
 
 impl Default for InputSettings {
     fn default() -> Self {
-        InputSettings { pace: "human".into(), typing_speed: 1.0, mouse_speed: 1.0 }
+        InputSettings {
+            pace: "human".into(),
+            typing_speed: 1.0,
+            mouse_speed: 1.0,
+        }
     }
 }
 
 impl Default for SessionSettings {
     fn default() -> Self {
-        SessionSettings { default_profile: String::new(), new_window: true, close_tabs_on_end: false }
+        SessionSettings {
+            default_profile: String::new(),
+            new_window: true,
+            close_tabs_on_end: false,
+        }
     }
 }
 
@@ -128,7 +136,9 @@ impl Default for CaptureSettings {
 
 impl Default for DebuggerSettings {
     fn default() -> Self {
-        DebuggerSettings { detach_after_idle_s: 30 }
+        DebuggerSettings {
+            detach_after_idle_s: 30,
+        }
     }
 }
 
@@ -140,7 +150,10 @@ pub struct Problem {
 }
 
 fn problem(field: &'static str, message: impl Into<String>) -> Problem {
-    Problem { field, message: message.into() }
+    Problem {
+        field,
+        message: message.into(),
+    }
 }
 
 /// Whether `p` follows the pattern grammar: `host/path`, `*` for any run of
@@ -150,11 +163,19 @@ pub fn is_pattern(p: &str) -> bool {
     if p.is_empty() || p.trim() != p {
         return false;
     }
-    if p.chars().any(|c| c.is_whitespace() || c.is_control() || matches!(c, '?' | '#' | '\\')) {
+    if p.chars()
+        .any(|c| c.is_whitespace() || c.is_control() || matches!(c, '?' | '#' | '\\'))
+    {
         return false;
     }
-    let Some((host, _path)) = p.split_once('/') else { return false };
-    if host.is_empty() || !host.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '*')) {
+    let Some((host, _path)) = p.split_once('/') else {
+        return false;
+    };
+    if host.is_empty()
+        || !host
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '*'))
+    {
         return false;
     }
     if host == "*" || host.eq_ignore_ascii_case("localhost") {
@@ -170,7 +191,13 @@ fn list_problem(field: &'static str, list: &[String]) -> Option<Problem> {
     }
     for p in list {
         if p.chars().count() > MAX_PATTERN_CHARS {
-            return Some(problem(field, format!("\"{}...\" is over {MAX_PATTERN_CHARS} characters", p.chars().take(20).collect::<String>())));
+            return Some(problem(
+                field,
+                format!(
+                    "\"{}...\" is over {MAX_PATTERN_CHARS} characters",
+                    p.chars().take(20).collect::<String>()
+                ),
+            ));
         }
         if !is_pattern(p) {
             return Some(problem(field, format!("\"{p}\": {NOT_A_PATTERN}")));
@@ -214,12 +241,18 @@ pub fn problems(s: &Settings) -> Vec<Problem> {
     }
     let profile = &s.sessions.default_profile;
     if profile.chars().count() > 255 || profile.chars().any(|c| c.is_control() || c == '/') {
-        out.push(problem("sessions.default_profile", "is not a Chrome profile dir"));
+        out.push(problem(
+            "sessions.default_profile",
+            "is not a Chrome profile dir",
+        ));
     }
     out.extend(list_problem("sites.blocked", &s.sites.blocked));
     out.extend(list_problem("sites.read_only", &s.sites.read_only));
     if !SCREENSHOT_SIZES.contains(&s.capture.screenshot_size.as_str()) {
-        out.push(problem("capture.screenshot_size", format!("must be one of {}", SCREENSHOT_SIZES.join(", "))));
+        out.push(problem(
+            "capture.screenshot_size",
+            format!("must be one of {}", SCREENSHOT_SIZES.join(", ")),
+        ));
     }
     if !(30..=100).contains(&s.capture.screenshot_quality) {
         out.push(problem("capture.screenshot_quality", "must be 30 to 100"));
@@ -256,21 +289,36 @@ fn reset(s: &mut Settings, field: &str) {
         "capture.screenshot_quality" => s.capture.screenshot_quality = d.capture.screenshot_quality,
         "capture.gif_folder" => s.capture.gif_folder = d.capture.gif_folder,
         "capture.gif_frame_delay_ms" => s.capture.gif_frame_delay_ms = d.capture.gif_frame_delay_ms,
-        "debugger.detach_after_idle_s" => s.debugger.detach_after_idle_s = d.debugger.detach_after_idle_s,
+        "debugger.detach_after_idle_s" => {
+            s.debugger.detach_after_idle_s = d.debugger.detach_after_idle_s
+        }
         _ => {}
     }
 }
 
 /// Reads `[section] key` into `into` when it is there and of the right
 /// type; a wrong type leaves the default and says so.
-fn take<T: DeserializeOwned>(table: &toml::Table, section: &str, key: &str, into: &mut T, warnings: &mut Vec<String>) {
+fn take<T: DeserializeOwned>(
+    table: &toml::Table,
+    section: &str,
+    key: &str,
+    into: &mut T,
+    warnings: &mut Vec<String>,
+) {
     let value = if section.is_empty() {
         table.get(key)
     } else {
-        table.get(section).and_then(|s| s.as_table()).and_then(|s| s.get(key))
+        table
+            .get(section)
+            .and_then(|s| s.as_table())
+            .and_then(|s| s.get(key))
     };
     let Some(value) = value else { return };
-    let name = if section.is_empty() { key.to_owned() } else { format!("{section}.{key}") };
+    let name = if section.is_empty() {
+        key.to_owned()
+    } else {
+        format!("{section}.{key}")
+    };
     match value.clone().try_into::<T>() {
         Ok(v) => *into = v,
         Err(e) => warnings.push(format!("{name}: {}; using the default", e.message())),
@@ -286,18 +334,78 @@ pub fn parse(text: &str) -> Result<(Settings, Vec<String>), String> {
     let mut w = vec![];
     take(&table, "", "version", &mut s.version, &mut w);
     take(&table, "input", "pace", &mut s.input.pace, &mut w);
-    take(&table, "input", "typing_speed", &mut s.input.typing_speed, &mut w);
-    take(&table, "input", "mouse_speed", &mut s.input.mouse_speed, &mut w);
-    take(&table, "sessions", "default_profile", &mut s.sessions.default_profile, &mut w);
-    take(&table, "sessions", "new_window", &mut s.sessions.new_window, &mut w);
-    take(&table, "sessions", "close_tabs_on_end", &mut s.sessions.close_tabs_on_end, &mut w);
+    take(
+        &table,
+        "input",
+        "typing_speed",
+        &mut s.input.typing_speed,
+        &mut w,
+    );
+    take(
+        &table,
+        "input",
+        "mouse_speed",
+        &mut s.input.mouse_speed,
+        &mut w,
+    );
+    take(
+        &table,
+        "sessions",
+        "default_profile",
+        &mut s.sessions.default_profile,
+        &mut w,
+    );
+    take(
+        &table,
+        "sessions",
+        "new_window",
+        &mut s.sessions.new_window,
+        &mut w,
+    );
+    take(
+        &table,
+        "sessions",
+        "close_tabs_on_end",
+        &mut s.sessions.close_tabs_on_end,
+        &mut w,
+    );
     take(&table, "sites", "blocked", &mut s.sites.blocked, &mut w);
     take(&table, "sites", "read_only", &mut s.sites.read_only, &mut w);
-    take(&table, "capture", "screenshot_size", &mut s.capture.screenshot_size, &mut w);
-    take(&table, "capture", "screenshot_quality", &mut s.capture.screenshot_quality, &mut w);
-    take(&table, "capture", "gif_folder", &mut s.capture.gif_folder, &mut w);
-    take(&table, "capture", "gif_frame_delay_ms", &mut s.capture.gif_frame_delay_ms, &mut w);
-    take(&table, "debugger", "detach_after_idle_s", &mut s.debugger.detach_after_idle_s, &mut w);
+    take(
+        &table,
+        "capture",
+        "screenshot_size",
+        &mut s.capture.screenshot_size,
+        &mut w,
+    );
+    take(
+        &table,
+        "capture",
+        "screenshot_quality",
+        &mut s.capture.screenshot_quality,
+        &mut w,
+    );
+    take(
+        &table,
+        "capture",
+        "gif_folder",
+        &mut s.capture.gif_folder,
+        &mut w,
+    );
+    take(
+        &table,
+        "capture",
+        "gif_frame_delay_ms",
+        &mut s.capture.gif_frame_delay_ms,
+        &mut w,
+    );
+    take(
+        &table,
+        "debugger",
+        "detach_after_idle_s",
+        &mut s.debugger.detach_after_idle_s,
+        &mut w,
+    );
     for p in problems(&s) {
         w.push(format!("{}: {}; using the default", p.field, p.message));
         reset(&mut s, p.field);
@@ -307,7 +415,8 @@ pub fn parse(text: &str) -> Result<(Settings, Vec<String>), String> {
 
 /// What the settings page asked to save, refused at the first bad value.
 pub fn from_page(value: &Value) -> Result<Settings, (Option<&'static str>, String)> {
-    let s: Settings = serde_json::from_value(value.clone()).map_err(|e| (None, format!("not settings: {e}")))?;
+    let s: Settings =
+        serde_json::from_value(value.clone()).map_err(|e| (None, format!("not settings: {e}")))?;
     match problems(&s).into_iter().next() {
         Some(p) => Err((Some(p.field), format!("{}: {}", p.field, p.message))),
         None => Ok(s),
@@ -343,7 +452,11 @@ pub fn load(path: &Path) -> Result<Loaded, String> {
         Err(e) => return Err(format!("could not read {}: {e}", path.display())),
     };
     let (settings, warnings) = parse(&text)?;
-    Ok(Loaded { settings, warnings, revision })
+    Ok(Loaded {
+        settings,
+        warnings,
+        revision,
+    })
 }
 
 /// The settings to act on now: the file's, or the defaults when it cannot
@@ -354,7 +467,10 @@ pub fn current(path: &Path) -> Settings {
 
 /// The file's text for `s`.
 pub fn to_text(s: &Settings) -> String {
-    format!("{HEADER}{}", toml::to_string_pretty(s).expect("settings always serialise"))
+    format!(
+        "{HEADER}{}",
+        toml::to_string_pretty(s).expect("settings always serialise")
+    )
 }
 
 /// Writes `s` atomically (a temporary file renamed over the old one), mode
@@ -366,7 +482,12 @@ pub fn save(path: &Path, s: &Settings) -> std::io::Result<String> {
     std::fs::create_dir_all(dir)?;
     let tmp = dir.join(format!(".config.toml.{}.tmp", std::process::id()));
     let result = (|| {
-        let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&tmp)?;
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&tmp)?;
         f.write_all(to_text(s).as_bytes())?;
         f.sync_all()?;
         std::fs::rename(&tmp, path)
@@ -387,4 +508,3 @@ pub fn expand(folder: &str) -> PathBuf {
         _ => PathBuf::from(folder),
     }
 }
-

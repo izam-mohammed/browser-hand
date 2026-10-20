@@ -32,7 +32,11 @@ pub struct HostOptions {
 
 impl HostOptions {
     pub fn from_env() -> Self {
-        HostOptions { config: crate::paths::config_path(), chrome_dir: crate::profiles::chrome_dir(), poll: config::POLL }
+        HostOptions {
+            config: crate::paths::config_path(),
+            chrome_dir: crate::profiles::chrome_dir(),
+            poll: config::POLL,
+        }
     }
 }
 
@@ -47,7 +51,8 @@ struct Conf {
     last_good: Option<Settings>,
 }
 
-pub const STALE: &str = "Settings changed in another profile. The page now shows them; make your change again.";
+pub const STALE: &str =
+    "Settings changed in another profile. The page now shows them; make your change again.";
 
 impl Conf {
     /// A `settings` frame for the file as it is now.
@@ -61,16 +66,31 @@ impl Conf {
             Err(e) => {
                 let first = e.lines().next().unwrap_or_default().to_owned();
                 let keep = self.last_good.clone().unwrap_or_default();
-                (keep, vec![format!("config.toml: {first}; keeping the last settings that read")], config::revision(path))
+                (
+                    keep,
+                    vec![format!(
+                        "config.toml: {first}; keeping the last settings that read"
+                    )],
+                    config::revision(path),
+                )
             }
         };
         let profiles = crate::profiles::read_profiles(&self.opts.chrome_dir)
             .unwrap_or_default()
             .into_iter()
-            .map(|p| ProfileRef { dir: p.dir, name: p.name })
+            .map(|p| ProfileRef {
+                dir: p.dir,
+                name: p.name,
+            })
             .collect();
         self.sent = Some(revision.clone());
-        Frame::Settings { settings, revision, path: path.display().to_string(), profiles, warnings }
+        Frame::Settings {
+            settings,
+            revision,
+            path: path.display().to_string(),
+            profiles,
+            warnings,
+        }
     }
 
     /// Saves what the page sent, unless the file changed since the page
@@ -81,7 +101,10 @@ impl Conf {
             id,
             ok: false,
             path: None,
-            error: Some(SettingsError { field: field.map(String::from), message }),
+            error: Some(SettingsError {
+                field: field.map(String::from),
+                message,
+            }),
         };
         if config::revision(&path) != base {
             return refuse(None, STALE.into());
@@ -91,7 +114,12 @@ impl Conf {
             Err((field, message)) => return refuse(field, message),
         };
         match config::save(&path, &settings) {
-            Ok(_) => Frame::SettingsSaved { id, ok: true, path: Some(path.display().to_string()), error: None },
+            Ok(_) => Frame::SettingsSaved {
+                id,
+                ok: true,
+                path: Some(path.display().to_string()),
+                error: None,
+            },
             Err(e) => refuse(None, format!("could not write {}: {e}", path.display())),
         }
     }
@@ -185,7 +213,12 @@ where
     });
 
     let accept = tokio::spawn(accept_loop(listener, state.clone(), chrome_tx.clone()));
-    let conf = Arc::new(Mutex::new(Conf { opts, hello: false, sent: None, last_good: None }));
+    let conf = Arc::new(Mutex::new(Conf {
+        opts,
+        hello: false,
+        sent: None,
+        last_good: None,
+    }));
     let poll = tokio::spawn(poll_loop(conf.clone(), chrome_tx.clone()));
 
     loop {
@@ -201,7 +234,12 @@ where
                 break;
             }
         };
-        if let Frame::SettingsSet { id, settings, revision } = &frame {
+        if let Frame::SettingsSet {
+            id,
+            settings,
+            revision,
+        } = &frame
+        {
             let reply = conf.lock().unwrap().save(*id, settings, revision);
             let _ = chrome_tx.send(reply);
             // Saved or refused, the page shows the file as it is now.
@@ -210,7 +248,12 @@ where
         }
         let st = &mut *state.lock().unwrap();
         match frame {
-            Frame::Hello { protocol, profile_dir, extension_version, .. } => {
+            Frame::Hello {
+                protocol,
+                profile_dir,
+                extension_version,
+                ..
+            } => {
                 if protocol != PROTOCOL {
                     eprintln!("browser-hand: the extension speaks protocol {protocol}, this host speaks {PROTOCOL}");
                 }
@@ -228,10 +271,20 @@ where
                 st.broadcast(&claimed);
                 st.broadcast(&st.hello());
             }
-            Frame::Result { id, ok, content, error } => {
+            Frame::Result {
+                id,
+                ok,
+                content,
+                error,
+            } => {
                 if let Some((client, own_id)) = st.pending.remove(&id) {
                     if let Some(tx) = st.clients.get(&client) {
-                        let _ = tx.send(Frame::Result { id: own_id, ok, content, error });
+                        let _ = tx.send(Frame::Result {
+                            id: own_id,
+                            ok,
+                            content,
+                            error,
+                        });
                     }
                 }
             }
@@ -296,21 +349,42 @@ async fn serve_client(stream: UnixStream, state: Arc<Mutex<State>>, chrome: Tx) 
 
     loop {
         match wire::read_frame(&mut read).await {
-            Ok(Some(Frame::Call { id, session, tool, args })) => {
+            Ok(Some(Frame::Call {
+                id,
+                session,
+                tool,
+                args,
+            })) => {
                 let st = &mut *state.lock().unwrap();
                 // A session belongs to the client that first used it, so
                 // another client cannot act in it or end it by leaving.
-                if st.sessions.iter().any(|(c, s)| *c != client && s.contains(&session)) {
+                if st
+                    .sessions
+                    .iter()
+                    .any(|(c, s)| *c != client && s.contains(&session))
+                {
                     if let Some(tx) = st.clients.get(&client) {
-                        let _ = tx.send(Frame::err(id, ErrorCode::BadArgs, "session id is in use by another client"));
+                        let _ = tx.send(Frame::err(
+                            id,
+                            ErrorCode::BadArgs,
+                            "session id is in use by another client",
+                        ));
                     }
                     continue;
                 }
                 let host_id = st.next_id;
                 st.next_id += 1;
                 st.pending.insert(host_id, (client, id));
-                st.sessions.entry(client).or_default().insert(session.clone());
-                let _ = chrome.send(Frame::Call { id: host_id, session, tool, args });
+                st.sessions
+                    .entry(client)
+                    .or_default()
+                    .insert(session.clone());
+                let _ = chrome.send(Frame::Call {
+                    id: host_id,
+                    session,
+                    tool,
+                    args,
+                });
             }
             // Anything else, `settings_set` included, is not a client's to
             // send: settings change only from the page in Chrome.

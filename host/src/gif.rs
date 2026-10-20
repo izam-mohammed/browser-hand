@@ -7,7 +7,9 @@ use ab_glyph::{FontRef, PxScale};
 use anyhow::Context;
 use base64::Engine;
 use image::{imageops, ImageFormat, Rgba, RgbaImage};
-use imageproc::drawing::{draw_filled_rect_mut, draw_hollow_circle_mut, draw_line_segment_mut, draw_text_mut, text_size};
+use imageproc::drawing::{
+    draw_filled_rect_mut, draw_hollow_circle_mut, draw_line_segment_mut, draw_text_mut, text_size,
+};
 use imageproc::rect::Rect;
 
 static FONT: &[u8] = include_bytes!("../assets/Inter.ttf");
@@ -40,7 +42,13 @@ pub struct Overlays {
 
 impl Default for Overlays {
     fn default() -> Self {
-        Overlays { click_indicators: true, drag_paths: true, action_labels: true, progress_bar: true, quality: 10 }
+        Overlays {
+            click_indicators: true,
+            drag_paths: true,
+            action_labels: true,
+            progress_bar: true,
+            quality: 10,
+        }
     }
 }
 
@@ -65,9 +73,13 @@ impl Recorder {
 }
 
 fn decode(b64: &str) -> anyhow::Result<RgbaImage> {
-    let bytes = base64::engine::general_purpose::STANDARD.decode(b64).context("frame is not base64")?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(b64)
+        .context("frame is not base64")?;
     let format = image::guess_format(&bytes).unwrap_or(ImageFormat::Jpeg);
-    Ok(image::load_from_memory_with_format(&bytes, format).context("decoding a frame")?.to_rgba8())
+    Ok(image::load_from_memory_with_format(&bytes, format)
+        .context("decoding a frame")?
+        .to_rgba8())
 }
 
 fn ring(img: &mut RgbaImage, at: (f32, f32), radius: i32, colour: Rgba<u8>) {
@@ -101,33 +113,58 @@ fn label(img: &mut RgbaImage, font: &FontRef, text: &str) {
     let x = 10;
     let y = 10;
     draw_filled_rect_mut(img, Rect::at(x, y).of_size(w + 2 * pad, h + 2 * pad), BLACK);
-    draw_text_mut(img, WHITE, x + pad as i32, y + pad as i32, scale, font, &text);
+    draw_text_mut(
+        img,
+        WHITE,
+        x + pad as i32,
+        y + pad as i32,
+        scale,
+        font,
+        &text,
+    );
 }
 
 fn progress(img: &mut RgbaImage, done: usize, total: usize) {
     let h = 5u32;
     let w = ((img.width() as usize * done) / total.max(1)).max(1) as u32;
-    draw_filled_rect_mut(img, Rect::at(0, img.height().saturating_sub(h) as i32).of_size(w, h), ORANGE);
+    draw_filled_rect_mut(
+        img,
+        Rect::at(0, img.height().saturating_sub(h) as i32).of_size(w, h),
+        ORANGE,
+    );
 }
 
 /// Encodes the frames, each shown for `delay_ms`, into GIF bytes. Frames of
 /// another size are scaled to the first frame's size.
 pub fn encode(frames: &[Recorded], overlays: &Overlays, delay_ms: u32) -> anyhow::Result<Vec<u8>> {
-    anyhow::ensure!(!frames.is_empty(), "No frames recorded. Start recording, act on the page, then export.");
+    anyhow::ensure!(
+        !frames.is_empty(),
+        "No frames recorded. Start recording, act on the page, then export."
+    );
     let font = FontRef::try_from_slice(FONT).context("loading the bundled font")?;
     let speed = overlays.quality.clamp(1, 30);
 
     let first = decode(&frames[0].image)?;
     let (w, h) = first.dimensions();
-    anyhow::ensure!(w <= u16::MAX as u32 && h <= u16::MAX as u32, "frame too large for GIF");
+    anyhow::ensure!(
+        w <= u16::MAX as u32 && h <= u16::MAX as u32,
+        "frame too large for GIF"
+    );
 
     let mut out = Vec::new();
     {
         let mut encoder = gif::Encoder::new(&mut out, w as u16, h as u16, &[])?;
         encoder.set_repeat(gif::Repeat::Infinite)?;
         for (i, f) in frames.iter().enumerate() {
-            let mut img = if i == 0 { first.clone() } else { decode(&f.image)? };
-            let (fx, fy) = (w as f32 / img.width() as f32, h as f32 / img.height() as f32);
+            let mut img = if i == 0 {
+                first.clone()
+            } else {
+                decode(&f.image)?
+            };
+            let (fx, fy) = (
+                w as f32 / img.width() as f32,
+                h as f32 / img.height() as f32,
+            );
             if img.dimensions() != (w, h) {
                 img = imageops::resize(&img, w, h, imageops::FilterType::Triangle);
             }
@@ -164,14 +201,23 @@ pub fn safe_filename(name: Option<&str>) -> Result<String, String> {
     let name = match name {
         Some(n) if !n.trim().is_empty() => n.trim().to_owned(),
         _ => {
-            let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
+            let ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
             format!("recording-{ms}.gif")
         }
     };
     if name.contains('/') || name.contains('\\') || name.starts_with('.') {
-        return Err(format!("filename \"{name}\" must be a plain file name, not a path"));
+        return Err(format!(
+            "filename \"{name}\" must be a plain file name, not a path"
+        ));
     }
-    Ok(if name.to_lowercase().ends_with(".gif") { name } else { format!("{name}.gif") })
+    Ok(if name.to_lowercase().ends_with(".gif") {
+        name
+    } else {
+        format!("{name}.gif")
+    })
 }
 
 /// `dir/name`, or `dir/name (2).gif` and so on when that file exists, so an
@@ -181,8 +227,14 @@ pub fn unused_path(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
     if !path.exists() {
         return path;
     }
-    let stem = name.strip_suffix(".gif").or_else(|| name.strip_suffix(".GIF")).unwrap_or(name);
-    (2..).map(|n| dir.join(format!("{stem} ({n}).gif"))).find(|p| !p.exists()).expect("some number is free")
+    let stem = name
+        .strip_suffix(".gif")
+        .or_else(|| name.strip_suffix(".GIF"))
+        .unwrap_or(name);
+    (2..)
+        .map(|n| dir.join(format!("{stem} ({n}).gif")))
+        .find(|p| !p.exists())
+        .expect("some number is free")
 }
 
 /// The settings' GIF folder (`capture.gif_folder`, `~` expanded), created

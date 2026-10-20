@@ -31,7 +31,11 @@ pub const MAX_FRAME: usize = 64 * 1024 * 1024;
 compile_error!("native messaging uses native byte order; the wire assumes little-endian");
 
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "snake_case", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub enum Frame {
     Call {
@@ -116,7 +120,11 @@ pub struct SettingsError {
 }
 
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
-#[serde(tag = "type", rename_all = "lowercase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "lowercase",
+    rename_all_fields = "camelCase"
+)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub enum Content {
     Text {
@@ -153,7 +161,12 @@ pub enum ErrorCode {
 
 impl Frame {
     pub fn ok(id: u64, content: Vec<Content>) -> Self {
-        Frame::Result { id, ok: true, content: Some(content), error: None }
+        Frame::Result {
+            id,
+            ok: true,
+            content: Some(content),
+            error: None,
+        }
     }
 
     pub fn err(id: u64, code: ErrorCode, message: impl Into<String>) -> Self {
@@ -161,7 +174,10 @@ impl Frame {
             id,
             ok: false,
             content: None,
-            error: Some(WireError { code, message: message.into() }),
+            error: Some(WireError {
+                code,
+                message: message.into(),
+            }),
         }
     }
 }
@@ -181,7 +197,10 @@ pub async fn read_body<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<Option<Vec
     }
     let len = u32::from_le_bytes(len) as usize;
     if len > MAX_FRAME {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("frame of {len} bytes")));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("frame of {len} bytes"),
+        ));
     }
     let mut body = vec![0u8; len];
     r.read_exact(&mut body).await?;
@@ -268,13 +287,22 @@ impl Reassembler {
     /// Feeds one frame. Non-chunk frames pass straight through; a chunk
     /// returns the whole frame once its last piece arrives.
     pub fn push(&mut self, frame: Frame) -> io::Result<Option<Frame>> {
-        let Frame::Chunk { id, seq, last, data } = frame else {
+        let Frame::Chunk {
+            id,
+            seq,
+            last,
+            data,
+        } = frame
+        else {
             return Ok(Some(frame));
         };
         let entry = self.parts.entry(id).or_insert((0, String::new()));
         if entry.0 != seq {
             self.parts.remove(&id);
-            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("chunk {seq} out of order")));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("chunk {seq} out of order"),
+            ));
         }
         entry.0 += 1;
         entry.1.push_str(&data);

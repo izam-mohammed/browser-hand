@@ -19,7 +19,11 @@ fn user_temp_dir() -> PathBuf {
     let mut buf = vec![0u8; 1024];
     // SAFETY: buf is valid for buf.len() bytes; confstr NUL-terminates.
     let n = unsafe {
-        libc::confstr(libc::_CS_DARWIN_USER_TEMP_DIR, buf.as_mut_ptr().cast(), buf.len())
+        libc::confstr(
+            libc::_CS_DARWIN_USER_TEMP_DIR,
+            buf.as_mut_ptr().cast(),
+            buf.len(),
+        )
     };
     if n > 0 && n <= buf.len() {
         if let Ok(s) = CStr::from_bytes_until_nul(&buf) {
