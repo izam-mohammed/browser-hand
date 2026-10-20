@@ -1,0 +1,13 @@
+[package]
+name = "prove-rmcp-stdio"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Standalone: proves rmcp alone, never part of the project's build.
+[workspace]
+
+[dependencies]
+rmcp = { version = "=3.5.1", features = ["server", "macros", "transport-io"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std"] }
+serde = { version = "1", features = ["derive"] }

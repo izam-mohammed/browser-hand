@@ -1,0 +1,14 @@
+{
+  "browser": { "enabled_labs_experiments": [] },
+  "profile": {
+    "last_used": "Profile 3",
+    "last_active_profiles": ["Profile 3"],
+    "profiles_order": ["Default", "Profile 3", "Profile 4"],
+    "info_cache": {
+      "Profile 4": { "name": "Testing", "user_name": "", "is_ephemeral": false, "active_time": 1.0 },
+      "Default": { "name": "Personal", "user_name": "someone@example.com", "is_ephemeral": false, "active_time": 3.0 },
+      "Profile 3": { "name": "Work", "user_name": "someone@example.org", "is_ephemeral": false, "active_time": 2.0 },
+      "Profile 9": { "name": "Guest-like", "is_ephemeral": true }
+    }
+  }
+}
