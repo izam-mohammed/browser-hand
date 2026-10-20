@@ -27,7 +27,14 @@ impl ImageStore {
         self.prune();
         self.next += 1;
         let id = format!("img_{}", self.next);
-        self.images.insert(id.clone(), Kept { data, mime_type, at: Instant::now() });
+        self.images.insert(
+            id.clone(),
+            Kept {
+                data,
+                mime_type,
+                at: Instant::now(),
+            },
+        );
         id
     }
 
@@ -46,8 +53,15 @@ pub fn save(data: &str, mime_type: &str, stem: &str) -> std::io::Result<PathBuf>
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(data)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    let ext = if mime_type == "image/png" { "png" } else { "jpg" };
-    let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis();
+    let ext = if mime_type == "image/png" {
+        "png"
+    } else {
+        "jpg"
+    };
+    let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
     let path = crate::gif::output_dir()?.join(format!("{stem}-{ms}.{ext}"));
     std::fs::write(&path, bytes)?;
     Ok(path)
@@ -59,7 +73,9 @@ pub fn scale_from_text(text: &str) -> Option<f32> {
     fn dims_after(text: &str, word: &str) -> Option<(f32, f32)> {
         let rest = &text[text.find(word)? + word.len()..];
         let rest = rest.trim_start();
-        let end = rest.find(|c: char| !(c.is_ascii_digit() || c == 'x')).unwrap_or(rest.len());
+        let end = rest
+            .find(|c: char| !(c.is_ascii_digit() || c == 'x'))
+            .unwrap_or(rest.len());
         let (w, h) = rest[..end].split_once('x')?;
         Some((w.parse().ok()?, h.parse().ok()?))
     }

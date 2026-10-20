@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use browser_hand::mcp::{Launcher, Server, EXTENSION_ID};
-use browser_hand::tools::args::{NavigateArgs, SelectProfileArgs, TabsContextArgs};
 use browser_hand::native_host;
+use browser_hand::tools::args::{NavigateArgs, SelectProfileArgs, TabsContextArgs};
 use browser_hand::wire::{self, Content, Frame};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::CallToolResult;
@@ -14,7 +14,12 @@ use tokio::net::UnixListener;
 /// `hello_dir` (and `claimed` as `claim_dir` when set), then answers every
 /// call with `<tool> <args>` as text. Returns the sessions it was told to
 /// `end`.
-fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Option<&str>) -> Arc<Mutex<Vec<String>>> {
+fn fake_profile(
+    sockets: &Path,
+    n: u32,
+    hello_dir: Option<&str>,
+    claim_dir: Option<&str>,
+) -> Arc<Mutex<Vec<String>>> {
     let listener = UnixListener::bind(sockets.join(format!("{n}.sock"))).unwrap();
     let (chrome, host) = tokio::io::duplex(1 << 20);
     let (hr, hw) = tokio::io::split(host);
@@ -33,7 +38,15 @@ fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Opti
         };
         wire::write_frame(&mut w, &hello).await.unwrap();
         if let Some(dir) = claim_dir {
-            wire::write_frame(&mut w, &Frame::Claimed { profile_dir: dir, nonce: "n".into() }).await.unwrap();
+            wire::write_frame(
+                &mut w,
+                &Frame::Claimed {
+                    profile_dir: dir,
+                    nonce: "n".into(),
+                },
+            )
+            .await
+            .unwrap();
         }
         while let Ok(Some(frame)) = wire::read_frame(&mut r).await {
             if let Frame::End { session } = &frame {
@@ -49,7 +62,12 @@ fn fake_profile(sockets: &Path, n: u32, hello_dir: Option<&str>, claim_dir: Opti
                         ],
                     )
                 } else {
-                    Frame::ok(id, vec![Content::Text { text: format!("{tool} {args}") }])
+                    Frame::ok(
+                        id,
+                        vec![Content::Text {
+                            text: format!("{tool} {args}"),
+                        }],
+                    )
                 };
                 wire::write_frame(&mut w, &reply).await.unwrap();
             }
@@ -63,7 +81,11 @@ pub fn tiny_png() -> String {
     use base64::Engine;
     let img = image::RgbaImage::from_pixel(60, 30, image::Rgba([128, 128, 128, 255]));
     let mut bytes = Vec::new();
-    img.write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Png).unwrap();
+    img.write_to(
+        &mut std::io::Cursor::new(&mut bytes),
+        image::ImageFormat::Png,
+    )
+    .unwrap();
     base64::engine::general_purpose::STANDARD.encode(bytes)
 }
 
@@ -77,11 +99,18 @@ impl Setup {
     fn new() -> Self {
         let chrome = tempfile::tempdir().unwrap();
         std::fs::copy(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/local-state.json"),
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/fixtures/local-state.json"
+            ),
             chrome.path().join("Local State"),
         )
         .unwrap();
-        Setup { _chrome: chrome, sockets: tempfile::tempdir().unwrap(), launched: Arc::default() }
+        Setup {
+            _chrome: chrome,
+            sockets: tempfile::tempdir().unwrap(),
+            launched: Arc::default(),
+        }
     }
 
     fn chrome_dir(&self) -> PathBuf {
@@ -94,7 +123,10 @@ impl Setup {
         let launched = self.launched.clone();
         let sockets = self.sockets.path().to_owned();
         let launch: Launcher = Arc::new(move |dir: &str, url: &str| {
-            launched.lock().unwrap().push((dir.to_owned(), url.to_owned()));
+            launched
+                .lock()
+                .unwrap()
+                .push((dir.to_owned(), url.to_owned()));
             if claim {
                 let _ = fake_profile(&sockets, 900, None, Some(dir));
             }
@@ -106,11 +138,16 @@ impl Setup {
 
 fn text(r: &CallToolResult) -> String {
     let v = serde_json::to_value(r).unwrap();
-    v["content"][0]["text"].as_str().unwrap_or_default().to_owned()
+    v["content"][0]["text"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned()
 }
 
 fn is_error(r: &CallToolResult) -> bool {
-    serde_json::to_value(r).unwrap()["isError"].as_bool().unwrap_or(false)
+    serde_json::to_value(r).unwrap()["isError"]
+        .as_bool()
+        .unwrap_or(false)
 }
 
 fn json(r: &CallToolResult) -> Value {
@@ -121,8 +158,11 @@ fn json(r: &CallToolResult) -> Value {
 fn extension_id_matches_the_manifest_key() {
     use base64::Engine;
     use sha2::{Digest, Sha256};
-    let manifest: Value = serde_json::from_str(include_str!("../../extension/manifest.json")).unwrap();
-    let key = base64::engine::general_purpose::STANDARD.decode(manifest["key"].as_str().unwrap()).unwrap();
+    let manifest: Value =
+        serde_json::from_str(include_str!("../../extension/manifest.json")).unwrap();
+    let key = base64::engine::general_purpose::STANDARD
+        .decode(manifest["key"].as_str().unwrap())
+        .unwrap();
     let digest = Sha256::digest(&key);
     let id: String = digest[..16]
         .iter()
@@ -143,9 +183,17 @@ async fn list_profiles_marks_which_are_connected() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|p| (p["name"].as_str().unwrap(), p["connected"].as_bool().unwrap()))
+        .map(|p| {
+            (
+                p["name"].as_str().unwrap(),
+                p["connected"].as_bool().unwrap(),
+            )
+        })
         .collect();
-    assert_eq!(connected, vec![("Personal", false), ("Work", true), ("Testing", false)]);
+    assert_eq!(
+        connected,
+        vec![("Personal", false), ("Work", true), ("Testing", false)]
+    );
     assert_eq!(v["unclaimedConnections"], 1);
 }
 
@@ -154,13 +202,32 @@ async fn selecting_a_connected_profile_by_name_forwards_tab_calls_to_it() {
     let s = Setup::new();
     fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
     let server = s.server(false);
-    let r = server.select_profile(Parameters(SelectProfileArgs { profile: "work".into() })).await.unwrap();
+    let r = server
+        .select_profile(Parameters(SelectProfileArgs {
+            profile: "work".into(),
+        }))
+        .await
+        .unwrap();
     assert!(!is_error(&r), "{}", text(&r));
-    assert!(s.launched.lock().unwrap().is_empty(), "no launch for a connected profile");
+    assert!(
+        s.launched.lock().unwrap().is_empty(),
+        "no launch for a connected profile"
+    );
 
-    let r = server.tabs_context(Parameters(TabsContextArgs { create_if_empty: Some(true) })).await.unwrap();
+    let r = server
+        .tabs_context(Parameters(TabsContextArgs {
+            create_if_empty: Some(true),
+        }))
+        .await
+        .unwrap();
     assert_eq!(text(&r), r#"tabs_context {"createIfEmpty":true}"#);
-    let r = server.navigate(Parameters(NavigateArgs { url: "example.com".into(), tab_id: Some(7) })).await.unwrap();
+    let r = server
+        .navigate(Parameters(NavigateArgs {
+            url: "example.com".into(),
+            tab_id: Some(7),
+        }))
+        .await
+        .unwrap();
     assert_eq!(text(&r), r#"navigate {"tabId":7,"url":"example.com"}"#);
 }
 
@@ -171,25 +238,46 @@ async fn selecting_the_bound_profile_again_keeps_the_session_and_its_tab_group()
     let s = Setup::new();
     let ends = fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
     let server = s.server(false);
-    server.select_profile(Parameters(SelectProfileArgs { profile: "work".into() })).await.unwrap();
+    server
+        .select_profile(Parameters(SelectProfileArgs {
+            profile: "work".into(),
+        }))
+        .await
+        .unwrap();
     server.tabs_create().await.unwrap();
-    let r = server.select_profile(Parameters(SelectProfileArgs { profile: "Profile 3".into() })).await.unwrap();
+    let r = server
+        .select_profile(Parameters(SelectProfileArgs {
+            profile: "Profile 3".into(),
+        }))
+        .await
+        .unwrap();
     assert!(!is_error(&r), "{}", text(&r));
     server.tabs_create().await.unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    assert!(ends.lock().unwrap().is_empty(), "ended {:?}", ends.lock().unwrap());
+    assert!(
+        ends.lock().unwrap().is_empty(),
+        "ended {:?}",
+        ends.lock().unwrap()
+    );
 }
 
 #[tokio::test]
 async fn selecting_an_unconnected_profile_launches_the_claim_page_and_waits() {
     let s = Setup::new();
     let server = s.server(true);
-    let r = server.select_profile(Parameters(SelectProfileArgs { profile: "Personal".into() })).await.unwrap();
+    let r = server
+        .select_profile(Parameters(SelectProfileArgs {
+            profile: "Personal".into(),
+        }))
+        .await
+        .unwrap();
     assert!(!is_error(&r), "{}", text(&r));
     let launched = s.launched.lock().unwrap().clone();
     assert_eq!(launched.len(), 1);
     assert_eq!(launched[0].0, "Default");
-    assert!(launched[0].1.starts_with(&format!("chrome-extension://{EXTENSION_ID}/claim.html#dir=Default&nonce=")));
+    assert!(launched[0].1.starts_with(&format!(
+        "chrome-extension://{EXTENSION_ID}/claim.html#dir=Default&nonce="
+    )));
     let r = server.tabs_create().await.unwrap();
     assert_eq!(text(&r), "tabs_create {}");
 }
@@ -198,14 +286,27 @@ async fn selecting_an_unconnected_profile_launches_the_claim_page_and_waits() {
 async fn the_claim_url_encodes_spaces_in_the_dir() {
     let s = Setup::new();
     let server = s.server(true);
-    server.select_profile(Parameters(SelectProfileArgs { profile: "Testing".into() })).await.unwrap();
-    assert!(s.launched.lock().unwrap()[0].1.contains("#dir=Profile%204&nonce="));
+    server
+        .select_profile(Parameters(SelectProfileArgs {
+            profile: "Testing".into(),
+        }))
+        .await
+        .unwrap();
+    assert!(s.launched.lock().unwrap()[0]
+        .1
+        .contains("#dir=Profile%204&nonce="));
 }
 
 #[tokio::test]
 async fn an_unknown_profile_is_an_error_listing_the_profiles() {
     let s = Setup::new();
-    let r = s.server(false).select_profile(Parameters(SelectProfileArgs { profile: "Nope".into() })).await.unwrap();
+    let r = s
+        .server(false)
+        .select_profile(Parameters(SelectProfileArgs {
+            profile: "Nope".into(),
+        }))
+        .await
+        .unwrap();
     assert!(is_error(&r));
     assert!(text(&r).contains("Work (Profile 3)"));
 }
@@ -236,7 +337,12 @@ async fn opening_a_profile_whose_extension_never_answers_says_what_happened() {
     tokio::time::pause();
     let launch: Launcher = Arc::new(|_: &str, _: &str| Ok(true));
     let server = Server::new(s.chrome_dir(), s.sockets.path().to_owned(), launch);
-    let r = server.select_profile(Parameters(SelectProfileArgs { profile: "Work".into() })).await.unwrap();
+    let r = server
+        .select_profile(Parameters(SelectProfileArgs {
+            profile: "Work".into(),
+        }))
+        .await
+        .unwrap();
     assert!(is_error(&r));
     let t = text(&r);
     assert!(t.contains("after starting Chrome"), "{t}");
@@ -250,7 +356,13 @@ mod more {
 
     fn all_text(r: &CallToolResult) -> String {
         let v = serde_json::to_value(r).unwrap();
-        v["content"].as_array().unwrap().iter().filter_map(|c| c["text"].as_str()).collect::<Vec<_>>().join("\n")
+        v["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|c| c["text"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     fn computer(action: ComputerAction) -> ComputerArgs {
@@ -283,10 +395,19 @@ mod more {
     #[tokio::test]
     async fn computer_passes_the_pace_and_screenshots_get_an_image_id() {
         let (_s, server) = connected().await;
-        let r = server.computer(Parameters(ComputerArgs { coordinate: Some([5.0, 6.0]), ..computer(ComputerAction::LeftClick) })).await.unwrap();
+        let r = server
+            .computer(Parameters(ComputerArgs {
+                coordinate: Some([5.0, 6.0]),
+                ..computer(ComputerAction::LeftClick)
+            }))
+            .await
+            .unwrap();
         assert!(text(&r).contains(r#""pace":"human""#), "{}", text(&r));
 
-        let r = server.computer(Parameters(computer(ComputerAction::Screenshot))).await.unwrap();
+        let r = server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
         let v = serde_json::to_value(&r).unwrap();
         assert_eq!(v["content"][1]["type"], "image");
         assert!(all_text(&r).contains("imageId: img_1"));
@@ -295,22 +416,53 @@ mod more {
     #[tokio::test]
     async fn upload_image_sends_the_kept_screenshot_and_refuses_unknown_ids() {
         let (_s, server) = connected().await;
-        server.computer(Parameters(computer(ComputerAction::Screenshot))).await.unwrap();
-        let args = |id: &str| UploadImageArgs { image_id: id.into(), tab_id: 1, reference: Some("ref_2".into()), coordinate: None, filename: None };
-        let r = server.upload_image(Parameters(args("img_1"))).await.unwrap();
+        server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        let args = |id: &str| UploadImageArgs {
+            image_id: id.into(),
+            tab_id: 1,
+            reference: Some("ref_2".into()),
+            coordinate: None,
+            filename: None,
+        };
+        let r = server
+            .upload_image(Parameters(args("img_1")))
+            .await
+            .unwrap();
         let t = text(&r);
         assert!(t.starts_with("upload_image "), "{t}");
-        assert!(t.contains(&tiny_png()) && t.contains(r#""filename":"image.png""#), "{t}");
-        let r = server.upload_image(Parameters(args("img_9"))).await.unwrap();
+        assert!(
+            t.contains(&tiny_png()) && t.contains(r#""filename":"image.png""#),
+            "{t}"
+        );
+        let r = server
+            .upload_image(Parameters(args("img_9")))
+            .await
+            .unwrap();
         assert!(is_error(&r) && text(&r).contains("fresh screenshot"));
     }
 
     #[tokio::test]
     async fn out_of_range_inputs_are_refused_before_reaching_the_browser() {
         let (_s, server) = connected().await;
-        let r = server.computer(Parameters(ComputerArgs { repeat: Some(101), text: Some("Enter".into()), ..computer(ComputerAction::Key) })).await.unwrap();
+        let r = server
+            .computer(Parameters(ComputerArgs {
+                repeat: Some(101),
+                text: Some("Enter".into()),
+                ..computer(ComputerAction::Key)
+            }))
+            .await
+            .unwrap();
         assert!(is_error(&r) && text(&r).contains("repeat"));
-        let r = server.computer(Parameters(ComputerArgs { duration: Some(11.0), ..computer(ComputerAction::Wait) })).await.unwrap();
+        let r = server
+            .computer(Parameters(ComputerArgs {
+                duration: Some(11.0),
+                ..computer(ComputerAction::Wait)
+            }))
+            .await
+            .unwrap();
         assert!(is_error(&r) && text(&r).contains("duration"));
         for amount in [0, 11] {
             let r = server
@@ -322,7 +474,11 @@ mod more {
                 }))
                 .await
                 .unwrap();
-            assert!(is_error(&r) && text(&r).contains("scroll_amount"), "{}", text(&r));
+            assert!(
+                is_error(&r) && text(&r).contains("scroll_amount"),
+                "{}",
+                text(&r)
+            );
         }
     }
 
@@ -333,12 +489,28 @@ mod more {
         let f = dir.path().join("note.txt");
         std::fs::write(&f, "hello").unwrap();
         let r = server
-            .file_upload(Parameters(FileUploadArgs { paths: vec![f.display().to_string()], reference: "ref_1".into(), tab_id: 1 }))
+            .file_upload(Parameters(FileUploadArgs {
+                paths: vec![f.display().to_string()],
+                reference: "ref_1".into(),
+                tab_id: 1,
+            }))
             .await
             .unwrap();
         let t = text(&r);
-        assert!(t.contains(r#""name":"note.txt""#) && t.contains(r#""mimeType":"text/plain""#) && t.contains("aGVsbG8="), "{t}");
-        let r = server.file_upload(Parameters(FileUploadArgs { paths: vec!["note.txt".into()], reference: "ref_1".into(), tab_id: 1 })).await.unwrap();
+        assert!(
+            t.contains(r#""name":"note.txt""#)
+                && t.contains(r#""mimeType":"text/plain""#)
+                && t.contains("aGVsbG8="),
+            "{t}"
+        );
+        let r = server
+            .file_upload(Parameters(FileUploadArgs {
+                paths: vec!["note.txt".into()],
+                reference: "ref_1".into(),
+                tab_id: 1,
+            }))
+            .await
+            .unwrap();
         assert!(is_error(&r) && text(&r).contains("absolute"));
     }
 
@@ -347,11 +519,23 @@ mod more {
         let (_s, server) = connected().await;
         // "fail" is no tool, so the second item fails before reaching the browser.
         let items = vec![
-            BatchItem { name: "mcp__browser-hand__find".into(), input: serde_json::json!({ "query": "go", "tabId": 1 }) },
-            BatchItem { name: "fail".into(), input: serde_json::json!({}) },
-            BatchItem { name: "get_page_text".into(), input: serde_json::json!({ "tabId": 1 }) },
+            BatchItem {
+                name: "mcp__browser-hand__find".into(),
+                input: serde_json::json!({ "query": "go", "tabId": 1 }),
+            },
+            BatchItem {
+                name: "fail".into(),
+                input: serde_json::json!({}),
+            },
+            BatchItem {
+                name: "get_page_text".into(),
+                input: serde_json::json!({ "tabId": 1 }),
+            },
         ];
-        let r = server.browser_batch(Parameters(BatchArgs { actions: items })).await.unwrap();
+        let r = server
+            .browser_batch(Parameters(BatchArgs { actions: items }))
+            .await
+            .unwrap();
         let t = all_text(&r);
         assert!(t.contains("[1/3] find: ok"), "{t}");
         assert!(t.contains("[2/3] fail failed, batch stopped"), "{t}");
@@ -362,8 +546,14 @@ mod more {
     #[tokio::test]
     async fn a_batch_cannot_nest() {
         let (_s, server) = connected().await;
-        let items = vec![BatchItem { name: "browser_batch".into(), input: serde_json::json!({ "actions": [] }) }];
-        let r = server.browser_batch(Parameters(BatchArgs { actions: items })).await.unwrap();
+        let items = vec![BatchItem {
+            name: "browser_batch".into(),
+            input: serde_json::json!({ "actions": [] }),
+        }];
+        let r = server
+            .browser_batch(Parameters(BatchArgs { actions: items }))
+            .await
+            .unwrap();
         assert!(is_error(&r) && text(&r).contains("cannot be nested"));
     }
 
@@ -372,19 +562,41 @@ mod more {
         let out = tempfile::tempdir().unwrap();
         std::env::set_var("BROWSER_HAND_OUTPUT_DIR", out.path());
         let (_s, server) = connected().await;
-        let gif = |action| GifArgs { action, tab_id: 1, download: None, filename: Some("walk".into()), options: None };
+        let gif = |action| GifArgs {
+            action,
+            tab_id: 1,
+            download: None,
+            filename: Some("walk".into()),
+            options: None,
+        };
 
-        let r = server.gif_creator(Parameters(gif(GifAction::StartRecording))).await.unwrap();
-        assert!(text(&r).contains("1 frame"), "{}", text(&r));
-        server
-            .computer(Parameters(ComputerArgs { coordinate: Some([50.0, 25.0]), action_summary: Some("Clicks Go".into()), ..computer(ComputerAction::LeftClick) }))
+        let r = server
+            .gif_creator(Parameters(gif(GifAction::StartRecording)))
             .await
             .unwrap();
-        server.computer(Parameters(computer(ComputerAction::Screenshot))).await.unwrap(); // no frame
-        let r = server.gif_creator(Parameters(gif(GifAction::StopRecording))).await.unwrap();
+        assert!(text(&r).contains("1 frame"), "{}", text(&r));
+        server
+            .computer(Parameters(ComputerArgs {
+                coordinate: Some([50.0, 25.0]),
+                action_summary: Some("Clicks Go".into()),
+                ..computer(ComputerAction::LeftClick)
+            }))
+            .await
+            .unwrap();
+        server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap(); // no frame
+        let r = server
+            .gif_creator(Parameters(gif(GifAction::StopRecording)))
+            .await
+            .unwrap();
         assert!(text(&r).contains("2 frame(s)"), "{}", text(&r));
 
-        let r = server.gif_creator(Parameters(gif(GifAction::Export))).await.unwrap();
+        let r = server
+            .gif_creator(Parameters(gif(GifAction::Export)))
+            .await
+            .unwrap();
         assert!(!is_error(&r), "{}", text(&r));
         let bytes = std::fs::read(out.path().join("walk.gif")).unwrap();
         assert_eq!(&bytes[..6], b"GIF89a");

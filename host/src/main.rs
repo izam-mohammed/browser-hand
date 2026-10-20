@@ -11,7 +11,11 @@ fn main() -> ExitCode {
 
     // Chrome passes only "chrome-extension://<id>/" and no subcommand
     // (docs/external/chrome-native-messaging.md § How Chrome launches the host).
-    let mode = if first.starts_with("chrome-extension://") { "native-host" } else { first };
+    let mode = if first.starts_with("chrome-extension://") {
+        "native-host"
+    } else {
+        first
+    };
 
     let result = match mode {
         "native-host" => runtime().block_on(browser_hand::native_host::main()),

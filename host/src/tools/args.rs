@@ -92,7 +92,11 @@ pub struct ConsoleArgs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pattern: Option<String>,
     /// Only errors and uncaught exceptions.
-    #[serde(default, rename = "onlyErrors", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "onlyErrors",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub only_errors: Option<bool>,
     /// Maximum messages to return (default 100).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -108,7 +112,11 @@ pub struct NetworkArgs {
     #[serde(rename = "tabId")]
     pub tab_id: i64,
     /// Only requests whose URL contains this text, e.g. "/api/".
-    #[serde(default, rename = "urlPattern", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "urlPattern",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub url_pattern: Option<String>,
     /// Maximum requests to return (default 100).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -178,7 +186,10 @@ pub enum ComputerAction {
 impl ComputerAction {
     /// Actions that change the page (and earn a GIF frame).
     pub fn acts(self) -> bool {
-        !matches!(self, ComputerAction::Screenshot | ComputerAction::Zoom | ComputerAction::Wait)
+        !matches!(
+            self,
+            ComputerAction::Screenshot | ComputerAction::Zoom | ComputerAction::Wait
+        )
     }
 }
 
