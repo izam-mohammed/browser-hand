@@ -27,3 +27,15 @@ Findings that cost time once. Read before each phase.
 - **jsdom leaves `MessageEvent.source` null for `postMessage`**, while Chrome
   sets it to the window; tests that cross worlds deliver messages with the
   source set (`extension/test/page.test.ts`).
+- **jsdom cannot make a trusted event**: `isTrusted` is a non-configurable
+  getter on each event, so `defineProperty` throws. Code that drops
+  untrusted events takes the test as an argument (`Capture` in
+  `extension/src/page/record.ts`), and tests pass a `WeakSet` of the events
+  they mean as the person's.
+- **jsdom has no `isContentEditable`** (it is `undefined`), so the walker
+  gives a `contenteditable` element no role there and code checks the
+  attribute too.
+- **Listing tools in a test needs `#[tool_router(vis = "pub")]`**: the
+  macro's `tool_router()` is private by default; with it public,
+  `Server::tool_router().list_all()` gives every tool's name
+  (`host/tests/mcp.rs`).

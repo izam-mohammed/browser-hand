@@ -372,23 +372,41 @@ host, so it needs no `key`, no host manifest and no `--install` step.
 
 ### Phase 2: the rough cut (needs you: try it)
 
-- [ ] The toolbar button starts and stops a recording of its window, with
+- [x] The toolbar button starts and stops a recording of its window, with
   "REC" on every tab's badge (expected in `extension/src/recorder.ts` and
   `extension/manifest.json`), pinned by `extension/test/record.test.ts`.
-- [ ] Clicks, `change` values, Enter, Tab and Escape, and page loads become
+  Landed 20/10/2026: one recording at a time; the button in any window stops
+  it. The badge is set per tab and set again on each load. Icons are
+  `extension/icons/{idle,rec}-{16,32}.png`.
+- [x] Clicks, `change` values, Enter, Tab and Escape, and page loads become
   `UserFlow` steps with `aria/`, `text/`, CSS and `xpath/` selectors;
   sensitive fields masked and synthetic events dropped (expected in
   `extension/src/page/record.ts`), pinned by `record.test.ts`.
-- [ ] Steps are stored under `rec:<id>` with `meta`, and the oldest beyond
+  Landed 20/10/2026: page loads are recorded by the service worker from
+  `webNavigation.onCommitted`: a load right after a click, change or keyUp
+  becomes that step's `assertedEvents`, others a `navigate` step. Enter
+  takes the field's value first, so a submit never loses it. jsdom cannot
+  make a trusted event, so `Capture` takes the trust test as an argument.
+- [x] Steps are stored under `rec:<id>` with `meta`, and the oldest beyond
   20 recordings dropped (expected in `extension/src/recorder.ts`), pinned by
   `record.test.ts`.
-- [ ] `recording_list` and `recording_get` (text and devtools) answer from
+  Landed 20/10/2026: an index of summaries sits in `storage.local` under
+  `recordings` so listing never reads every recording; steps are written
+  500 ms after the last one, and at once on stop.
+- [x] `recording_list` and `recording_get` (text and devtools) answer from
   the profile that recorded (expected in `host/src/mcp.rs` and
   `extension/src/background.ts`), pinned by `host/tests/mcp.rs`; the tool
   names added to `docs/protocol.md`, `host/src/instructions.md` and the
   skill, and "how to record" to `README.md`.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 20/10/2026: the extension answers with the stored JSON and the
+  server renders it, in the new `host/src/tools/recording.rs` (not in the
+  plan's table). `docs/protocol.md` lists the tools under Compatibility.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 20/10/2026: 107 extension tests and every host test pass; of
+  `scripts/build.sh` the build steps ran (`cargo build --release`,
+  `npm --prefix extension run build`) but not its `install`, which writes
+  under `~/Library` and was left for the person.
 - [ ] You try it: reload the extension, pin its button, press it, do a short
   task (search, open a result, fill a form field), press it again, then ask
   Claude "what did I just record?". Say whether the steps read the way you
@@ -396,40 +414,72 @@ host, so it needs no `key`, no host manifest and no `--install` step.
 
 ### Phase 3: the rest of capture
 
-- [ ] `Alt+Shift+R` toggles recording (`commands`), and double clicks,
+- [x] `Alt+Shift+R` toggles recording (`commands`), and double clicks,
   scrolls (sampled), select boxes and `contenteditable` text record (expected
   in `extension/src/page/record.ts`), pinned by `record.test.ts`.
-- [ ] Popups and windows opened from recorded tabs join the recording;
+  Landed 20/10/2026: a double click replaces its two clicks in the
+  recorder; scrolls are one step per gesture, 400 ms after it settles;
+  `contenteditable` text is taken when focus leaves. The shortcut has no
+  test of its own (it calls the same `toggle` as the button).
+- [x] Popups and windows opened from recorded tabs join the recording;
   frames record with their `frame` path once `all_frames` is on; shadow DOM
   gives `pierce/` selectors (expected in `extension/src/recorder.ts`),
   pinned by `record.test.ts`.
-- [ ] Steps made while Claude's `Input` acts on a tab get `actor: "claude"`,
+  Landed 20/10/2026: windows join through `tabs.onCreated`'s `openerTabId`
+  and `webNavigation.onCreatedNavigationTarget`. Each frame's content
+  script works out its own `frame` path (`framePath` in
+  `extension/src/page/record.ts`, where the selectors also live).
+- [x] Steps made while Claude's `Input` acts on a tab get `actor: "claude"`,
   and `recording_get` hides them unless asked (expected in
   `extension/src/background.ts`), pinned by `record.test.ts`.
-- [ ] The recording stops after 30 idle minutes, on window close and at
+  Landed 20/10/2026: `Recorder.busy` holds the mark, with a 300 ms tail for
+  events still in flight; `background.ts` wraps `computer` and replay in
+  it. Hiding happens in the server (`host/src/tools/recording.rs`), pinned
+  by `host/tests/mcp.rs`.
+- [x] The recording stops after 30 idle minutes, on window close and at
   5,000 steps, survives the service worker stopping, and `recording_delete`
   removes one (expected in `extension/src/recorder.ts`), pinned by
   `record.test.ts` and `host/tests/mcp.rs`.
-- [ ] The 50 MB budget drops the oldest stopped recording, and a failed
+  Landed 20/10/2026: the idle stop is a timer re-armed on each step and a
+  check on every event, so no `alarms` permission; a recording still
+  being made cannot be deleted.
+- [x] The 50 MB budget drops the oldest stopped recording, and a failed
   `set` stops the recording, keeps it and shows "FULL" (expected in
   `extension/src/recorder.ts`), pinned by `record.test.ts` "storage
   budget" with a stubbed `getBytesInUse` and a rejecting `set`.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 20/10/2026: 107 extension tests and every host test pass; of
+  `scripts/build.sh` the build steps ran (`cargo build --release`,
+  `npm --prefix extension run build`) but not its `install`, which writes
+  under `~/Library` and was left for the person.
 
 ### Phase 4: replay
 
-- [ ] `recording_replay` runs a recording's steps in a tab through `Input`
+- [x] `recording_replay` runs a recording's steps in a tab through `Input`
   at the person's pace, finding each element by its selectors in order,
   with `values` replacing a step's typed value and `from` resuming at a step
   (expected in `host/src/mcp.rs` and `extension/src/background.ts`), pinned
   by `host/tests/mcp.rs`.
-- [ ] Replay stops at the first step it cannot find and returns the step,
+  Landed 20/10/2026: the server walks the steps and sends each to the
+  extension's `replay_step`, in `extension/src/replay.ts` (pinned too by
+  `record.test.ts`). A key is pressed at its `keyUp`, `setViewport` is
+  skipped, a change types over the field after select-all, and every step
+  replays, Claude's included. Steps inside frames stop the replay: it
+  reaches the top frame only for now.
+- [x] Replay stops at the first step it cannot find and returns the step,
   the selectors tried and a screenshot (expected in
   `extension/src/background.ts`), pinned by `host/tests/mcp.rs`; the
   instructions and skill say when to replay and when to read and act.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 20/10/2026: an element gets 5 s to appear; any failing step stops
+  the replay, as does a masked value with no `values` for it, before
+  acting. The server takes the screenshot through `computer`.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 20/10/2026: 107 extension tests and every host test pass; of
+  `scripts/build.sh` the build steps ran (`cargo build --release`,
+  `npm --prefix extension run build`) but not its `install`, which writes
+  under `~/Library` and was left for the person.
 
 ### Phase 5: the walk (needs you at Chrome)
 
