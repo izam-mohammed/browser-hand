@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use browser_hand::native_host;
+use browser_hand::config::{self, Settings};
+use browser_hand::native_host::{self, HostOptions};
 use browser_hand::wire::{self, Content, Frame, Reassembler};
 use serde_json::json;
 use tokio::io::{DuplexStream, ReadHalf, WriteHalf};
@@ -18,7 +19,17 @@ impl Chrome {
     async fn send(&mut self, f: Frame) {
         wire::write_frame(&mut self.write, &f).await.unwrap();
     }
+    /// The next frame that is not `settings` (the host sends those on
+    /// every hello; the settings tests read them with `recv_any`).
     async fn recv(&mut self) -> Frame {
+        loop {
+            match self.recv_any().await {
+                Frame::Settings { .. } => continue,
+                f => return f,
+            }
+        }
+    }
+    async fn recv_any(&mut self) -> Frame {
         timeout(T, wire::read_frame(&mut self.read))
             .await
             .unwrap()
@@ -27,7 +38,17 @@ impl Chrome {
     }
 }
 
-/// Starts a host on a temp socket with an in-memory "Chrome" end.
+/// The host's settings file inside `dir`, polled every 100 ms.
+fn options(dir: &std::path::Path) -> HostOptions {
+    HostOptions {
+        config: dir.join("conf").join("config.toml"),
+        chrome_dir: dir.join("chrome"),
+        poll: Duration::from_millis(100),
+    }
+}
+
+/// Starts a host on a temp socket with an in-memory "Chrome" end. Its
+/// settings file is `options(dir).config`.
 async fn start() -> (
     Chrome,
     std::path::PathBuf,
@@ -35,14 +56,21 @@ async fn start() -> (
     tokio::task::JoinHandle<()>,
 ) {
     let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().to_owned();
     let path = dir.path().join("h.sock");
     let listener = UnixListener::bind(&path).unwrap();
     let (chrome_end, host_end) = tokio::io::duplex(1 << 22);
     let (host_read, host_write) = tokio::io::split(host_end);
     let task = tokio::spawn(async move {
-        native_host::run(host_read, host_write, listener, "inst-1".into())
-            .await
-            .unwrap();
+        native_host::run(
+            host_read,
+            host_write,
+            listener,
+            "inst-1".into(),
+            options(&config),
+        )
+        .await
+        .unwrap();
     });
     let (read, write) = tokio::io::split(chrome_end);
     (Chrome { read, write }, path, dir, task)
@@ -279,4 +307,181 @@ async fn a_session_in_use_by_one_client_is_refused_to_another() {
         .await
         .unwrap();
     assert!(matches!(chrome.recv().await, Frame::Call { .. }));
+}
+
+// Settings (plans/06-settings.md).
+
+fn hello(dir: Option<&str>) -> Frame {
+    Frame::Hello {
+        protocol: 1,
+        profile_dir: dir.map(String::from),
+        extension_version: "0.1.0".into(),
+        instance: String::new(),
+    }
+}
+
+/// The next `settings` frame Chrome gets.
+async fn settings_frame(chrome: &mut Chrome) -> (Settings, String, Vec<String>) {
+    loop {
+        if let Frame::Settings {
+            settings,
+            revision,
+            warnings,
+            ..
+        } = chrome.recv_any().await
+        {
+            return (settings, revision, warnings);
+        }
+    }
+}
+
+fn set(id: u64, s: &Settings, revision: &str) -> Frame {
+    Frame::SettingsSet {
+        id,
+        settings: serde_json::to_value(s).unwrap(),
+        revision: revision.into(),
+    }
+}
+
+#[tokio::test]
+async fn the_extensions_hello_gets_the_settings_with_no_file_the_defaults() {
+    let (mut chrome, _path, dir, _task) = start().await;
+    chrome.send(hello(None)).await;
+    let Frame::Settings {
+        settings,
+        revision,
+        path,
+        warnings,
+        ..
+    } = chrome.recv_any().await
+    else {
+        panic!()
+    };
+    assert_eq!(settings, Settings::default());
+    assert_eq!(revision, "0");
+    assert_eq!(path, options(dir.path()).config.display().to_string());
+    assert!(warnings.is_empty());
+}
+
+#[tokio::test]
+async fn settings_set_from_chrome_saves_answers_and_sends_the_new_file() {
+    let (mut chrome, _path, dir, _task) = start().await;
+    chrome.send(hello(None)).await;
+    let (mut s, rev, _) = settings_frame(&mut chrome).await;
+    s.input.pace = "fast".into();
+    s.sites.blocked = vec!["*.bank.com/*".into()];
+    chrome.send(set(4, &s, &rev)).await;
+    match chrome.recv_any().await {
+        Frame::SettingsSaved {
+            id: 4,
+            ok: true,
+            path: Some(p),
+            error: None,
+        } => assert!(p.ends_with("config.toml")),
+        other => panic!("{other:?}"),
+    }
+    let (now, new_rev, _) = settings_frame(&mut chrome).await;
+    assert_eq!(now, s);
+    assert_ne!(new_rev, rev);
+    assert_eq!(config::current(&options(dir.path()).config), s);
+}
+
+#[tokio::test]
+async fn a_bad_value_is_refused_naming_its_key_and_nothing_is_written() {
+    let (mut chrome, _path, dir, _task) = start().await;
+    chrome.send(hello(None)).await;
+    let (mut s, rev, _) = settings_frame(&mut chrome).await;
+    s.sites.read_only = vec!["https//docs.google".into()];
+    chrome.send(set(5, &s, &rev)).await;
+    match chrome.recv_any().await {
+        Frame::SettingsSaved {
+            id: 5,
+            ok: false,
+            error: Some(e),
+            ..
+        } => {
+            assert_eq!(e.field.as_deref(), Some("sites.read_only"));
+            assert!(e.message.contains(config::NOT_A_PATTERN), "{}", e.message);
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(!options(dir.path()).config.exists());
+}
+
+#[tokio::test]
+async fn a_stale_revision_is_refused_as_changed_in_another_profile() {
+    let (mut chrome, _path, dir, _task) = start().await;
+    chrome.send(hello(None)).await;
+    let (s, rev, _) = settings_frame(&mut chrome).await;
+    // Another profile's host saves first.
+    let mut other = s.clone();
+    other.input.mouse_speed = 2.0;
+    config::save(&options(dir.path()).config, &other).unwrap();
+    chrome.send(set(6, &s, &rev)).await;
+    loop {
+        match chrome.recv_any().await {
+            Frame::SettingsSaved {
+                id: 6, ok, error, ..
+            } => {
+                assert!(!ok);
+                assert!(error
+                    .unwrap()
+                    .message
+                    .contains("changed in another profile"));
+                break;
+            }
+            Frame::Settings { .. } => continue, // the poll may see the change first
+            other => panic!("{other:?}"),
+        }
+    }
+    assert_eq!(config::current(&options(dir.path()).config), other);
+}
+
+#[tokio::test]
+async fn a_socket_client_cannot_change_the_settings() {
+    let (mut chrome, path, dir, _task) = start().await;
+    chrome.send(hello(None)).await;
+    let (mut s, rev, _) = settings_frame(&mut chrome).await;
+    let mut a = client(&path).await;
+    recv(&mut a).await;
+    s.sites.blocked.clear();
+    s.input.pace = "fast".into();
+    wire::write_frame(&mut a, &set(1, &s, &rev)).await.unwrap();
+    // The client's frame goes nowhere: the next thing Chrome sees is the
+    // client's call, and the file was never written.
+    wire::write_frame(&mut a, &call(2, "sa", "tabs_context"))
+        .await
+        .unwrap();
+    assert!(matches!(chrome.recv().await, Frame::Call { .. }));
+    assert!(!options(dir.path()).config.exists());
+}
+
+#[tokio::test]
+async fn a_change_on_disk_reaches_the_extension_within_the_poll() {
+    let (mut chrome, _path, dir, _task) = start().await;
+    chrome.send(hello(None)).await;
+    settings_frame(&mut chrome).await;
+    let mut other = Settings::default();
+    other.sites.blocked = vec!["hr.example.com/*".into()];
+    config::save(&options(dir.path()).config, &other).unwrap();
+    let (now, _, _) = settings_frame(&mut chrome).await;
+    assert_eq!(now, other);
+}
+
+#[tokio::test]
+async fn a_broken_hand_edit_keeps_the_last_good_settings_and_warns() {
+    let (mut chrome, _path, dir, _task) = start().await;
+    let file = options(dir.path()).config;
+    let mut good = Settings::default();
+    good.sites.blocked = vec!["*.bank.com/*".into()];
+    config::save(&file, &good).unwrap();
+    chrome.send(hello(None)).await;
+    assert_eq!(settings_frame(&mut chrome).await.0, good);
+    std::fs::write(&file, "[sites\nblocked = [").unwrap();
+    let (now, _, warnings) = settings_frame(&mut chrome).await;
+    assert_eq!(now, good, "a broken file must not drop the blocked sites");
+    assert!(
+        warnings[0].starts_with("config.toml: TOML parse error"),
+        "{warnings:?}"
+    );
 }

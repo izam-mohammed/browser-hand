@@ -1,3 +1,4 @@
+pub mod config;
 pub mod gif;
 pub mod host_conn;
 pub mod install;
