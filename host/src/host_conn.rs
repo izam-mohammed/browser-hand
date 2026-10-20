@@ -24,9 +24,17 @@ pub struct HelloInfo {
 
 fn hello_info(frame: Frame) -> Option<HelloInfo> {
     match frame {
-        Frame::Hello { protocol, profile_dir, extension_version, instance } => {
-            Some(HelloInfo { protocol, profile_dir, extension_version, instance })
-        }
+        Frame::Hello {
+            protocol,
+            profile_dir,
+            extension_version,
+            instance,
+        } => Some(HelloInfo {
+            protocol,
+            profile_dir,
+            extension_version,
+            instance,
+        }),
         _ => None,
     }
 }
@@ -36,7 +44,8 @@ async fn first_hello(stream: &mut UnixStream, wait: Duration) -> io::Result<Hell
         .await
         .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "no hello from host"))??
         .ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "host closed before hello"))?;
-    hello_info(frame).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "first frame was not hello"))
+    hello_info(frame)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "first frame was not hello"))
 }
 
 /// Connects, reads the host's hello, and hangs up.
@@ -71,7 +80,10 @@ impl HostConn {
         if hello.protocol != PROTOCOL {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("host speaks protocol {}, this server speaks {PROTOCOL}", hello.protocol),
+                format!(
+                    "host speaks protocol {}, this server speaks {PROTOCOL}",
+                    hello.protocol
+                ),
             ));
         }
         let (mut read, mut write) = stream.into_split();
@@ -91,7 +103,9 @@ impl HostConn {
             loop {
                 match wire::read_frame(&mut read).await {
                     Ok(Some(frame @ Frame::Result { .. })) => {
-                        let Frame::Result { id, .. } = &frame else { unreachable!() };
+                        let Frame::Result { id, .. } = &frame else {
+                            unreachable!()
+                        };
                         if let Some(waiter) = reader_pending.lock().unwrap().remove(id) {
                             let _ = waiter.send(frame);
                         }
@@ -108,7 +122,14 @@ impl HostConn {
             reader_pending.lock().unwrap().clear();
         });
 
-        Ok(HostConn { path: path.to_owned(), tx, pending, next_id: AtomicU64::new(1), hello: hello_rx, reader })
+        Ok(HostConn {
+            path: path.to_owned(),
+            tx,
+            pending,
+            next_id: AtomicU64::new(1),
+            hello: hello_rx,
+            reader,
+        })
     }
 
     pub fn hello(&self) -> HelloInfo {
@@ -120,11 +141,22 @@ impl HostConn {
     }
 
     /// Sends a call and waits for its result frame.
-    pub async fn call(&self, session: &str, tool: &str, args: Value, wait: Duration) -> Result<Frame, CallError> {
+    pub async fn call(
+        &self,
+        session: &str,
+        tool: &str,
+        args: Value,
+        wait: Duration,
+    ) -> Result<Frame, CallError> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (done, result) = oneshot::channel();
         self.pending.lock().unwrap().insert(id, done);
-        let frame = Frame::Call { id, session: session.into(), tool: tool.into(), args };
+        let frame = Frame::Call {
+            id,
+            session: session.into(),
+            tool: tool.into(),
+            args,
+        };
         if self.tx.send(frame).is_err() {
             self.pending.lock().unwrap().remove(&id);
             return Err(CallError::Disconnected);

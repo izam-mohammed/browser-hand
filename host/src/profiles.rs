@@ -34,8 +34,10 @@ pub fn chrome_dir() -> PathBuf {
 /// it records one. Email addresses are not read out.
 pub fn read_profiles(chrome_dir: &Path) -> anyhow::Result<Vec<Profile>> {
     let path = chrome_dir.join("Local State");
-    let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-    let state: Value = serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+    let text =
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+    let state: Value =
+        serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
     let profile = &state["profile"];
     let last_used = profile["last_used"].as_str().unwrap_or("Default");
     let Some(cache) = profile["info_cache"].as_object() else {
@@ -47,7 +49,12 @@ pub fn read_profiles(chrome_dir: &Path) -> anyhow::Result<Vec<Profile>> {
         .map(|a| a.iter().filter_map(Value::as_str).collect())
         .unwrap_or_default();
     let mut dirs: Vec<&String> = cache.keys().collect();
-    dirs.sort_by_key(|d| (order.iter().position(|o| o == d).unwrap_or(usize::MAX), d.to_string()));
+    dirs.sort_by_key(|d| {
+        (
+            order.iter().position(|o| o == d).unwrap_or(usize::MAX),
+            d.to_string(),
+        )
+    });
 
     Ok(dirs
         .into_iter()
@@ -70,7 +77,9 @@ pub struct LiveHost {
 /// Every host socket in `dir` that answers within `wait`. Sockets nobody is
 /// listening on are left over from killed hosts and are removed.
 pub async fn discover(dir: &Path, wait: Duration) -> Vec<LiveHost> {
-    let Ok(entries) = std::fs::read_dir(dir) else { return vec![] };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return vec![];
+    };
     let paths: Vec<PathBuf> = entries
         .filter_map(Result::ok)
         .map(|e| e.path())
@@ -88,7 +97,11 @@ pub async fn discover(dir: &Path, wait: Duration) -> Vec<LiveHost> {
             }
         }
     });
-    let mut live: Vec<LiveHost> = futures_join_all(probes).await.into_iter().flatten().collect();
+    let mut live: Vec<LiveHost> = futures_join_all(probes)
+        .await
+        .into_iter()
+        .flatten()
+        .collect();
     live.sort_by(|a, b| a.path.cmp(&b.path));
     live
 }
@@ -114,6 +127,10 @@ pub fn resolve<'a>(profiles: &'a [Profile], wanted: &str) -> Option<&'a Profile>
     profiles
         .iter()
         .find(|p| p.dir == wanted)
-        .or_else(|| profiles.iter().find(|p| p.name.eq_ignore_ascii_case(wanted)))
+        .or_else(|| {
+            profiles
+                .iter()
+                .find(|p| p.name.eq_ignore_ascii_case(wanted))
+        })
         .or_else(|| profiles.iter().find(|p| p.dir.eq_ignore_ascii_case(wanted)))
 }
