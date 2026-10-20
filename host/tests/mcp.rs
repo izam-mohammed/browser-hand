@@ -356,6 +356,7 @@ mod more {
         assert!(t.contains("[1/3] find: ok"), "{t}");
         assert!(t.contains("[2/3] fail failed, batch stopped"), "{t}");
         assert!(!t.contains("get_page_text"), "{t}");
+        assert!(is_error(&r), "a stopped batch is an error result");
     }
 
     #[tokio::test]

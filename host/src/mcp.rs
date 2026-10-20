@@ -293,7 +293,7 @@ impl Server {
         };
         let at = |p: [f64; 2]| (p[0] as f32 * scale, p[1] as f32 * scale);
         let frame = Recorded { image, label, click: click.map(at), drag: drag.map(|(a, b)| (at(a), at(b))) };
-        self.inner.recorder.lock().await.frames.push(frame);
+        self.inner.recorder.lock().await.push(frame);
     }
 
     /// Gives each image an id for `upload_image` and saves it when asked.
@@ -470,7 +470,7 @@ impl Server {
                     .await
                     .map_err(|e| format!("page_error: {e}"))?
                     .map_err(|e| format!("bad_args: {e:#}"))?;
-                let path = gif::output_dir().map_err(|e| e.to_string())?.join(name);
+                let path = gif::unused_path(&gif::output_dir().map_err(|e| e.to_string())?, &name);
                 std::fs::write(&path, &bytes).map_err(|e| format!("could not write {}: {e}", path.display()))?;
                 Ok(vec![text(format!("Exported {} ({} KB) to {}", path.file_name().unwrap_or_default().to_string_lossy(), bytes.len() / 1024, path.display()))])
             }
@@ -512,9 +512,11 @@ impl Server {
         }
     }
 
-    async fn do_batch(&self, args: BatchArgs) -> Outcome {
+    /// Runs the items in order. A failure stops the batch and makes the
+    /// result an error that still carries the earlier items' content.
+    async fn do_batch(&self, args: BatchArgs) -> CallToolResult {
         if args.actions.is_empty() {
-            return Err("bad_args: actions is empty".into());
+            return respond(Err("bad_args: actions is empty".into()));
         }
         let mut out = vec![];
         let total = args.actions.len();
@@ -527,11 +529,13 @@ impl Server {
                 }
                 Err(e) => {
                     out.push(text(format!("[{}/{total}] {name} failed, batch stopped: {e}", i + 1)));
-                    return if i == 0 { Err(e) } else { Ok(out) };
+                    let mut result = respond(Ok(out));
+                    result.is_error = Some(true);
+                    return result;
                 }
             }
         }
-        Ok(out)
+        respond(Ok(out))
     }
 }
 
@@ -660,7 +664,7 @@ impl Server {
         description = "Run several browser tool calls in order in ONE round trip; stops at the first error. Each item is {name, input} with input exactly as for that tool (tabId required). Use it whenever you can predict two or more steps, e.g. click a field, type, press Enter, screenshot. Coordinates in a batch refer to the screenshot taken before the batch. Cannot be nested."
     )]
     pub async fn browser_batch(&self, Parameters(args): Parameters<BatchArgs>) -> Result<CallToolResult, McpError> {
-        Ok(respond(self.do_batch(args).await))
+        Ok(self.do_batch(args).await)
     }
 
     #[tool(

@@ -2,7 +2,7 @@ use std::io::Cursor;
 use std::time::Instant;
 
 use base64::Engine;
-use browser_hand::gif::{encode, safe_filename, Overlays, Recorded};
+use browser_hand::gif::{encode, safe_filename, unused_path, Overlays, Recorded, Recorder, MAX_FRAMES};
 use image::{ImageFormat, Rgba, RgbaImage};
 
 fn png(w: u32, h: u32, shade: u8) -> String {
@@ -94,4 +94,31 @@ fn filenames_are_plain_names_ending_in_gif() {
     assert!(safe_filename(Some("../x.gif")).is_err());
     assert!(safe_filename(Some("dir/x.gif")).is_err());
     assert!(safe_filename(None).unwrap().starts_with("recording-"));
+}
+
+#[test]
+fn an_export_never_overwrites_an_earlier_one() {
+    let dir = tempfile::tempdir().unwrap();
+    assert_eq!(unused_path(dir.path(), "a.gif"), dir.path().join("a.gif"));
+    std::fs::write(dir.path().join("a.gif"), b"x").unwrap();
+    assert_eq!(unused_path(dir.path(), "a.gif"), dir.path().join("a (2).gif"));
+    std::fs::write(dir.path().join("a (2).gif"), b"x").unwrap();
+    assert_eq!(unused_path(dir.path(), "a.gif"), dir.path().join("a (3).gif"));
+}
+
+#[test]
+fn the_recorder_keeps_only_the_newest_frames() {
+    let mut r = Recorder::default();
+    for i in 0..MAX_FRAMES + 5 {
+        r.push(Recorded { image: String::new(), label: Some(i.to_string()), click: None, drag: None });
+    }
+    assert_eq!(r.frames.len(), MAX_FRAMES);
+    assert_eq!(r.frames[0].label.as_deref(), Some("5"));
+}
+
+#[test]
+fn a_frame_shorter_than_the_progress_bar_still_encodes() {
+    let f = Recorded { image: png(40, 3, 90), label: None, click: None, drag: None };
+    let only_bar = Overlays { click_indicators: false, drag_paths: false, action_labels: false, progress_bar: true, quality: 10 };
+    assert_eq!(frames_of(&encode(&[f], &only_bar, 500).unwrap()).len(), 1);
 }

@@ -44,11 +44,24 @@ impl Default for Overlays {
     }
 }
 
+/// The most frames a session keeps; older ones are dropped first.
+pub const MAX_FRAMES: usize = 300;
+
 /// Frames recorded for one session.
 #[derive(Default)]
 pub struct Recorder {
     pub recording: bool,
     pub frames: Vec<Recorded>,
+}
+
+impl Recorder {
+    /// Keeps `frame`, dropping the oldest once there are `MAX_FRAMES`.
+    pub fn push(&mut self, frame: Recorded) {
+        if self.frames.len() >= MAX_FRAMES {
+            self.frames.remove(0);
+        }
+        self.frames.push(frame);
+    }
 }
 
 fn decode(b64: &str) -> anyhow::Result<RgbaImage> {
@@ -94,7 +107,7 @@ fn label(img: &mut RgbaImage, font: &FontRef, text: &str) {
 fn progress(img: &mut RgbaImage, done: usize, total: usize) {
     let h = 5u32;
     let w = ((img.width() as usize * done) / total.max(1)).max(1) as u32;
-    draw_filled_rect_mut(img, Rect::at(0, (img.height() - h) as i32).of_size(w, h), ORANGE);
+    draw_filled_rect_mut(img, Rect::at(0, img.height().saturating_sub(h) as i32).of_size(w, h), ORANGE);
 }
 
 /// Encodes the frames, each shown for `delay_ms`, into GIF bytes. Frames of
@@ -159,6 +172,17 @@ pub fn safe_filename(name: Option<&str>) -> Result<String, String> {
         return Err(format!("filename \"{name}\" must be a plain file name, not a path"));
     }
     Ok(if name.to_lowercase().ends_with(".gif") { name } else { format!("{name}.gif") })
+}
+
+/// `dir/name`, or `dir/name (2).gif` and so on when that file exists, so an
+/// export never overwrites an earlier one.
+pub fn unused_path(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let path = dir.join(name);
+    if !path.exists() {
+        return path;
+    }
+    let stem = name.strip_suffix(".gif").or_else(|| name.strip_suffix(".GIF")).unwrap_or(name);
+    (2..).map(|n| dir.join(format!("{stem} ({n}).gif"))).find(|p| !p.exists()).expect("some number is free")
 }
 
 /// `~/Downloads/browser-hand/`, created if needed. `BROWSER_HAND_OUTPUT_DIR`

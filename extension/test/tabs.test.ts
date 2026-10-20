@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { GROUP_TITLE, TabTools, normaliseUrl, type GroupStore } from "../src/tabs";
 import { ToolError } from "../src/wire";
 
-type FakeTab = { id: number; windowId: number; groupId: number; url: string; title: string; active: boolean };
+type FakeTab = { id: number; windowId: number; groupId: number; url: string; title: string; active: boolean; status?: string };
 type FakeGroup = { id: number; windowId: number; title?: string; color?: string };
 
 /** Just enough of chrome.tabs / tabGroups / windows, in memory. */
@@ -10,6 +10,8 @@ function fakeChrome() {
   let next = 100;
   const tabs = new Map<number, FakeTab>();
   const groups = new Map<number, FakeGroup>();
+  /** The status a tab reports right after update, as Chrome would. */
+  const load = { status: "loading" };
   const dropEmptyGroups = () => {
     for (const g of groups.values()) {
       if (![...tabs.values()].some((t) => t.groupId === g.id)) groups.delete(g.id);
@@ -46,6 +48,7 @@ function fakeChrome() {
         const t = tabs.get(id)!;
         t.url = p.url;
         t.title = `title of ${p.url}`;
+        t.status = load.status;
         return { ...t };
       },
       async group(o: { tabIds: number[]; groupId?: number; createProperties?: { windowId: number } }) {
@@ -76,7 +79,7 @@ function fakeChrome() {
       },
     },
   };
-  return { api, tabs, groups };
+  return { api, tabs, groups, load };
 }
 
 function memoryStore(): GroupStore {
@@ -140,6 +143,19 @@ describe("tab tools", () => {
     const r = await tools.navigate("a", { url: "example.com" });
     expect(r.url).toBe("https://example.com");
     expect(r.tabContext).toBeDefined();
+  });
+
+  it("navigate counts a load that finished before it looked", async () => {
+    tools = new TabTools(chrome.api as never, memoryStore(), async () => false);
+    chrome.load.status = "complete";
+    const r = await tools.navigate("a", { url: "example.com" });
+    expect(r.note).toBeUndefined();
+  });
+
+  it("navigate notes a page still loading at the timeout", async () => {
+    tools = new TabTools(chrome.api as never, memoryStore(), async () => false);
+    const r = await tools.navigate("a", { url: "example.com" });
+    expect(r.note).toMatch(/Still loading/);
   });
 
   it("navigate back needs a tab id", async () => {

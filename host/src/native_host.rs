@@ -10,12 +10,16 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::mpsc;
 
-use crate::wire::{self, Frame, PROTOCOL};
+use crate::wire::{self, ErrorCode, Frame, PROTOCOL};
 
 type Tx = mpsc::UnboundedSender<Frame>;
 
 struct State {
     instance: String,
+    /// The extension's protocol once it has said hello, passed on to
+    /// clients so one on another protocol refuses it
+    /// (`docs/protocol.md` § Compatibility).
+    protocol: u32,
     profile_dir: Option<String>,
     extension_version: String,
     clients: HashMap<u64, Tx>,
@@ -29,7 +33,7 @@ struct State {
 impl State {
     fn hello(&self) -> Frame {
         Frame::Hello {
-            protocol: PROTOCOL,
+            protocol: self.protocol,
             profile_dir: self.profile_dir.clone(),
             extension_version: self.extension_version.clone(),
             instance: self.instance.clone(),
@@ -56,6 +60,7 @@ where
 {
     let state = Arc::new(Mutex::new(State {
         instance,
+        protocol: PROTOCOL,
         profile_dir: None,
         extension_version: String::new(),
         clients: HashMap::new(),
@@ -92,7 +97,11 @@ where
         };
         let st = &mut *state.lock().unwrap();
         match frame {
-            Frame::Hello { profile_dir, extension_version, .. } => {
+            Frame::Hello { protocol, profile_dir, extension_version, .. } => {
+                if protocol != PROTOCOL {
+                    eprintln!("browser-hand: the extension speaks protocol {protocol}, this host speaks {PROTOCOL}");
+                }
+                st.protocol = protocol;
                 st.profile_dir = profile_dir;
                 st.extension_version = extension_version;
                 st.broadcast(&st.hello());
@@ -170,6 +179,14 @@ async fn serve_client(stream: UnixStream, state: Arc<Mutex<State>>, chrome: Tx) 
         match wire::read_frame(&mut read).await {
             Ok(Some(Frame::Call { id, session, tool, args })) => {
                 let st = &mut *state.lock().unwrap();
+                // A session belongs to the client that first used it, so
+                // another client cannot act in it or end it by leaving.
+                if st.sessions.iter().any(|(c, s)| *c != client && s.contains(&session)) {
+                    if let Some(tx) = st.clients.get(&client) {
+                        let _ = tx.send(Frame::err(id, ErrorCode::BadArgs, "session id is in use by another client"));
+                    }
+                    continue;
+                }
                 let host_id = st.next_id;
                 st.next_id += 1;
                 st.pending.insert(host_id, (client, id));

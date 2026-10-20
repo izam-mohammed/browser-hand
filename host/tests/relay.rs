@@ -161,3 +161,40 @@ async fn the_host_stops_when_chrome_closes_the_port() {
     drop(chrome);
     timeout(T, task).await.unwrap().unwrap();
 }
+
+#[tokio::test]
+async fn the_extensions_protocol_reaches_clients_in_hello() {
+    let (mut chrome, path, _dir, _task) = start().await;
+    let mut a = client(&path).await;
+    recv(&mut a).await;
+    let other = wire::PROTOCOL + 1;
+    chrome
+        .send(Frame::Hello { protocol: other, profile_dir: Some("Default".into()), extension_version: "9".into(), instance: String::new() })
+        .await;
+    loop {
+        if let Frame::Hello { protocol, profile_dir: Some(_), .. } = recv(&mut a).await {
+            assert_eq!(protocol, other);
+            return;
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_session_in_use_by_one_client_is_refused_to_another() {
+    let (mut chrome, path, _dir, _task) = start().await;
+    let mut a = client(&path).await;
+    let mut b = client(&path).await;
+    recv(&mut a).await;
+    recv(&mut b).await;
+    wire::write_frame(&mut a, &call(1, "sa", "tabs_context")).await.unwrap();
+    assert!(matches!(chrome.recv().await, Frame::Call { .. }));
+    wire::write_frame(&mut b, &call(7, "sa", "tabs_close")).await.unwrap();
+    match recv(&mut b).await {
+        Frame::Result { id: 7, ok: false, error: Some(e), .. } => assert!(e.message.contains("in use")),
+        other => panic!("expected a refusal, got {other:?}"),
+    }
+    // b leaving does not end a's session.
+    drop(b);
+    wire::write_frame(&mut a, &call(2, "sa", "tabs_context")).await.unwrap();
+    assert!(matches!(chrome.recv().await, Frame::Call { .. }));
+}

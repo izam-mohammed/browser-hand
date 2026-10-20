@@ -129,12 +129,16 @@ export class TabTools {
     }
     await this.ownTab(session, tabId);
 
+    // Listen before navigating: a cached page can finish loading before
+    // update resolves, and a fragment-only change never reports complete.
+    const load = this.waitForLoad(tabId, NAVIGATE_TIMEOUT_MS);
     if (args.url === "back") await this.api.tabs.goBack(tabId);
     else if (args.url === "forward") await this.api.tabs.goForward(tabId);
     else await this.api.tabs.update(tabId, { url: normaliseUrl(args.url) });
 
-    const loaded = await this.waitForLoad(tabId, NAVIGATE_TIMEOUT_MS);
-    const tab = await this.api.tabs.get(tabId);
+    let tab = await this.api.tabs.get(tabId);
+    const loaded = tab.status === "complete" || (await load);
+    if (tab.status !== "complete") tab = await this.api.tabs.get(tabId);
     const result: Record<string, unknown> = { tabId, url: tab.url ?? "", title: tab.title ?? "" };
     if (!loaded) result.note = `Still loading after ${NAVIGATE_TIMEOUT_MS / 1000} s`;
     if (context !== undefined) result.tabContext = context;
