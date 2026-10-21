@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "browser-hand action popup proof",
+  "version": "0.0.1",
+  "description": "Throwaway proof: a toolbar popup switched off and on globally with action.setPopup. Remove after scripts/prove/action-popup.sh passes.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "action": { "default_title": "action popup proof", "default_popup": "popup.html" },
+  "background": { "service_worker": "background.js" }
+}
