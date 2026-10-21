@@ -35,6 +35,7 @@ Themes: group `mode`, with `light` (global + mode/light) and `dark`
 | `settings--editing.png` | a pattern added, an invalid one refused inline, the unsaved-changes bar |
 | `settings--saved.png` | the toast after Save |
 | `settings--disconnected.png` | native host not running: banner, controls read-only |
+| `icon--app.png` | the extension's app icon, 128 px; 48 px is in `extension/icons/` |
 
 No plan builds these yet.
 
