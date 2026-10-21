@@ -69,7 +69,8 @@ pub async fn main() -> anyhow::Result<()> {
             println!("{dir}: reloaded");
         } else {
             println!(
-                "{dir}: asked to reload, not back within {} s",
+                "{dir}: asked to reload, not back within {} s; an extension built before this \
+                 command ignores it, so reload it once on chrome://extensions",
                 BACK_WITHIN.as_secs()
             );
         }
