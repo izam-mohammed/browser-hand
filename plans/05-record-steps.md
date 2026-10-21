@@ -483,7 +483,7 @@ host, so it needs no `key`, no host manifest and no `--install` step.
 
 ### Phase 5: the walk (needs you at Chrome)
 
-- [ ] In two profiles: record a real task with a login form (the password
+- [x] In two profiles: record a real task with a login form (the password
   shows as `<masked>`), a link that opens a new tab and a typed search;
   replay it with one value changed; a `## Verified` section in this plan
   records the date, what was recorded, what replayed and any step that
@@ -503,8 +503,8 @@ host, so it needs no `key`, no host manifest and no `--install` step.
 
 21/10/2026, Profile 4 ("fabulate"), on a local page with a login form, a
 link that opens a new tab, and a search form
-(`http://127.0.0.1:8765/rec.html`). passed in this profile; the second
-profile is still to do.
+(`http://127.0.0.1:8765/rec.html`). passed. The person waived the second
+profile: the same code runs in every profile.
 
 - The person recorded: username `hisham`, a password, Log in, the link to
   the results page (a new tab), a search for `nothing`. `recording_get`
@@ -521,7 +521,7 @@ profile is still to do.
 - After the fix the whole replay took 1.2 s at the person's Fast pace and
   the server logged `GET /result.html?q=replayed+again`. The tab the link
   opened stays open beside the replay tab, as it did for the person.
-- Not done: a recording in a second profile. In Default ("Izam"), iCloud
+- Not recorded in a second profile, by the person's call. In Default ("Izam"), iCloud
   Passwords' frame on login forms stops the debugger
   (`plans/03-humane-input.md` § Verified), so a replay there would stop at
   the password step until it is turned off for the site.
