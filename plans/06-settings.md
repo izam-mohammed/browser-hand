@@ -616,13 +616,19 @@ another name.
   `host/assets/` at build; JetBrains Mono v2.304 Regular (woff2) and its
   OFL are in `extension/fonts/`. The sliders put 1.0x at a quarter of the
   0.25 to 3.0 track, where the drawing has it in the middle.
-- [ ] The person draws Penpot board `icon--app` and exports
+- [x] The person draws Penpot board `icon--app` and exports
   `design/icon--app.png`; 48 and 128 px join plan 05's `extension/icons/`
   under the `icons` key in `extension/manifest.json`.
   Written 20/10/2026, not drawn yet: stand-ins `extension/icons/app-48.png`
   and `app-128.png` (the idle ring and dot in the accent orange, made with
   a standard-library script) are under the `icons` key until the board
   exists; 16 and 32 px use plan 05's idle icons.
+  Landed 21/10/2026: board `icon--app` (128 px, x 7400 on the Settings
+  page) is an accent-orange tile, radius 26, with a `#1C1C1A` cursor
+  outlined in white. Penpot's exporter needs a password login or a
+  connected tab, so `design/icon--app.png` was rendered from the same
+  geometry with headless Chrome (transparent corners); `app-48.png` is it
+  scaled down. 16 and 32 px still use plan 05's idle icons.
 - [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
   Landed 20/10/2026: 188 extension tests and 97 host tests pass; of
