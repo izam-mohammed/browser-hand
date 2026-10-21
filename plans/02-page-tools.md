@@ -377,11 +377,11 @@ repository instructions for recording useful development findings.
 - [x] Code review of this plan's diff recorded in
   `docs/research/page-tools-review.md`: findings, fixes and re-run checks, or
   an explicit no-findings result.
-- [ ] Walk, recorded under `## Verified` in `plans/02-page-tools.md`: in one profile Claude
+- [x] Walk, recorded under `## Verified` in `plans/02-page-tools.md`: in one profile Claude
   reads a page, finds and fills a form field, reads a console error and an
   API request, runs a script, uploads a file, and no debugging bar shows
   during the read-only steps.
-- [ ] Check: `## Verified` in `plans/02-page-tools.md` records the walk as
+- [x] Check: `## Verified` in `plans/02-page-tools.md` records the walk as
   `passed`, with what was seen.
 
 ### Phase 6: open the PR
@@ -408,4 +408,8 @@ console log, an uncaught error and a `fetch` (`http://127.0.0.1:8765/`).
   `file_upload` put `upload.txt` (20 bytes) on the file input;
   `javascript_tool` submitted the form and returned
   `["submitted walk@example.com", "file upload.txt 20 bytes", "pro", true]`.
-- Debugging bar during the read-only steps: waiting on the user's eye.
+- Debugging bar, checked 21/10/2026 in Profile 4 ("fabulate") on
+  `https://example.com` by capturing the window: after `navigate`,
+  `read_page`, `find`, `get_page_text`, `read_console_messages` and
+  `read_network_requests` there was no bar; one `computer` click later,
+  "browser-hand" started debugging this browser showed above the page.
