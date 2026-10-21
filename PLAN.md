@@ -34,3 +34,8 @@ and a TypeScript extension, with the tools Claude in Chrome has
 - [ ] `plans/06-settings.md` - one settings page, saved by the host for
   every profile: pace, sessions, blocked and read-only sites, capture and
   the debugger.
+
+### Phase 7: install without Load unpacked
+
+- [ ] `plans/07-install-extension.md` - browser-hand on the Chrome Web Store,
+  unlisted, offered to every profile with one Enable click.
