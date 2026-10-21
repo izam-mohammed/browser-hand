@@ -652,3 +652,25 @@ another name.
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+
+## Verified
+
+21/10/2026, Profile 4 ("fabulate"), part of the Phase 7 walk. Not yet
+passed: the setting changes and the blocked and read-only sites need the
+person, because Claude's tools cannot click or scroll the extension's own
+settings page (only screenshots and key presses reach it), which keeps
+Claude from changing its own settings.
+
+- The page opens in Claude's tab and shows "Connected" with the defaults
+  (Human pace, 1.0x speeds, "Ask each time", new window on, close tabs
+  off, no blocked sites).
+- Disconnected state: the first try showed "Connected" with the host
+  stopped. SIGTERM ended the host's select, but the process never exited:
+  dropping the tokio runtime waited on the blocking thread that reads
+  stdin, which Chrome still held open. Fixed in `host/src/main.rs` with
+  `shutdown_background()`, pinned by `host/tests/signal.rs`. After the
+  fix, with the host stopped and the binary moved away, the page showed
+  "Not connected" and the banner "The browser-hand host is not running",
+  with Chrome's own reason ("Specified native messaging host not found")
+  and every control dimmed; with the binary back, it showed "Connected"
+  again within 6 s.
