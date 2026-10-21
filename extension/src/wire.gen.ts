@@ -45,7 +45,7 @@ warnings: Array<string>, } | { "type": "settings_set", id: number, settings: Set
 /**
  * The revision the page edited; a different one on disk is refused.
  */
-revision: string, } | { "type": "settings_saved", id: number, ok: boolean, path?: string | null, error?: SettingsError | null, };
+revision: string, } | { "type": "reload", } | { "type": "settings_saved", id: number, ok: boolean, path?: string | null, error?: SettingsError | null, };
 
 export type InputSettings = { 
 /**

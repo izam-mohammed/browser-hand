@@ -318,6 +318,8 @@ function onFrame(raw: Frame) {
   if (frame.type === "call") void handleCall(frame);
   else if (frame.type === "end") void tabs.end(frame.session);
   else if (frame.type === "settings" || frame.type === "settings_saved") hub.onFrame(frame);
+  // `browser-hand reload` after a build: pick up the new files from disk.
+  else if (frame.type === "reload") chrome.runtime.reload();
 }
 
 function connect() {

@@ -92,6 +92,10 @@ pub enum Frame {
         /// The revision the page edited; a different one on disk is refused.
         revision: String,
     },
+    /// Socket client to host to extension: reload the extension from disk
+    /// with `chrome.runtime.reload()` (`browser-hand reload`, which
+    /// `scripts/build.sh` runs).
+    Reload {},
     /// Host to extension: the answer to `settings_set`.
     SettingsSaved {
         id: u64,
