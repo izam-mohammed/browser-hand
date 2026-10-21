@@ -35,7 +35,10 @@ Needs Rust (1.88+), Node (to build the extension) and Google Chrome.
 
 2. In each Chrome profile Claude may use: open `chrome://extensions`, turn on
    Developer mode, choose **Load unpacked** and pick `extension/dist`. The
-   extension ID is always `ednpkicgdjiiihmophoifehfeeoabjdc`.
+   extension ID is always `ednpkicgdjiiihmophoifehfeeoabjdc`. This is needed
+   once per profile: after that, every `sh scripts/build.sh` reloads the
+   extension in each profile that has it connected
+   (`plugin/server/browser-hand reload` does only that).
 
 3. Start Claude Code with the plugin, which brings the server and the
    `browser-hand` skill:

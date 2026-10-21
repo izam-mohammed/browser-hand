@@ -485,3 +485,22 @@ async fn a_broken_hand_edit_keeps_the_last_good_settings_and_warns() {
         "{warnings:?}"
     );
 }
+
+#[tokio::test]
+async fn reload_reaches_the_extension_of_every_connected_profile() {
+    let (mut chrome, _path, dir, _task) = start().await;
+    chrome
+        .send(Frame::Hello {
+            protocol: 1,
+            profile_dir: Some("Profile 3".into()),
+            extension_version: "0.1.0".into(),
+            instance: String::new(),
+        })
+        .await;
+    let (asked, back) =
+        browser_hand::reload::reload_all(dir.path(), Duration::from_millis(300)).await;
+    assert_eq!(asked, vec!["Profile 3".to_string()]);
+    // Nothing restarts this host, so the profile never comes back.
+    assert!(back.is_empty());
+    assert_eq!(chrome.recv().await, Frame::Reload {});
+}

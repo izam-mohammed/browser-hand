@@ -2,6 +2,7 @@
 //! `browser-hand native-host`  the native messaging host (Chrome starts it
 //!                             with the extension origin as its only argument)
 //! `browser-hand install`      writes the host manifest (`--uninstall` removes it)
+//! `browser-hand reload`       reloads the extension in every connected profile
 
 use std::process::ExitCode;
 
@@ -20,9 +21,10 @@ fn main() -> ExitCode {
     let result = match mode {
         "native-host" => run(browser_hand::native_host::main()),
         "mcp" => run(browser_hand::mcp::main()),
+        "reload" => run(browser_hand::reload::main()),
         "install" => browser_hand::install::main(args.iter().any(|a| a == "--uninstall")),
         _ => {
-            eprintln!("usage: browser-hand mcp | native-host | install [--uninstall]");
+            eprintln!("usage: browser-hand mcp | native-host | install [--uninstall] | reload");
             return ExitCode::from(2);
         }
     };
