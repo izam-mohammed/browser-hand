@@ -39,3 +39,9 @@ and a TypeScript extension, with the tools Claude in Chrome has
 
 - [ ] `plans/07-install-extension.md` - browser-hand on the Chrome Web Store,
   unlisted, offered to every profile with one Enable click.
+
+### Phase 8: the button asks first
+
+- [ ] `plans/08-recorder-popup.md` - the toolbar button opens a small
+  popup to start a recording, read old ones and reach settings; while
+  recording, one click stops.
