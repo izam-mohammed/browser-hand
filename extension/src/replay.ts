@@ -20,6 +20,9 @@ export interface Resolved {
 export interface ReplayDeps {
   resolve(tabId: number, selectors: Selector[]): Promise<Resolved>;
   act(tabId: number, args: ComputerArgs): Promise<string>;
+  /** Brings the tab to the front: a link that opened a new tab hides the
+   * replay tab, and mouse and keys sent to a hidden tab do nothing. */
+  show(tabId: number): Promise<void>;
   formInput(tabId: number, ref: string, value: string): Promise<unknown>;
   scroll(tabId: number, ref: string | undefined, x: number, y: number): Promise<unknown>;
   navigate(tabId: number, url: string): Promise<unknown>;
@@ -71,6 +74,7 @@ export async function replayStep(d: ReplayDeps, tabId: number, step: Step): Prom
     case "click":
     case "doubleClick": {
       const r = await find(d, tabId, step);
+      await d.show(tabId);
       const action = step.type === "doubleClick" ? "double_click" : step.button === "secondary" ? "right_click" : "left_click";
       const note = await withLoad(d, tabId, step, () => d.act(tabId, { action, ref: r.ref }));
       return `${action.replace("_", " ")} on ${r.tried.at(-1)}${note}`;
@@ -83,6 +87,7 @@ export async function replayStep(d: ReplayDeps, tabId: number, step: Step): Prom
         return `set ${r.tried.at(-1)}`;
       }
       // Click into the field, select what is there, and type over it.
+      await d.show(tabId);
       const note = await withLoad(d, tabId, step, async () => {
         await d.act(tabId, { action: "left_click", ref: r.ref });
         await d.act(tabId, { action: "key", text: d.isMac ? "cmd+a" : "ctrl+a" });
@@ -96,6 +101,7 @@ export async function replayStep(d: ReplayDeps, tabId: number, step: Step): Prom
     case "keyUp": {
       const key = String(step.key ?? "");
       if (!key) throw new ToolError("bad_args", "A keyUp step needs key");
+      await d.show(tabId);
       const note = await withLoad(d, tabId, step, () => d.act(tabId, { action: "key", text: key }));
       return `pressed ${key}${note}`;
     }

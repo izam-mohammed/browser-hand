@@ -526,6 +526,8 @@ describe("recorder", () => {
 describe("replay step", () => {
   function deps(found = true) {
     const acts: unknown[] = [];
+    // How many acts had happened at each show.
+    const shows: number[] = [];
     let now = 0;
     const d: ReplayDeps = {
       resolve: async (_t, selectors) => {
@@ -536,6 +538,7 @@ describe("replay step", () => {
         acts.push(args);
         return "ok";
       },
+      show: async () => void shows.push(acts.length),
       formInput: async () => {},
       scroll: async () => {},
       navigate: async () => {},
@@ -544,8 +547,17 @@ describe("replay step", () => {
       now: () => now,
       isMac: true,
     };
-    return { d, acts };
+    return { d, acts, shows };
   }
+
+  it("brings the tab to the front before it clicks, types or presses a key", async () => {
+    const { d, acts, shows } = deps();
+    await replayStep(d, 1, { type: "click", selectors: [["aria/Open"]] });
+    await replayStep(d, 1, { type: "change", selectors: [["aria/Search"]], value: "dogs" });
+    await replayStep(d, 1, { type: "keyUp", key: "Enter" });
+    expect(shows).toEqual([0, 1, 4]);
+    expect(acts).toHaveLength(5);
+  });
 
   it("types a change over what the field holds, through Input", async () => {
     const { d, acts } = deps();
