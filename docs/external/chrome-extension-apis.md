@@ -96,6 +96,19 @@ Fetched 18/10/2026 from https://developer.chrome.com/docs/extensions/reference/a
 - `action.onClicked.addListener((tab: tabs.Tab) => void)`: "fires when the icon is clicked, but only if the action has no popup." A popup set for the tab suppresses it.
 - `action.setBadgeText({ text, tabId? })`, `setBadgeBackgroundColor({ color, tabId? })` (RGBA array or CSS colour string), `setTitle({ title, tabId? })`, `setIcon({ path | imageData, tabId? })` (promise 96+). Each returns `Promise<void>`. Without `tabId` the value is global; "Tab-specific settings take priority over global settings", and reset when the tab closes. About four characters of badge text fit; `""` clears it.
 
+Fetched 21/10/2026 from https://developer.chrome.com/docs/extensions/reference/api/action
+(last updated 11/09/2026), https://developer.chrome.com/docs/extensions/develop/ui/add-popup
+(last updated 12/12/2023), https://developer.chrome.com/docs/extensions/reference/api/windows
+(last updated 11/09/2026) and MDN `action.setPopup`, for `plans/08-recorder-popup.md`.
+
+- `action.setPopup({ popup: string, tabId?: number }): Promise<void>`: "Sets the HTML document to be opened as a popup when the user clicks on the action's icon." `popup`: "If set to the empty string (`''`), no popup is shown." `tabId`: "Limits the change to when a particular tab is selected. Automatically resets when the tab is closed." Without `tabId` it is global, and "Tab-specific settings take priority over global settings."
+- `action.getPopup({ tabId? }): Promise<string>`: "Gets the html document set as the popup for this action."
+- `action.openPopup({ windowId? })`: "Opens the extension's popup." Chrome 127+; "Between Chrome 118 and Chrome 126, this is only available to policy installed extensions." This project's minimum is 120.
+- `onClicked`: "This event will not fire if the action has a popup." So with the popup set to `''`, a click reaches `onClicked` again (MDN: an empty string "disables the popup, and the extension will receive action.onClicked events").
+- Popup size: "between 25x25 and 800x600 pixels". "Popups automatically close when the user focuses on some portion of the browser outside of the popup. There is no way to keep the popup open after the user has clicked away." Scripts must be separate files (no inline script).
+- MDN (Firefox) says a tab-specific popup is reset when the tab navigates; the Chrome page says only that it resets when the tab closes. Not documented for Chrome: whether a global `setPopup` value survives the service worker stopping. `scripts/prove/action-popup.sh` (`plans/08-recorder-popup.md` Phase 1) settles both.
+- Which window a popup belongs to: `windows` reference, "The current window is the window that contains the code that is currently executing", and for extension pages "the window that contains the page that made the call, no matter what the topmost window is". So `windows.getCurrent()` or `tabs.query({ active: true, currentWindow: true })` from the popup names the window it was opened over (also to be confirmed by the proof).
+
 ### chrome.commands
 
 Fetched 18/10/2026 from https://developer.chrome.com/docs/extensions/reference/api/commands
