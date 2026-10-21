@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="browser-hand: three chrome profiles as little browser-window people. work holds coffee and sighs not again, personal wears sunglasses with an orange browser-hand tab group, and the bank holds a read-only sign saying you can look, no touching. claude floats above, asking whoever's awake, and steers the cursor down a curved path that overshoots before it lands">
+  <title>browser-hand</title>
+  <rect width="1280" height="360" fill="#0F1012"/>
+
+  <!-- the title -->
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="48" y="122" font-size="54" font-weight="800" fill="#ECECEA">browser-hand</text>
+    <text x="50" y="160" font-size="19" fill="#A8A8A1">claude drives your own chrome profiles.</text>
+    <text x="50" y="186" font-size="19" fill="#A8A8A1">with a hand. it has hands now.</text>
+    <text x="50" y="224" font-size="19" font-style="italic" fill="#F87171">straight mouse lines are for bots.</text>
+    <text x="50" y="288" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6F6F69">mcp + extension ~ one native host per profile</text>
+  </g>
+
+  <!-- the scene -->
+  <g>
+    <!-- the floor -->
+    <rect x="452" y="336" width="700" height="3" rx="1.5" fill="#2C2D32"/>
+
+    <!-- profile: work -->
+    <g transform="translate(470 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#ECECEA" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#ECECEA"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#ECECEA"/>
+      <path d="M200 92 q22 6 26 30" stroke="#ECECEA" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <rect x="216" y="118" width="22" height="24" rx="4" fill="#B45309"/>
+      <path d="M238 124 q9 2 0 12" stroke="#B45309" stroke-width="3" fill="none"/>
+      <path d="M222 114 q3 -8 0 -14 M230 114 q3 -8 0 -14" stroke="#8A8A82" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <rect width="200" height="170" rx="12" fill="#17181B" stroke="#2C2D32" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#1F2024"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="96" height="20" rx="6" fill="#17181B"/>
+      <text x="104" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#A8A8A1" text-anchor="middle">work · 47 tabs</text>
+      <path d="M58 82 h24 M118 82 h24" stroke="#ECECEA" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="70" cy="90" r="5" fill="#ECECEA"/><circle cx="130" cy="90" r="5" fill="#ECECEA"/>
+      <path d="M82 124 h36" stroke="#ECECEA" stroke-width="4" stroke-linecap="round"/>
+      <path d="M100 136 l-8 10 l8 22 l8 -22 z" fill="#2563EB"/>
+    </g>
+
+    <!-- profile: personal -->
+    <g transform="translate(720 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#ECECEA" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#ECECEA"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#ECECEA"/>
+      <rect width="200" height="170" rx="12" fill="#17181B" stroke="#2C2D32" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#1F2024"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="90" height="20" rx="6" fill="#D97706"/>
+      <text x="101" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#1C1C1A" text-anchor="middle">browser-hand</text>
+      <path d="M48 80 h104" stroke="#ECECEA" stroke-width="4"/>
+      <rect x="50" y="76" width="44" height="26" rx="10" fill="#111111" stroke="#ECECEA" stroke-width="2"/>
+      <rect x="106" y="76" width="44" height="26" rx="10" fill="#111111" stroke="#ECECEA" stroke-width="2"/>
+      <path d="M58 82 l10 0" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+      <path d="M78 122 q22 18 44 0" stroke="#ECECEA" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <text x="100" y="160" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#8A8A82" text-anchor="middle">youtube, 3 h</text>
+    </g>
+
+    <!-- profile: bank -->
+    <g transform="translate(970 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#ECECEA" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#ECECEA"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#ECECEA"/>
+      <rect width="200" height="170" rx="12" fill="#17181B" stroke="#2C2D32" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#1F2024"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="80" height="20" rx="6" fill="#17181B"/>
+      <text x="96" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#A8A8A1" text-anchor="middle">bank</text>
+      <circle cx="70" cy="86" r="13" fill="#ffffff" stroke="#ECECEA" stroke-width="3"/><circle cx="70" cy="86" r="4" fill="#ECECEA"/>
+      <circle cx="130" cy="86" r="13" fill="#ffffff" stroke="#ECECEA" stroke-width="3"/><circle cx="130" cy="86" r="4" fill="#ECECEA"/>
+      <path d="M54 64 l26 6 M146 64 l-26 6" stroke="#ECECEA" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="100" cy="128" rx="10" ry="12" fill="#ECECEA"/>
+      <path d="M172 56 q6 9 0 14 q-6 -5 0 -14z" fill="#60A5FA"/>
+      <path d="M200 100 q24 -2 46 -26" stroke="#ECECEA" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <rect x="248" y="22" width="4" height="58" fill="#8A8A82"/>
+      <g transform="rotate(6 250 30)">
+        <rect x="206" y="4" width="92" height="40" rx="6" fill="#DC2626"/>
+        <text x="252" y="22" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="12" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="1">READ-ONLY</text>
+        <text x="252" y="36" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">*.bank.com/*</text>
+      </g>
+    </g>
+
+    <!-- what they say -->
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="470" y="96" width="104" height="34" rx="12" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M512 129 L520 142 L528 129" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="513" y="127" width="14" height="4" fill="#ffffff"/>
+      <text x="522" y="118" fill="#1C1C1A" text-anchor="middle">not again</text>
+
+    </g>
+
+    <!-- claude, steering -->
+    <g transform="translate(616 34)">
+      <rect width="62" height="52" rx="18" fill="#D97706"/>
+      <circle cx="22" cy="22" r="7" fill="#ffffff"/><circle cx="25" cy="25" r="3.5" fill="#1C1C1A"/>
+      <circle cx="42" cy="22" r="7" fill="#ffffff"/><circle cx="45" cy="25" r="3.5" fill="#1C1C1A"/>
+      <path d="M22 38 q10 7 20 0" stroke="#1C1C1A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </g>
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="430" y="18" width="172" height="52" rx="14" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M601 38 L614 46 L601 52" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="598" y="39" width="5" height="12" fill="#ffffff"/>
+      <text x="516" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#B45309" text-anchor="middle">select_profile(</text>
+      <text x="516" y="58" fill="#1C1C1A" text-anchor="middle">whoever's awake)</text>
+    </g>
+
+    <!-- the hand's path: curved, overshoots, comes back -->
+    <path d="M684 70 C780 40 912 30 902 120 C898 150 888 172 872 170 C864 169 864 162 872 160" stroke="#D97706" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round" fill="none"/>
+    <g transform="translate(868 156)">
+      <path d="M0 0 L0 26 L7 20 L12 31 L17 29 L12 18 L21 18 Z" fill="#1C1C1A" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+    </g>
+    <text x="914" y="70" font-family="'Marker Felt', 'Chalkboard SE', 'Comic Sans MS', cursive" font-size="15" fill="#F59E0B">overshot. like you do</text>
+    <path d="M912 74 q-8 10 -10 26" stroke="#F59E0B" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+    <!-- the bank's line -->
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="1000" y="96" width="140" height="34" rx="12" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M1046 129 L1054 142 L1062 129" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="1047" y="127" width="14" height="4" fill="#ffffff"/>
+      <text x="1070" y="118" fill="#1C1C1A" text-anchor="middle">look. no touching.</text>
+    </g>
+  </g>
+</svg>
