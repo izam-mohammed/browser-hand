@@ -1,0 +1,283 @@
+/* The toolbar popup, drawn as the Penpot boards popup--idle, popup--empty and
+   popup--steps (360 px wide). Colours, type, space and shape are the tokens in
+   theme.gen.css, written from design/theme.md; nothing here names a colour.
+   Chrome caps a popup at 600 px tall, and so does this. */
+
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/Inter.ttf") format("truetype");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/JetBrainsMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 360px;
+  max-height: 600px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-regular);
+  line-height: 1.4;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  color: var(--color-text3);
+}
+
+:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+/* Header: the name or Back, and Settings, over a hairline. */
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  padding: 0 var(--space-lg);
+  border-bottom: var(--border-width-hairline) solid var(--color-border);
+}
+
+h1 {
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+}
+
+.link {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-accentText);
+  font-weight: var(--font-weight-medium);
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+#settings {
+  margin-left: auto;
+}
+
+.view {
+  padding: var(--space-lg);
+}
+
+.hint {
+  color: var(--color-text2);
+  font-size: var(--font-size-caption);
+}
+
+.error {
+  padding: 0 var(--space-lg) var(--space-lg);
+  color: var(--color-danger);
+  font-size: var(--font-size-caption);
+}
+
+/* Start: the one accent fill, with the record dot. */
+
+.start {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  width: 100%;
+  height: 44px;
+  margin-bottom: var(--space-sm);
+  background: var(--color-accent);
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-onAccent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.start:disabled {
+  color: var(--color-onAccent);
+  cursor: progress;
+}
+
+.rec-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+/* Recent recordings, or the empty state. */
+
+.empty {
+  margin-top: var(--space-xl);
+}
+
+.empty h2 {
+  margin-bottom: var(--space-xs);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+}
+
+.label {
+  margin: var(--space-xl) 0 var(--space-sm);
+  color: var(--color-text2);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.recordings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--color-raised);
+  border: 0;
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.row:hover .row-title {
+  text-decoration: underline;
+}
+
+.row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.row-title {
+  overflow: hidden;
+  font-weight: var(--font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-meta {
+  color: var(--color-text2);
+  font-size: var(--font-size-caption);
+}
+
+.open {
+  color: var(--color-text2);
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-regular);
+  line-height: 1;
+}
+
+.foot {
+  margin-top: var(--space-lg);
+}
+
+/* One recording's steps, as Claude reads them. */
+
+.rec-title {
+  margin-bottom: var(--space-xs);
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+}
+
+.steps {
+  max-height: 384px;
+  margin: var(--space-md) 0 0;
+  padding: var(--space-md);
+  overflow: auto;
+  background: var(--color-raised);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-caption);
+  line-height: 1.6;
+  list-style: none;
+}
+
+/* A long line wraps under its own text, so each step starts at the edge. */
+.steps li {
+  padding-left: 2ch;
+  text-indent: -2ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.steps li + li {
+  margin-top: var(--space-xs);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  margin-top: var(--space-lg);
+}
+
+.actions .hint {
+  flex: 1;
+}
+
+.button {
+  flex: none;
+  height: 36px;
+  padding: 0 var(--space-lg);
+  background: var(--color-surface);
+  border: var(--border-width-hairline) solid var(--color-control);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.button.danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* "Delete for good": danger fill, the surface colour as its text (4.83:1
+   light, 6.42:1 dark, by theme.md's measures of the pair). */
+.button.danger.solid {
+  margin-left: auto;
+  background: var(--color-danger);
+  color: var(--color-surface);
+  font-weight: var(--font-weight-semibold);
+}

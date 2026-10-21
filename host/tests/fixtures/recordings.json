@@ -42,6 +42,29 @@
         { "ts": 1792000007000, "tabId": 11, "actor": "person" },
         { "ts": 1792000008000, "tabId": 11, "actor": "person", "unrecorded": true }
       ]
+    },
+    "rec_old": {
+      "id": "rec_old",
+      "title": "Login",
+      "startedAt": 1791900000000,
+      "stoppedAt": 1791900060000,
+      "stopReason": "stopped by the person",
+      "windowId": 2,
+      "flow": {
+        "title": "Login",
+        "steps": [
+          { "type": "scroll", "selectors": [["aria/Results[role=\"list\"]"], ["#results"]], "x": 0, "y": 640 },
+          { "type": "navigate", "url": "about:blank" },
+          { "type": "change", "selectors": [["#host", "#note"]], "value": "🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈🐈" },
+          { "type": "change", "selectors": [["#qty"]], "value": 3 }
+        ]
+      },
+      "meta": [
+        { "ts": 1791900001000, "tabId": 21, "actor": "person" },
+        { "ts": 1791900002000, "tabId": 21, "actor": "person", "blocked": true },
+        { "ts": 1791900003000, "tabId": 21, "actor": "claude" },
+        { "ts": 1791900004000, "tabId": 21, "actor": "person" }
+      ]
     }
   }
 }

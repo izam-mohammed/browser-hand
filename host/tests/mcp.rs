@@ -1000,6 +1000,25 @@ mod more {
         assert!(line.contains("blocked in browser-hand settings"), "{line}");
     }
 
+    /// `fixtures/recording-lines.txt` holds `step_line` for every step of
+    /// every recording in the fixture; the popup's TypeScript `stepLine` is
+    /// held to the same file (`extension/test/popup.test.ts`).
+    #[test]
+    fn step_lines_match_the_golden_file_the_popup_shares() {
+        use browser_hand::tools::recording::step_line;
+        let fixture: Value =
+            serde_json::from_str(include_str!("fixtures/recordings.json")).unwrap();
+        let mut out = String::new();
+        for (id, rec) in fixture["records"].as_object().unwrap() {
+            out.push_str(&format!("# {id}\n"));
+            for (i, step) in rec["flow"]["steps"].as_array().unwrap().iter().enumerate() {
+                out.push_str(&step_line(i + 1, step, &rec["meta"][i]));
+                out.push('\n');
+            }
+        }
+        assert_eq!(out, include_str!("fixtures/recording-lines.txt"));
+    }
+
     #[tokio::test]
     async fn replay_refuses_values_for_steps_that_are_not_changes_and_a_bad_from() {
         let (_s, server) = connected().await;

@@ -56,6 +56,11 @@ Evidence, sensitivity and risk: `docs/research/05-record-steps.md`
 **Chosen: the toolbar button (`action`, no popup) plus an `Alt+Shift+R`
 shortcut.** Revisit if the person wants a pause, which needs a popup.
 
+> Amended by `08-recorder-popup.md`: the button now opens a popup when not
+> recording (Start, past recordings, Settings), and a click while recording
+> still stops at once; the shortcut still toggles. See § Amended,
+> 21/10/2026 below.
+
 ### Decision 2: where recordings are kept (two-way door)
 
 Steps arrive in the extension. Something has to hold them until Claude asks,
@@ -525,3 +530,16 @@ profile: the same code runs in every profile.
   Passwords' frame on login forms stops the debugger
   (`plans/03-humane-input.md` § Verified), so a replay there would stop at
   the password step until it is turned off for the site.
+
+## Amended, 21/10/2026: the button opens a popup when not recording
+
+The person asked (21/10/2026) that a click should not start a recording at
+once, but open a small screen with a Start button, the recordings and their
+steps, and a way to the settings; a click while recording should still stop
+at once. `plans/08-recorder-popup.md` does this: the manifest has
+`default_popup: "popup.html"`, the recorder switches the popup off globally
+at every start and on at every stop (its Decision 1), and the worker sets it
+again from `rec:active` each time it wakes. What stays: one recording at a
+time, the "REC" badge, the button in any window stopping it, and
+`Alt+Shift+R` starting and stopping at once (its Decision 2). Nothing is
+added to web pages.
