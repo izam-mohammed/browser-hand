@@ -1,3 +1,9 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg">
+  <img alt="browser-hand: three chrome profiles as little browser-window people. work holds coffee and sighs not again, personal wears sunglasses under an orange browser-hand tab group, and bank holds a read-only sign and says look, no touching. claude floats above calling select_profile on whoever's awake, and steers the cursor down a curved path that overshoots before it lands" src="assets/banner-light.svg">
+</picture>
+
 # browser-hand
 
 Lets Claude Code drive your own Chrome profiles: pick a profile, open and read
