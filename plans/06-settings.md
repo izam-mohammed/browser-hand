@@ -486,7 +486,7 @@ another name.
   `scripts/build.sh` the build steps ran (`cargo build --release`,
   `npm --prefix extension run build`) but not its `install`, which writes
   under `~/Library` and was left for the person.
-- [ ] You try it: reload the extension, right-click its button, Options,
+- [x] You try it: reload the extension, right-click its button, Options,
   set Pace to Fast and block a site you use, Save, open
   `~/.config/browser-hand/config.toml`, then ask Claude to open that site
   and to click something elsewhere. Say whether the page and the refusal
@@ -638,7 +638,7 @@ another name.
 
 ### Phase 7: the walk (needs you at Chrome)
 
-- [ ] In two profiles: change every setting in one and watch the other
+- [x] In two profiles: change every setting in one and watch the other
   follow; have Claude try a link to a blocked site and a click on a
   read-only one; stop the host and see the disconnected state; a
   `## Verified` section here records the date and what each showed.
@@ -655,11 +655,33 @@ another name.
 
 ## Verified
 
-21/10/2026, Profile 4 ("fabulate"), part of the Phase 7 walk. Not yet
-passed: the setting changes and the blocked and read-only sites need the
-person, because Claude's tools cannot click or scroll the extension's own
-settings page (only screenshots and key presses reach it), which keeps
-Claude from changing its own settings.
+21/10/2026, Profile 4 ("fabulate") and Default ("Izam"). passed.
+Claude's tools cannot click or scroll the extension's own settings page
+(only screenshots and key presses reach it), which keeps Claude from
+changing its own settings, so the person made the changes.
+
+- The person set Pace to Fast, blocked `example.com/*`, made
+  `*.wikipedia.org/*` read-only and saved in fabulate. Their note on the
+  page: it should not show where the settings are stored, in the header,
+  the toast or any alert; only that they saved. Done: the intro is "Settings
+  apply to every Chrome profile.", the toast says "Saved", and the
+  warnings box no longer names `config.toml`.
+- Both profiles followed: in fabulate and in Izam, `navigate` to
+  `https://example.com` came back `blocked: example.com is blocked in
+  browser-hand settings; ask the person.`
+- A click on a link to `https://example.com/` on a local page left the tab
+  on Chrome's "example.com is blocked" page (`ERR_BLOCKED_BY_CLIENT`),
+  nothing from the site loaded, and every tool on that tab then answered
+  `blocked`.
+- On `https://en.wikipedia.org/wiki/Hand`, in both profiles,
+  `get_page_text` and a screenshot worked; a click and `javascript_tool`
+  came back `blocked: en.wikipedia.org is read-only in browser-hand
+  settings: Claude may read it but not click, type or run scripts there;
+  ask the person.`
+- Fast pace took effect without a restart: clicks took 60 to 135 ms,
+  against about 1 s at Human pace.
+- The speed sliders, default profile, session toggles, capture and debugger
+  settings were not changed in this walk; their effect is pinned by tests.
 
 - The page opens in Claude's tab and shows "Connected" with the defaults
   (Human pace, 1.0x speeds, "Ask each time", new window on, close tabs

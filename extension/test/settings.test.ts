@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SettingsPage, TOAST_MS, changeCount, speedLabel, tildePath, type PagePort } from "../src/options/page";
+import { SettingsPage, TOAST_MS, changeCount, speedLabel, type PagePort } from "../src/options/page";
 import { DEFAULTS, LAST_KEY, OLDER_AFTER_MS, PORT_NAME, SAVE_TIMEOUT_MS, SettingsHub, type HubDeps, type PageMsg, type PageState, type PortLike, type Settings, type WorkerMsg } from "../src/settings";
 import { NOT_A_PATTERN } from "../src/sites";
 import type { Frame } from "../src/wire";
@@ -208,7 +208,7 @@ describe("the settings page", () => {
     p.send({ type: "state", state: p.state() });
     expect([...p.root.querySelectorAll("h2")].map((h) => h.textContent)).toEqual(["Input", "Sessions", "Site access", "Capture", "Debugger"]);
     expect(p.$("pill").textContent).toBe("Connected");
-    expect(p.$("path").textContent).toBe("~/.config/browser-hand/config.toml");
+    expect(p.root.textContent).not.toContain("config.toml");
     expect(p.$("pace-human").getAttribute("aria-checked")).toBe("true");
     expect(p.$("typing-value").textContent).toBe("1.0×");
     expect(p.$<HTMLSelectElement>("default-profile").value).toBe("Default");
@@ -280,7 +280,8 @@ describe("the settings page", () => {
     p.send({ type: "state", state: p.state({ settings: (p.sent[0] as { settings: Settings }).settings, revision: "200" }) });
     expect(p.$("toast").hidden).toBe(false);
     expect(p.$("toast-title").textContent).toBe("Saved");
-    expect(p.$("toast-body").textContent).toBe("~/.config/browser-hand/config.toml");
+    expect(p.$("toast-body").hidden).toBe(true);
+    expect(p.$("toast").textContent).toBe("Saved");
     expect(p.$("savebar").hidden).toBe(true);
     vi.advanceTimersByTime(TOAST_MS - 1);
     expect(p.$("toast").hidden).toBe(false);
@@ -349,6 +350,7 @@ describe("the settings page", () => {
     p.send({ type: "state", state: p.state({ warnings: ["input.mouse_speed: must be 0.25 to 3.0; using the default"] }) });
     expect(p.$("warnings").hidden).toBe(false);
     expect(p.$("warnings").textContent).toContain("input.mouse_speed");
+    expect(p.$("warnings").textContent).not.toContain("config.toml");
   });
 
   it("a default profile Chrome no longer has stays visible as not found", () => {
@@ -371,9 +373,7 @@ describe("page helpers", () => {
     expect(changeCount(a, a)).toBe(0);
   });
 
-  it("write paths and speeds the way the design does", () => {
-    expect(tildePath("/Users/someone/.config/browser-hand/config.toml")).toBe("~/.config/browser-hand/config.toml");
-    expect(tildePath("/etc/x")).toBe("/etc/x");
+  it("write speeds the way the design does", () => {
     expect([speedLabel(1), speedLabel(0.5), speedLabel(0.25), speedLabel(3)]).toEqual(["1.0×", "0.5×", "0.25×", "3.0×"]);
   });
 });
