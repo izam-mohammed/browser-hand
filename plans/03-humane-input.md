@@ -408,4 +408,11 @@ passed.
 - Default profile ("Izam"): clicks and typing on pages with a password field
   fail with `debugger_refused: ... Cannot access a chrome-extension:// URL of
   different extension`. Another extension (likely a password manager) puts a
-  frame in the page. Wikipedia works in the same profile. Not fixed.
+  frame in the page. Wikipedia works in the same profile.
+  21/10/2026: the only extension Izam has and fabulate lacks is iCloud
+  Passwords, and the page's DOM shows no frame, so it is iCloud Passwords'
+  hidden frame. A later run failed as `Debugger is not attached`, Chrome
+  dropping the debugger instead of refusing it. Both now come back as
+  `debugger_refused` saying another extension's frame (iCloud Passwords on
+  login forms) blocks acting, and to turn it off for the site; reading
+  tools still work there.
