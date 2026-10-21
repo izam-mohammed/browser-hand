@@ -84,6 +84,25 @@ describe("debugger manager", () => {
     await expect(dbg.send(5, "Runtime.evaluate")).rejects.toMatchObject({ code: "debugger_refused" });
   });
 
+  it("a debugger Chrome drops mid-command is debugger_refused naming the frame cause", async () => {
+    const { api } = fakeApi();
+    api.sendCommand.mockRejectedValueOnce(new Error("Debugger is not attached to the tab with id: 5."));
+    const dbg = new DebuggerManager(api as never);
+    await expect(dbg.send(5, "Input.dispatchMouseEvent")).rejects.toMatchObject({
+      code: "debugger_refused",
+      message: expect.stringContaining("iCloud Passwords"),
+    });
+    expect(dbg.isAttached(5)).toBe(false);
+  });
+
+  it("other command errors pass through unchanged", async () => {
+    const { api } = fakeApi();
+    api.sendCommand.mockRejectedValueOnce(new Error("No node with given id found"));
+    const dbg = new DebuggerManager(api as never);
+    await expect(dbg.send(5, "DOM.focus")).rejects.toThrow("No node with given id found");
+    expect(dbg.isAttached(5)).toBe(true);
+  });
+
   it("forgets a tab when Chrome detaches it", async () => {
     const { api } = fakeApi();
     const dbg = new DebuggerManager(api as never);

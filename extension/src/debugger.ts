@@ -7,6 +7,9 @@ import { ToolError } from "./wire";
 export const PROTOCOL_VERSION = "1.3";
 export const IDLE_DETACH_MS = 30_000;
 
+const CANNOT_DRIVE =
+  "Pages under chrome://, other extensions' pages, the Chrome Web Store and PDFs cannot be driven; a tab with DevTools open or another automation extension attached cannot either, nor a page where another extension puts its own frame (password managers such as iCloud Passwords do on login forms: turn it off for this site to let Claude act). Reading tools still work.";
+
 type DebuggerApi = Pick<typeof chrome.debugger, "attach" | "detach" | "sendCommand"> & {
   onDetach: { addListener(cb: (source: chrome.debugger.Debuggee, reason: string) => void): void };
 };
@@ -55,7 +58,7 @@ export class DebuggerManager {
       const why = e instanceof Error ? e.message : String(e);
       throw new ToolError(
         "debugger_refused",
-        `Chrome refused to attach to tab ${tabId}: ${why}. Pages under chrome://, other extensions' pages, the Chrome Web Store and PDFs cannot be driven; a tab with DevTools open or another automation extension attached cannot either.`,
+        `Chrome refused to attach to tab ${tabId}: ${why}. ${CANNOT_DRIVE}`,
       );
     }
     this.attached.add(tabId);
@@ -77,6 +80,13 @@ export class DebuggerManager {
     await this.attach(tabId);
     try {
       return (await this.api.sendCommand({ tabId }, method, params)) as T;
+    } catch (e) {
+      // Chrome drops the debugger, or refuses it, when another extension's
+      // frame is in the page; iCloud Passwords does this on login forms.
+      const why = e instanceof Error ? e.message : String(e);
+      if (!/not attached|different extension/i.test(why)) throw e;
+      this.forget(tabId);
+      throw new ToolError("debugger_refused", `Chrome stopped the debugger on tab ${tabId}: ${why}. ${CANNOT_DRIVE}`);
     } finally {
       this.touch(tabId);
     }
