@@ -310,6 +310,7 @@ fn frame_type(frame: &Frame) -> &'static str {
         Frame::Settings { .. } => "settings",
         Frame::SettingsSet { .. } => "settings_set",
         Frame::SettingsSaved { .. } => "settings_saved",
+        Frame::Reload {} => "reload",
     }
 }
 
@@ -385,6 +386,9 @@ async fn serve_client(stream: UnixStream, state: Arc<Mutex<State>>, chrome: Tx) 
                     tool,
                     args,
                 });
+            }
+            Ok(Some(Frame::Reload {})) => {
+                let _ = chrome.send(Frame::Reload {});
             }
             // Anything else, `settings_set` included, is not a client's to
             // send: settings change only from the page in Chrome.
