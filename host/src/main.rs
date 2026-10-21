@@ -18,8 +18,8 @@ fn main() -> ExitCode {
     };
 
     let result = match mode {
-        "native-host" => runtime().block_on(browser_hand::native_host::main()),
-        "mcp" => runtime().block_on(browser_hand::mcp::main()),
+        "native-host" => run(browser_hand::native_host::main()),
+        "mcp" => run(browser_hand::mcp::main()),
         "install" => browser_hand::install::main(args.iter().any(|a| a == "--uninstall")),
         _ => {
             eprintln!("usage: browser-hand mcp | native-host | install [--uninstall]");
@@ -35,10 +35,17 @@ fn main() -> ExitCode {
     }
 }
 
-fn runtime() -> tokio::runtime::Runtime {
-    tokio::runtime::Builder::new_multi_thread()
+/// Runs `main` and shuts the runtime down without waiting for its blocking
+/// threads: tokio's stdin reader sits in a blocking read that only ends when
+/// Chrome closes the pipe, so a plain drop would keep a host told to stop
+/// alive forever.
+fn run(main: impl std::future::Future<Output = anyhow::Result<()>>) -> anyhow::Result<()> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
         .build()
-        .expect("tokio runtime")
+        .expect("tokio runtime");
+    let result = rt.block_on(main);
+    rt.shutdown_background();
+    result
 }
