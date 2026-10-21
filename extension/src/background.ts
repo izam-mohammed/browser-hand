@@ -154,6 +154,9 @@ function replayDeps(session: string, pace: Pace): ReplayDeps {
   return {
     resolve: (tabId, selectors) => toPage<Resolved>(tabId, { op: "resolve", selectors }),
     act: (tabId, args) => recorder.busy(tabId, () => inputFor(tabId).run(args, pace)),
+    show: async (tabId) => {
+      if (!(await chrome.tabs.get(tabId)).active) await chrome.tabs.update(tabId, { active: true });
+    },
     formInput: (tabId, ref, value) => recorder.busy(tabId, () => toPage(tabId, { op: "form_input", ref, value })),
     scroll: (tabId, ref, x, y) => toPage(tabId, { op: "scroll_xy", ref, x, y }),
     navigate: (tabId, url) => tabs.navigate(session, { tabId, url }),

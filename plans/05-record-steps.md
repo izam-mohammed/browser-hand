@@ -407,7 +407,7 @@ host, so it needs no `key`, no host manifest and no `--install` step.
   `scripts/build.sh` the build steps ran (`cargo build --release`,
   `npm --prefix extension run build`) but not its `install`, which writes
   under `~/Library` and was left for the person.
-- [ ] You try it: reload the extension, pin its button, press it, do a short
+- [x] You try it: reload the extension, pin its button, press it, do a short
   task (search, open a result, fill a form field), press it again, then ask
   Claude "what did I just record?". Say whether the steps read the way you
   did them. What you want changed goes into the phases below.
@@ -498,3 +498,30 @@ host, so it needs no `key`, no host manifest and no `--install` step.
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+
+## Verified
+
+21/10/2026, Profile 4 ("fabulate"), on a local page with a login form, a
+link that opens a new tab, and a search form
+(`http://127.0.0.1:8765/rec.html`). passed in this profile; the second
+profile is still to do.
+
+- The person recorded: username `hisham`, a password, Log in, the link to
+  the results page (a new tab), a search for `nothing`. `recording_get`
+  gave 13 steps that read the way it was done; the password step showed
+  `<masked>`, the link step named `aria/Open the results page[role="link"]`
+  and the search ended `(then loads .../result.html?q=nothing)`.
+- `recording_replay` with steps 4, 7 and 12 changed (`claude.walk`, a test
+  password, `replayed search`) first went wrong at the end: the link opened
+  its new tab in front, the replay tab went to the back, and the clicks and
+  keys sent to it did nothing, so the search never ran and step 13 waited
+  30 s for a load. Replay now brings its tab to the front before each
+  click, change and key (`show` in `extension/src/replay.ts`, pinned by
+  `extension/test/record.test.ts`).
+- After the fix the whole replay took 1.2 s at the person's Fast pace and
+  the server logged `GET /result.html?q=replayed+again`. The tab the link
+  opened stays open beside the replay tab, as it did for the person.
+- Not done: a recording in a second profile. In Default ("Izam"), iCloud
+  Passwords' frame on login forms stops the debugger
+  (`plans/03-humane-input.md` § Verified), so a replay there would stop at
+  the password step until it is turned off for the site.
