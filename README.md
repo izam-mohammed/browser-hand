@@ -2,12 +2,10 @@
 
 Lets Claude Code drive your own Chrome profiles: pick a profile, open and read
 pages, and click, type and scroll the way a person does, through a local MCP
-server and a Chrome extension whose only UI is a Record button for your own
-steps, which Claude can then read and replay, and a settings page. Modelled on Claude in Chrome
-(`reference/claude-in-chrome/`), with profiles in place of a connected-browser
-list. macOS and Google Chrome for now.
-
-What is built, and what is left: `PLAN.md`.
+server and a Chrome extension. The extension's only UI is a Record button for
+your own steps, which Claude can then read and replay, and a settings page.
+Modelled on Claude in Chrome (`reference/claude-in-chrome/`), with profiles in
+place of a connected-browser list. Runs on macOS with Google Chrome.
 
 ## How it fits together
 
