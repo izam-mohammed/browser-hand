@@ -13,7 +13,6 @@ export interface PagePort {
 }
 
 export const TOAST_MS = 4_000;
-export const DEFAULT_PATH = "~/.config/browser-hand/config.toml";
 export const SIZES = [
   ["1024x640", "1024 × 640"],
   ["1280x800", "1280 × 800"],
@@ -23,11 +22,6 @@ export const SIZES = [
 type ListKey = "blocked" | "read_only";
 
 const clone = (s: Settings): Settings => structuredClone(s);
-
-/** `/Users/<name>/...` as `~/...`, as the design writes it. */
-export function tildePath(path: string): string {
-  return path.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~");
-}
 
 /** "1.0×" for a speed, "0.25×" when it needs two places. */
 export function speedLabel(v: number): string {
@@ -201,8 +195,7 @@ export class SettingsPage {
           "div",
           {},
           this.el("h1", {}, "browser-hand"),
-          this.el("p", { class: "intro" }, "Settings apply to every Chrome profile and are saved to"),
-          this.el("code", { class: "path", id: "path" }),
+          this.el("p", { class: "intro" }, "Settings apply to every Chrome profile."),
         ),
         this.el("span", { class: "pill", id: "pill", role: "status" }, this.el("i", { class: "dot" }), this.el("span", { id: "pill-text" })),
       ),
@@ -268,7 +261,7 @@ export class SettingsPage {
       "div",
       { class: "toast", id: "toast", hidden: true, role: "status" },
       this.el("i", { class: "dot", id: "toast-dot" }),
-      this.el("div", {}, this.el("strong", { id: "toast-title" }), this.el("code", { id: "toast-body" })),
+      this.el("div", {}, this.el("strong", { id: "toast-title" }), this.el("p", { id: "toast-body" })),
     );
     this.get("retry").addEventListener("click", () => this.port.postMessage({ op: "retry" }));
     this.get("discard").addEventListener("click", () => this.discard());
@@ -292,7 +285,7 @@ export class SettingsPage {
       if (msg.ok) {
         if (this.base && this.draft) this.base = { ...this.base, settings: clone(this.draft) };
         this.saveError = null;
-        this.toast("Saved", tildePath(msg.path ?? this.latest?.path ?? DEFAULT_PATH), "success");
+        this.toast("Saved", "", "success");
       } else if (msg.error?.message.includes("another profile") && this.latest) {
         // Show the file as it is now; the person makes the change again.
         this.base = { settings: clone(this.latest.settings), revision: this.latest.revision };
@@ -376,6 +369,7 @@ export class SettingsPage {
   private toast(title: string, body: string, kind: "success" | "warning") {
     this.get("toast-title").textContent = title;
     this.get("toast-body").textContent = body;
+    this.get("toast-body").hidden = !body;
     this.get("toast-dot").className = `dot ${kind}`;
     this.get("toast").hidden = false;
     if (this.toastTimer) clearTimeout(this.toastTimer);
@@ -423,7 +417,6 @@ export class SettingsPage {
 
   private renderHeader(s: PageState | null) {
     const live = this.connected;
-    this.get("path").textContent = s?.path ? tildePath(s.path) : DEFAULT_PATH;
     this.get("pill").className = `pill ${live ? "success" : "warning"}`;
     this.get("pill-text").textContent = live ? "Connected" : "Not connected";
     this.get("version").textContent = `browser-hand ${s?.version ?? ""}`.trim();
@@ -445,7 +438,7 @@ export class SettingsPage {
     const list = live ? (s?.warnings ?? []) : [];
     warnings.hidden = list.length === 0;
     warnings.replaceChildren(
-      ...(list.length ? [this.el("strong", {}, "config.toml has values the host could not use; it uses the defaults for them:")] : []),
+      ...(list.length ? [this.el("strong", {}, "Some saved settings could not be used, so their defaults apply:")] : []),
       ...list.map((w) => this.el("code", {}, w)),
     );
   }
