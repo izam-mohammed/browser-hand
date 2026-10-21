@@ -10,7 +10,8 @@ The extension's settings page, drawn in Penpot.
   `<board name>.png` in this folder.
 - **Layout:** boards sit on one row, left to right, 1480 px apart
   (a 1360 px board plus a 120 px gap). Each shows a 1280 px wide Chrome
-  window at 1:1, with a caption under it saying what the state is.
+  window at 1:1, with a caption under it saying what the state is. The
+  icon and the 360 px popup boards follow, 120 px apart.
 
 ## Design tokens
 
@@ -36,6 +37,9 @@ Themes: group `mode`, with `light` (global + mode/light) and `dark`
 | `settings--saved.png` | the toast after Save |
 | `settings--disconnected.png` | native host not running: banner, controls read-only |
 | `icon--app.png` | the extension's app icon, 128 px; 48 px is in `extension/icons/` |
+| `popup--idle.png` | the toolbar popup when not recording: Start recording, recent recordings, Settings (not exported yet) |
+| `popup--empty.png` | the same popup before the first recording (not exported yet) |
+| `popup--steps.png` | one recording's actions, Back, Delete (not exported yet) |
 
 No plan builds these yet.
 
