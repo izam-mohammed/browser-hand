@@ -83,8 +83,8 @@ human time:
   elsewhere). Page zoom shortcuts are refused; use the `zoom` action to look
   closer at a region.
 - If the user asks for speed over realism, tell them Pace (and typing and
-  mouse speed) is on the browser-hand settings page: right-click the
-  extension's toolbar button, Options. `BROWSER_HAND_PACE=fast` in the
+  mouse speed) is on the browser-hand settings page: Settings in the
+  extension's toolbar popup. `BROWSER_HAND_PACE=fast` in the
   server's environment overrides it for that server alone.
 
 ## Settings and blocked sites
@@ -149,9 +149,12 @@ For multi-step work the user may want to watch or share:
 ## Recordings the user made
 
 The user can record their own steps in Chrome: the browser-hand toolbar
-button (or Alt+Shift+R) starts and stops it, with "REC" on the badge
-meanwhile. There is no tool to start one; if the user wants to show you
-something, ask them to press the button, do it, and press it again.
+button opens a popup with Start recording, and a click on the button while
+recording stops it (Alt+Shift+R starts and stops at once), with "REC" on
+the badge meanwhile. The popup also lists their recordings and their steps.
+There is no tool to start one; if the user wants to show you something, ask
+them to click the button, press Start recording, do it, and click the
+button again.
 
 - "What did I just record?": `recording_list`, then `recording_get` (the
   newest by default). Each line is `<n>. [<actor>] <type> <element> <value>`;

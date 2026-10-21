@@ -41,7 +41,8 @@ Themes: group `mode`, with `light` (global + mode/light) and `dark`
 | `popup--empty.png` | the same popup before the first recording (not exported yet) |
 | `popup--steps.png` | one recording's actions, Back, Delete (not exported yet) |
 
-No plan builds these yet.
+`plans/08-recorder-popup.md` builds the popup boards
+(`extension/src/popup/`).
 
 ## Redrawing
 

@@ -12,9 +12,13 @@ import {
   INDEX_KEY,
   MAX_RECORDINGS,
   MAX_STEPS,
+  POPUP,
   Recorder,
+  fromPopup,
+  popupOp,
   type Recording,
   type RecorderDeps,
+  type Summary,
 } from "../src/recorder";
 import { RESOLVE_WAIT_MS, replayStep, type ReplayDeps } from "../src/replay";
 
@@ -233,6 +237,8 @@ function fakeChrome() {
   const session = new Map<string, unknown>();
   const badges = new Map<number, string>();
   const titles = new Map<number, string>();
+  /** Every global popup value set, in order. */
+  const popups: string[] = [];
   const sent: [number, unknown][] = [];
   const windows = new Map<number, number[]>([
     [1, [11, 12]],
@@ -255,6 +261,7 @@ function fakeChrome() {
       setBadgeBackgroundColor: async () => {},
       setTitle: async ({ tabId, title }) => void titles.set(tabId!, title),
       setIcon: async () => {},
+      setPopup: async ({ popup }) => void popups.push(popup),
     },
     tabs: {
       query: async ({ windowId }) => (windows.get(windowId) ?? []).map((id) => ({ id })),
@@ -285,7 +292,7 @@ function fakeChrome() {
     now: () => ctl.now,
     blocked: (url) => /^https:\/\/([^/]*\.)?bank\.test\//.test(url),
   };
-  return { deps, local, session, badges, titles, sent, windows, ctl };
+  return { deps, local, session, badges, titles, popups, sent, windows, ctl };
 }
 
 const TAB = { id: 11, windowId: 1, url: "https://shop.test/", title: "Shop", width: 1280, height: 800 };
@@ -518,6 +525,119 @@ describe("recorder", () => {
     expect(await rec.remove(first)).toMatch(/Deleted/);
     expect(c.local.has(`rec:${first}`)).toBe(false);
     await expect(rec.get(first)).rejects.toMatchObject({ code: "bad_args" });
+  });
+});
+
+// The toolbar popup (plans/08-recorder-popup.md): off while recording, so a
+// click stops at once; on again at every stop.
+
+describe("recorder popup switch", () => {
+  let c: ReturnType<typeof fakeChrome>;
+  let rec: Recorder;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    c = fakeChrome();
+    rec = new Recorder(c.deps);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const newest = async () => (await rec.list()).recordings[0]!.id;
+
+  it("is off from start to stop, and on again when the person stops", async () => {
+    await rec.toggle(TAB);
+    expect(c.popups).toEqual([""]);
+    await rec.toggle(TAB);
+    expect(c.popups).toEqual(["", POPUP]);
+  });
+
+  it("comes back on when a recording stops itself: idle, window closed, step cap", async () => {
+    await rec.toggle(TAB);
+    c.ctl.now += IDLE_MS + 1_000;
+    await vi.advanceTimersByTimeAsync(IDLE_MS + 1_000);
+    expect(c.popups.at(-1)).toBe(POPUP);
+
+    await rec.toggle(TAB);
+    expect(c.popups.at(-1)).toBe("");
+    await rec.windowRemoved(1);
+    expect(c.popups.at(-1)).toBe(POPUP);
+
+    await rec.toggle(TAB);
+    let on = true;
+    for (let i = 0; on; i++) on = await rec.step(11, 1, click(`b${i}`));
+    expect(c.popups.at(-1)).toBe(POPUP);
+  });
+
+  it("comes back on at FULL, even when no write lands", async () => {
+    await rec.toggle(TAB);
+    await vi.advanceTimersByTimeAsync(FLUSH_MS);
+    c.ctl.failSet = true;
+    await rec.step(11, 1, click("Lost"));
+    await vi.advanceTimersByTimeAsync(FLUSH_MS);
+    expect(c.popups.at(-1)).toBe(POPUP);
+    expect(await rec.isRecording(1)).toBe(false);
+  });
+
+  it("keeps a FULL's reason in the index when only the big write fails", async () => {
+    await rec.toggle(TAB);
+    const id = await newest();
+    const set = c.deps.local.set;
+    // The recording's own write fails; the small index-only write lands.
+    c.deps.local.set = async (items) => {
+      if (`rec:${id}` in items) throw new Error("QUOTA_BYTES quota exceeded");
+      await set(items);
+    };
+    await rec.step(11, 1, click("Lost"));
+    await vi.advanceTimersByTimeAsync(FLUSH_MS);
+    const s = (await rec.list()).recordings.find((x) => x.id === id)!;
+    expect(s.stopReason).toBe("could not save: QUOTA_BYTES quota exceeded");
+    expect(s.stoppedAt).not.toBeNull();
+  });
+
+  it("syncs from rec:active when the worker wakes", async () => {
+    await rec.toggle(TAB);
+    await new Recorder(c.deps).syncPopup();
+    expect(c.popups.at(-1)).toBe("");
+    await rec.toggle(TAB);
+    await new Recorder(c.deps).syncPopup();
+    expect(c.popups.at(-1)).toBe(POPUP);
+  });
+
+  it("start never stops: a second start leaves the recording on", async () => {
+    expect(await rec.start(TAB)).toBe(true);
+    expect(await rec.start(TAB)).toBe(false);
+    expect(await rec.isRecording(1)).toBe(true);
+    expect(c.popups).toEqual([""]);
+    await rec.stop();
+    expect(await rec.isRecording(1)).toBe(false);
+    await rec.stop(); // nothing to stop
+    expect(c.popups).toEqual(["", POPUP]);
+  });
+
+  it("refuses popup ops from a tab, a content script or another extension", () => {
+    const url = "chrome-extension://bh/popup.html";
+    expect(fromPopup({ id: "bh", url }, "bh", url)).toBe(true);
+    expect(fromPopup({ id: "bh", url, tab: { id: 11 } }, "bh", url)).toBe(false);
+    expect(fromPopup({ id: "bh", url: "https://evil.test/popup.html", tab: { id: 11 } }, "bh", url)).toBe(false);
+    expect(fromPopup({ id: "bh", url: "chrome-extension://bh/options.html" }, "bh", url)).toBe(false);
+    expect(fromPopup({ id: "other", url: "chrome-extension://other/popup.html" }, "bh", url)).toBe(false);
+  });
+
+  it("popup ops: start records the window's active tab, then list, get and delete", async () => {
+    const tabs = new Map([[1, TAB]]);
+    const activeTab = async (w: number) => tabs.get(w);
+    expect(await popupOp(rec, { __bhPopup: "start", windowId: 1 }, activeTab)).toBe(true);
+    await expect(popupOp(rec, { __bhPopup: "start", windowId: 9 }, activeTab)).rejects.toMatchObject({ code: "bad_args" });
+    const id = await newest();
+    const listed = (await popupOp(rec, { __bhPopup: "list" }, activeTab)) as { recordings: Summary[]; recording: string | null };
+    expect(listed.recording).toBe(id);
+    await popupOp(rec, { __bhPopup: "stop" }, activeTab);
+    expect(((await popupOp(rec, { __bhPopup: "get", id }, activeTab)) as Recording).stoppedAt).not.toBeNull();
+    expect(await popupOp(rec, { __bhPopup: "delete", id }, activeTab)).toMatch(/Deleted/);
+    expect(c.local.has(`rec:${id}`)).toBe(false);
+    await expect(popupOp(rec, { __bhPopup: "get" } as never, activeTab)).rejects.toMatchObject({ code: "bad_args" });
+    await expect(popupOp(rec, { __bhPopup: "start", windowId: "1" } as never, activeTab)).rejects.toMatchObject({ code: "bad_args" });
+    await expect(popupOp(rec, { __bhPopup: "nope" } as never, activeTab)).rejects.toMatchObject({ code: "bad_args" });
   });
 });
 
