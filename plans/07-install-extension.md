@@ -330,14 +330,20 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: publish unlisted (needs you: the developer account and the upload)
 
-- [ ] `scripts/package.sh` builds `extension/dist`, copies it without the
+- [x] `scripts/package.sh` builds `extension/dist`, copies it without the
   manifest `key`, adds `key.pem` from a path the person gives (never read
   or printed by Claude), and zips it to `dist/browser-hand-<version>.zip`.
-- [ ] `docs/store-listing.md` holds the description, a reason for every
+- [x] `docs/store-listing.md` holds the description, a reason for every
   permission and host access, and the privacy answers.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes, and the zip's
   `manifest.json` has no `key`.
+  Landed 21/10/2026: 191 extension and 99 host tests pass, `build.sh` ran
+  and reloaded both profiles; `dist/browser-hand-0.1.0.zip` holds 22 files
+  and its `manifest.json` has no `key`. Also written:
+  `scripts/prove/external-extensions.sh` for Phase 1. The listing notes
+  that the store needs a public privacy policy page, and the repository is
+  private.
 - [ ] You: look for the `.pem` of `ednpkicg...`; make the developer
   account and pay the fee; upload the zip; set visibility Unlisted; fill
   the listing from `docs/store-listing.md`; submit; then say the ID the
