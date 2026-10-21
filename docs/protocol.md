@@ -41,6 +41,7 @@ settings        {"type":"settings","settings":{...},"revision":"<mtime ns>","pat
 settings_set    {"type":"settings_set","id":u64,"settings":{...},"revision":"<base>"}
 settings_saved  {"type":"settings_saved","id":u64,"ok":bool,"path"?:"<abs>",
                  "error"?:{"field":"<key>"|null,"message":"..."}}
+reload          {"type":"reload"}
 ```
 
 `settings` holds `config.toml`'s keys (`plans/06-settings.md` § Contract),
@@ -68,6 +69,11 @@ skipped; the stream continues.
   `settings_saved` with the same `id`, then sends `settings` again.
   `settings_set` is taken only from Chrome's port: a socket client's is
   dropped, so no MCP server can change the settings.
+- **Reload.** A socket client sends `reload` (`browser-hand reload`, run
+  by `scripts/build.sh`); the host passes it to the extension, which calls
+  `chrome.runtime.reload()` and so reads its files from disk again. Its port
+  closes, that host exits, and Chrome starts a new one when the reloaded
+  extension connects.
 - **End.** When a client disconnects, the host sends `end` for every session
   that client used, so the extension forgets its tab groups. Tabs stay open.
 
@@ -113,7 +119,7 @@ new frame):
   tool".
 
 Frames added since protocol 1 shipped: `settings`, `settings_set` and
-`settings_saved` (`plans/06-settings.md`). Peers that predate them skip
+`settings_saved` (`plans/06-settings.md`), and `reload`. Peers that predate them skip
 them as unknown, so `protocol` stays 1: an older host never answers
 `settings_set` and never sends `settings`, which the settings page shows as
 "Not connected" with the host named older than the extension. `computer`

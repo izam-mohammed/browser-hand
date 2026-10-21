@@ -6,5 +6,6 @@ pub mod mcp;
 pub mod native_host;
 pub mod paths;
 pub mod profiles;
+pub mod reload;
 pub mod tools;
 pub mod wire;
