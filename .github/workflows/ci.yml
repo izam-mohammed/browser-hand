@@ -15,7 +15,9 @@ concurrency:
 jobs:
   host:
     name: host (rust)
-    runs-on: ubuntu-latest
+    # The private repo's GitHub-hosted minutes are blocked, so the job runs
+    # on the linux machine (system-notes plan 03).
+    runs-on: [self-hosted, linux, izam-linux]
     defaults:
       run:
         working-directory: host
@@ -42,7 +44,9 @@ jobs:
 
   extension:
     name: extension (typescript)
-    runs-on: ubuntu-latest
+    # The private repo's GitHub-hosted minutes are blocked, so the job runs
+    # on the linux machine (system-notes plan 03).
+    runs-on: [self-hosted, linux, izam-linux]
     defaults:
       run:
         working-directory: extension
