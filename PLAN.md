@@ -56,3 +56,10 @@ and a TypeScript extension, with the tools Claude in Chrome has
 
 - [ ] `plans/10-site.md` - a one-page site in `site/`, published as a page
   of the personal site while the repository stays private.
+
+### Phase 11: documentation for users
+
+- [ ] `plans/11-docs.md` - an mdBook book at `/browser-hand/docs/` beside
+  the landing page: getting started, guides, and a reference of tools,
+  commands and settings generated from the host, checked by
+  `make check`.
