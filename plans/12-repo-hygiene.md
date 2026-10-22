@@ -117,7 +117,7 @@ repository instructions for recording useful development findings.
 
 ### Phase 3: security policy
 
-- [ ] `SECURITY.md` says only the latest commit on `main` gets fixes, how to
+- [x] `SECURITY.md` says only the latest commit on `main` gets fixes, how to
   report privately to `@izam-mohammed`, what happens next, and the scope
   (native host, MCP server, extension, plugin, scripts, CI workflow);
   check: every path it names exists.
