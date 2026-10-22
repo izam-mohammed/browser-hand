@@ -104,13 +104,13 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: topics
 
-- [ ] Topics set on GitHub to `rust`, `typescript`, `chrome-extension`,
+- [x] Topics set on GitHub to `rust`, `typescript`, `chrome-extension`,
   `mcp-server`, `claude-code`, `browser-automation`, `native-messaging`,
   `macos`; check: `gh repo view --json repositoryTopics` lists them.
 
 ### Phase 2: Dependabot
 
-- [ ] `.github/dependabot.yml` covers github-actions, cargo (`/host`,
+- [x] `.github/dependabot.yml` covers github-actions, cargo (`/host`,
   `/scripts/prove/config-toml`, `/scripts/prove/gif-encode`,
   `/scripts/prove/rmcp-stdio`) and npm (`/extension`), weekly with a
   7-day cooldown and one group each; check: the file parses as YAML.
