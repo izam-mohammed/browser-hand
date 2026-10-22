@@ -45,3 +45,14 @@ and a TypeScript extension, with the tools Claude in Chrome has
 - [ ] `plans/08-recorder-popup.md` - the toolbar button opens a small
   popup to start a recording, read old ones and reach settings; while
   recording, one click stops.
+
+### Phase 9: one check, held at 90 %
+
+- [ ] `plans/09-quality-gates.md` - `make check` formats, lints, tests to a
+  90 % floor and scans for secrets and advisories, and CI runs it through
+  the shared security gate.
+
+### Phase 10: a page for users
+
+- [ ] `plans/10-site.md` - a one-page site in `site/`, published as a page
+  of the personal site while the repository stays private.
