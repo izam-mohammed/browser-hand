@@ -45,3 +45,8 @@ and a TypeScript extension, with the tools Claude in Chrome has
 - [ ] `plans/08-recorder-popup.md` - the toolbar button opens a small
   popup to start a recording, read old ones and reach settings; while
   recording, one click stops.
+
+### Phase 9: repository hygiene
+
+- [ ] `plans/12-repo-hygiene.md` - topics, Dependabot, a security policy
+  and an MIT licence.
