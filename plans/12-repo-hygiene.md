@@ -124,7 +124,7 @@ repository instructions for recording useful development findings.
 
 ### Phase 4: licence
 
-- [ ] `LICENSE` holds the MIT text with `Copyright (c) 2026 Izam Mohammed`,
+- [x] `LICENSE` holds the MIT text with `Copyright (c) 2026 Izam Mohammed`,
   and `README.md` ends with `MIT, see [LICENSE](LICENSE).`; check:
   `gh repo view --json licenseInfo` reports MIT once merged.
 
