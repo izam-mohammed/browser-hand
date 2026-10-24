@@ -15,7 +15,7 @@ concurrency:
 jobs:
   host:
     name: host (rust)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, izam-linux]
     defaults:
       run:
         working-directory: host
@@ -42,7 +42,7 @@ jobs:
 
   extension:
     name: extension (typescript)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, izam-linux]
     defaults:
       run:
         working-directory: extension
