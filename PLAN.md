@@ -46,18 +46,23 @@ and a TypeScript extension, with the tools Claude in Chrome has
   popup to start a recording, read old ones and reach settings; while
   recording, one click stops.
 
-### Phase 9: one check, held at 90 %
+### Phase 9: repository hygiene
+
+- [x] `plans/12-repo-hygiene.md` - topics, Dependabot, a security policy
+  and an MIT licence.
+
+### Phase 10: one check, held at 90 %
 
 - [ ] `plans/09-quality-gates.md` - `make check` formats, lints, tests to a
   90 % floor and scans for secrets and advisories, and CI runs it through
   the shared security gate.
 
-### Phase 10: a page for users
+### Phase 11: a page for users
 
 - [ ] `plans/10-site.md` - a one-page site in `site/`, published as a page
   of the personal site while the repository stays private.
 
-### Phase 11: documentation for users
+### Phase 12: documentation for users
 
 - [ ] `plans/11-docs.md` - an mdBook book at `/browser-hand/docs/` beside
   the landing page: getting started, guides, and a reference of tools,

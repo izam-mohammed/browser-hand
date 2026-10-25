@@ -154,3 +154,5 @@ Proofs that the external pieces behave as documented live in
 `scripts/prove/`; each prints `PASS` or `FAIL`. Two of them need you at
 Chrome (`chrome-bridge.sh`, `cdp-input.sh`); each says how to run it at the
 top of the file.
+
+MIT, see [LICENSE](LICENSE).

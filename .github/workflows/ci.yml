@@ -15,12 +15,14 @@ concurrency:
 jobs:
   host:
     name: host (rust)
+    # The private repo's GitHub-hosted minutes are blocked, so the job runs
+    # on the linux machine (system-notes plan 03).
     runs-on: [self-hosted, linux, izam-linux]
     defaults:
       run:
         working-directory: host
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
@@ -42,13 +44,15 @@ jobs:
 
   extension:
     name: extension (typescript)
+    # The private repo's GitHub-hosted minutes are blocked, so the job runs
+    # on the linux machine (system-notes plan 03).
     runs-on: [self-hosted, linux, izam-linux]
     defaults:
       run:
         working-directory: extension
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
