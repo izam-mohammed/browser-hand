@@ -4,10 +4,6 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-      "depth": {
-        "type": "number",
-        "description": "Maximum depth of the tree to traverse (default: 15). Use a smaller depth if output is too large."
-      },
       "filter": {
         "type": "string",
         "enum": [
@@ -16,17 +12,21 @@
         ],
         "description": "Filter elements: \"interactive\" for buttons/links/inputs only, \"all\" for all elements including non-visible ones (default: all elements)"
       },
-      "max_chars": {
+      "tabId": {
         "type": "number",
-        "description": "Maximum characters for output (default: 50000). Set to a higher value if your client can handle large outputs."
+        "description": "Tab ID to read from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID."
+      },
+      "depth": {
+        "type": "number",
+        "description": "Maximum depth of the tree to traverse (default: 15). Use a smaller depth if output is too large."
       },
       "ref_id": {
         "type": "string",
         "description": "Reference ID of a parent element to read. Will return the specified element and all its children. Use this to focus on a specific part of the page when output is too large."
       },
-      "tabId": {
+      "max_chars": {
         "type": "number",
-        "description": "Tab ID to read from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID."
+        "description": "Maximum characters for output (default: 50000). Set to a higher value if your client can handle large outputs."
       }
     },
     "required": [

@@ -4,25 +4,25 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-      "clear": {
-        "type": "boolean",
-        "description": "If true, clear the console messages after reading to avoid duplicates on subsequent calls. Default is false."
-      },
-      "limit": {
+      "tabId": {
         "type": "number",
-        "description": "Maximum number of messages to return. Defaults to 100. Increase only if you need more results."
+        "description": "Tab ID to read console messages from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID."
       },
       "onlyErrors": {
         "type": "boolean",
         "description": "If true, only return error and exception messages. Default is false (return all message types)."
       },
+      "clear": {
+        "type": "boolean",
+        "description": "If true, clear the console messages after reading to avoid duplicates on subsequent calls. Default is false."
+      },
       "pattern": {
         "type": "string",
         "description": "Regex pattern to filter console messages. Only messages matching this pattern will be returned (e.g., 'error|warning' to find errors and warnings, 'MyApp' to filter app-specific logs). You should always provide a pattern to avoid getting too many irrelevant messages."
       },
-      "tabId": {
+      "limit": {
         "type": "number",
-        "description": "Tab ID to read console messages from. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID."
+        "description": "Maximum number of messages to return. Defaults to 100. Increase only if you need more results."
       }
     },
     "required": [

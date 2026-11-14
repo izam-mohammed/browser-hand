@@ -68,3 +68,9 @@ and a TypeScript extension, with the tools Claude in Chrome has
   the landing page: getting started, guides, and a reference of tools,
   commands and settings generated from the host, checked by
   `make check`.
+
+### Phase 13: keeping up with Claude in Chrome
+
+- [ ] `plans/13-chrome-parity.md` - a cursor the person can see, tokens
+  hidden in network reads, a steady reconnect and plain-spoken argument
+  errors, from the 14/11/2026 reference refresh.

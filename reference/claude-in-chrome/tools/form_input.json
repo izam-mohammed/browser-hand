@@ -12,10 +12,6 @@
         "type": "string",
         "description": "Element reference ID from the read_page tool (e.g., \"ref_1\", \"ref_2\")"
       },
-      "tabId": {
-        "type": "number",
-        "description": "Tab ID to set form value in. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID."
-      },
       "value": {
         "type": [
           "string",
@@ -23,6 +19,10 @@
           "number"
         ],
         "description": "The value to set. For checkboxes use boolean, for selects use option value or text, for other inputs use appropriate string/number"
+      },
+      "tabId": {
+        "type": "number",
+        "description": "Tab ID to set form value in. Must be a tab in the current group. Use tabs_context_mcp first if you don't have a valid tab ID."
       }
     },
     "required": [

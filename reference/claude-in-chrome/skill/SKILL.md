@@ -4,7 +4,8 @@ description: Automates your Chrome browser to interact with web pages - clicking
 ---
 
 <!-- Captured 17/10/2026 by invoking the built-in skill in Claude Code. The skill
-     ships inside the Claude Code binary; there is no SKILL.md for it on disk. -->
+     ships inside the Claude Code binary; there is no SKILL.md for it on disk.
+     Rechecked 14/11/2026 against Claude Code 2.1.325: unchanged. -->
 
 # Claude in Chrome browser automation
 

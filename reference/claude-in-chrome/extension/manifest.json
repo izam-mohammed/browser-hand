@@ -21,13 +21,18 @@
       "run_at": "document_end"
    }, {
       "all_frames": true,
-      "js": [ "assets/accessibility-tree.js-B-oUarrX.js" ],
+      "js": [ "assets/accessibility-tree.js-BFkNxN9Z.js" ],
       "matches": [ "\u003Call_urls>" ],
       "run_at": "document_start"
    }, {
       "all_frames": false,
-      "js": [ "assets/agent-visual-indicator.js-BKHK7gXk.js" ],
+      "js": [ "assets/cursor-motion.js-uBhCC_Vx.js", "assets/agent-visual-indicator.js-CrSVcjfK.js" ],
       "matches": [ "\u003Call_urls>" ],
+      "run_at": "document_idle"
+   }, {
+      "all_frames": false,
+      "js": [ "assets/meet-add-claude.ts-opMRu5ex.js" ],
+      "matches": [ "https://meet.google.com/*" ],
       "run_at": "document_idle"
    } ],
    "content_security_policy": {
@@ -46,19 +51,23 @@
    "minimum_chrome_version": "116",
    "name": "Claude",
    "options_page": "options.html",
-   "permissions": [ "sidePanel", "storage", "activeTab", "scripting", "debugger", "tabGroups", "tabs", "alarms", "notifications", "webNavigation", "declarativeNetRequestWithHostAccess", "offscreen", "nativeMessaging", "unlimitedStorage", "downloads", "identity" ],
+   "permissions": [ "sidePanel", "storage", "activeTab", "scripting", "debugger", "tabGroups", "tabs", "alarms", "notifications", "webNavigation", "declarativeNetRequestWithHostAccess", "offscreen", "nativeMessaging", "unlimitedStorage", "downloads", "identity", "favicon" ],
    "storage": {
       "managed_schema": "managed_schema.json"
    },
    "update_url": "https://clients2.google.com/service/update2/crx",
-   "version": "1.0.101",
+   "version": "1.0.107",
    "web_accessible_resources": [ {
       "matches": [ "https://*.claude.ai/*", "https://claude.ai/*" ],
       "resources": [ "assets/onboarding-prompts-CJtFEMjA.js", "assets/content-script.ts-C6lrM1Zv.js" ],
       "use_dynamic_url": false
    }, {
       "matches": [ "\u003Call_urls>" ],
-      "resources": [ "assets/accessibility-tree.js-B-oUarrX.js", "assets/agent-visual-indicator.js-BKHK7gXk.js" ],
+      "resources": [ "assets/accessibility-tree.js-BFkNxN9Z.js", "assets/cursor-motion.js-uBhCC_Vx.js", "assets/agent-visual-indicator.js-CrSVcjfK.js" ],
+      "use_dynamic_url": false
+   }, {
+      "matches": [ "https://meet.google.com/*" ],
+      "resources": [ "assets/meet-add-claude.ts-opMRu5ex.js" ],
       "use_dynamic_url": false
    } ]
 }
