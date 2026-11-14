@@ -4,13 +4,13 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-      "tabId": {
-        "type": "number",
-        "description": "Tab ID to navigate. Must be a tab in the current group. If omitted for URL navigation when calling navigate standalone, tabs_context_mcp{createIfEmpty:true} is called for you. Required for url:\"back\"/\"forward\" and for navigate (and other tools that act on a page) inside browser_batch."
-      },
       "url": {
         "type": "string",
         "description": "The URL to navigate to. Can be provided with or without protocol (defaults to https://). Use \"forward\" to go forward in history or \"back\" to go back in history."
+      },
+      "tabId": {
+        "type": "number",
+        "description": "Tab ID to navigate. Must be a tab in the current group. If omitted for URL navigation when calling navigate standalone, tabs_context_mcp{createIfEmpty:true} is called for you. Required for url:\"back\"/\"forward\" and for navigate (and other tools that act on a page) inside browser_batch."
       }
     },
     "required": [
