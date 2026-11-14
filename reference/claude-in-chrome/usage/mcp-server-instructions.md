@@ -1,7 +1,8 @@
 # MCP server instructions (claude-in-chrome)
 
 Sent by the `claude-in-chrome` MCP server to Claude Code at connection time, and
-shown to the model under "MCP Server Instructions". Captured 17/10/2026.
+shown to the model under "MCP Server Instructions". Captured 17/10/2026;
+rechecked 14/11/2026 against Claude Code 2.1.325, unchanged.
 
 ---
 
