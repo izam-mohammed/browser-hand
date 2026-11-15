@@ -8,8 +8,9 @@
 
 Lets Claude Code drive your own Chrome profiles: pick a profile, open and read
 pages, and click, type and scroll the way a person does, through a local MCP
-server and a Chrome extension. The extension's only UI is a Record button for
-your own steps, which Claude can then read and replay, and a settings page.
+server and a Chrome extension. The extension's only UI is a toolbar popup to
+record your own steps, which Claude can then read and replay, and a settings
+page.
 Modelled on Claude in Chrome (`reference/claude-in-chrome/`), with profiles in
 place of a connected-browser list. Runs on macOS with Google Chrome.
 
@@ -61,8 +62,9 @@ Needs Rust (1.88+), Node (to build the extension) and Google Chrome.
 
 ## Settings
 
-Right-click the extension's toolbar button and choose **Options** (or
-`chrome://extensions`, Details, Extension options). The page sets, for
+Click the extension's toolbar button and choose **Settings** in its popup
+(or right-click the button, **Options**; or `chrome://extensions`, Details,
+Extension options). The page sets, for
 every Chrome profile at once: pace (Human or Fast), typing and mouse speed,
 a default profile, whether a session opens a new window and closes its tabs
 at the end, blocked and read-only sites, screenshot size and quality, the
@@ -107,21 +109,29 @@ the GIF folder.
 | `browser_batch` | Several tool calls in one round trip |
 | `upload_image` | Uploads a recent screenshot to a file input or drop target |
 | `gif_creator` | Records the session's actions as an animated GIF, into the settings' GIF folder |
-| `recording_list`, `recording_get`, `recording_delete` | Steps you recorded with the toolbar button: list, read (as text or DevTools Recorder JSON), delete |
+| `recording_list`, `recording_get`, `recording_delete` | Steps you recorded from the toolbar popup: list, read (as text or DevTools Recorder JSON), delete |
 | `recording_replay` | Does a recording's steps again in Claude's tab, moving like a person, with values changed where asked |
 
 Each Claude session works in its own tab group and cannot touch other tabs.
 
 ### How to record
 
-Pin browser-hand from Chrome's puzzle-piece menu, then press its button (or
-Alt+Shift+R) in the window you want to record. "REC" shows on the badge of
-every tab in that window, and of windows its tabs open. Do the task, then
-press the button again. Clicks, what you typed into fields (as the final
+Pin browser-hand from Chrome's puzzle-piece menu, then click its button in
+the window you want to record. A small popup opens: press **Start
+recording** (it records the window the popup opened over). Alt+Shift+R
+skips the popup and starts at once. "REC" shows on the badge of every tab in
+that window, and of windows its tabs open. Do the task, then click the
+button again: while recording, a click stops at once, with no popup (so does
+Alt+Shift+R). Clicks, what you typed into fields (as the final
 value), Enter, Tab and Escape, scrolls and page loads become steps that name
 each element the way a screen reader would ("button 'Save'"). Passwords,
 card numbers and one-time codes are stored as `<masked>`. Then ask Claude
 "what did I just record?", or to do it again.
+
+The popup also lists your recordings, newest first. Open one to read its
+steps the way Claude reads them, or to delete it (Delete, then **Delete for
+good**). Its Settings link opens the settings page. It works by keyboard:
+Tab to a recording, Enter opens it, Escape goes back.
 
 Recordings stay in this profile's extension storage: the newest 20, up to
 50 MB. A recording stops by itself after 30 minutes with no step, when its

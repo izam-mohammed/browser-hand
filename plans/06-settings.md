@@ -22,6 +22,10 @@ today).
   19/10/2026, is a second: an extension page reached from Chrome's own
   menus (right-click the toolbar button, Options; or `chrome://extensions`,
   Details). It adds nothing to web pages, no popup, and no Record control.
+  > Amended by `08-recorder-popup.md`: the toolbar button now has a popup
+  > (Start recording, past recordings, a Settings link that opens this
+  > page); this page still holds no Record control. See § Amended,
+  > 21/10/2026 below.
 - Build to the design; add no setting it does not show.
 - `design/theme.md` is the source for the CSS as it is for Penpot.
 - Site rules are "Enforced in the extension, so a request from the server
@@ -696,3 +700,13 @@ changing its own settings, so the person made the changes.
   with Chrome's own reason ("Specified native messaging host not found")
   and every control dimmed; with the binary back, it showed "Connected"
   again within 6 s.
+
+## Amended, 21/10/2026: a popup on the toolbar button
+
+This plan said no popup, because the only ask then was a settings page.
+On 21/10/2026 the person asked for a small screen on the toolbar button to
+start a recording, look back at recordings, and reach the settings.
+`plans/08-recorder-popup.md` adds it: when not recording, the button opens
+`popup.html`, styled from the same `theme.gen.css` tokens, whose Settings
+link calls `chrome.runtime.openOptionsPage()`. Right-click, Options still
+opens this page too. The settings page itself is unchanged.
