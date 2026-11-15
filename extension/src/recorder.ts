@@ -1,10 +1,12 @@
-// Recording the person's steps (plans/05-record-steps.md). The toolbar button
-// starts a recording of its window, and of windows its tabs open; content
+// Recording the person's steps (plans/05-record-steps.md). The popup's Start
+// button, or Alt+Shift+R, starts a recording of its window, and of windows
+// its tabs open (plans/08-recorder-popup.md); content
 // scripts send steps, which land in `chrome.storage.local` under `rec:<id>`
 // with a parallel `meta` array, so the flow stays a DevTools Recorder
 // `UserFlow`. Which recording is on lives in `storage.session`, so it
 // survives the service worker stopping. Steps that arrive while Claude's
-// `Input` acts on a tab are marked `actor: "claude"`.
+// `Input` acts on a tab are marked `actor: "claude"`. While one records, the
+// toolbar popup is off, so a click reaches `onClicked` and stops it.
 import { MASKED, type Step, type StepMsg } from "./page/record";
 import { ToolError } from "./wire";
 
@@ -28,7 +30,9 @@ export const ICONS = {
   idle: { 16: "icons/idle-16.png", 32: "icons/idle-32.png" },
   rec: { 16: "icons/rec-16.png", 32: "icons/rec-32.png" },
 };
-export const IDLE_TITLE = "browser-hand: click to record your steps in this window (Alt+Shift+R)";
+/** The popup page; `""` switches it off, so a click reaches `onClicked`. */
+export const POPUP = "popup.html";
+export const IDLE_TITLE = "browser-hand: click to record your steps or see past ones (Alt+Shift+R records at once)";
 const REC_TITLE = "browser-hand is recording this window: click to stop (Alt+Shift+R)";
 
 export interface Meta {
@@ -91,6 +95,7 @@ export interface RecorderDeps {
     setBadgeBackgroundColor(d: { color: string; tabId?: number }): Promise<void>;
     setTitle(d: { title: string; tabId?: number }): Promise<void>;
     setIcon(d: { path: { [size: number]: string }; tabId?: number }): Promise<void>;
+    setPopup(d: { popup: string }): Promise<void>;
   };
   tabs: {
     query(q: { windowId: number }): Promise<{ id?: number }[]>;
@@ -216,7 +221,7 @@ export class Recorder {
     const title = {
       rec: REC_TITLE,
       idle: IDLE_TITLE,
-      full: `browser-hand stopped recording: ${reason}. The steps up to then are kept. Click to record again.`,
+      full: `browser-hand stopped recording: ${reason}. The steps up to then are kept. Click to open browser-hand.`,
     }[mode];
     await Promise.all([
       a.setBadgeText({ tabId, text }),
@@ -224,6 +229,11 @@ export class Recorder {
       a.setTitle({ tabId, title }),
       a.setIcon({ tabId, path: mode === "rec" ? ICONS.rec : ICONS.idle }),
     ]).catch(() => {});
+  }
+
+  /** One recording at a time, so one global value says it all (plans/08-recorder-popup.md, Decision 1). */
+  private async popup(on: boolean) {
+    await this.d.action.setPopup({ popup: on ? POPUP : "" }).catch(() => {});
   }
 
   private async tabsOf(windowId: number): Promise<number[]> {
@@ -264,11 +274,25 @@ export class Recorder {
   /** A write failed: stop, keep what was written last, and say so on the badge. */
   private async full(reason: string) {
     const windows = this.active?.windowIds ?? [];
+    const id = this.active?.id;
     this.clearTimers();
     this.active = null;
     this.rec = null;
     this.index = null; // re-read: the failed write never landed
     await this.d.session.remove(ACTIVE_KEY).catch(() => {});
+    await this.popup(true);
+    // The index is small, so it may still take the reason the popup shows.
+    try {
+      const index = await this.loadIndex();
+      const s = index.find((x) => x.id === id);
+      if (s) {
+        s.stoppedAt = this.d.now();
+        s.stopReason = `could not save: ${reason}`;
+        await this.d.local.set({ [INDEX_KEY]: index });
+      }
+    } catch {
+      this.index = null;
+    }
     await this.eachTab(windows, (t) => this.badgeTab(t, "full", reason));
     await this.tell(windows, "record_stop");
   }
@@ -355,6 +379,7 @@ export class Recorder {
     this.rec = { id, title, startedAt: now, stoppedAt: null, windowId: tab.windowId, flow: { title, steps }, meta };
     this.active = { id, homeWindowId: tab.windowId, windowIds: [tab.windowId], lastStepAt: now };
     await this.d.session.set({ [ACTIVE_KEY]: this.active });
+    await this.popup(false);
     if (!(await this.write())) return;
     await this.eachTab([tab.windowId], (t) => this.badgeTab(t, "rec"));
     await this.tell([tab.windowId], "record_start");
@@ -373,6 +398,7 @@ export class Recorder {
     this.active = null;
     this.rec = null;
     await this.d.session.remove(ACTIVE_KEY);
+    await this.popup(true);
     await this.eachTab(windows, (t) => this.badgeTab(t, "idle"));
     await this.tell(windows, "record_stop");
     await this.budget();
@@ -380,12 +406,35 @@ export class Recorder {
 
   // Events from Chrome and the content scripts.
 
-  /** The toolbar button or Alt+Shift+R: stops the recording, or starts one for the tab's window. */
+  /** Alt+Shift+R, or the toolbar button while recording (the popup is off
+   * then): stops the recording, or starts one for the tab's window. */
   toggle(tab: TabLike): Promise<void> {
     return this.run(async () => {
       if (await this.load()) await this.stopNow("stopped by the person");
       else await this.startNow(tab);
     });
+  }
+
+  /** The popup's Start: records the tab's window, and never stops one.
+   * False when a recording is already on. */
+  start(tab: TabLike): Promise<boolean> {
+    return this.run(async () => {
+      if (await this.load()) return false;
+      await this.startNow(tab);
+      return true;
+    });
+  }
+
+  /** The popup opened while recording (its switch was lost): that click meant stop. */
+  stop(): Promise<void> {
+    return this.run(async () => {
+      if (await this.load()) await this.stopNow("stopped by the person");
+    });
+  }
+
+  /** The service worker woke: the popup is off exactly while recording. */
+  syncPopup(): Promise<void> {
+    return this.run(async () => this.popup(!(await this.load())));
   }
 
   isRecording(windowId: number): Promise<boolean> {
@@ -576,7 +625,7 @@ export class Recorder {
       await this.load();
       const index = await this.loadIndex();
       const want = id ?? index[0]?.id;
-      if (!want) throw new ToolError("bad_args", "No recordings in this profile. The person records with the browser-hand toolbar button.");
+      if (!want) throw new ToolError("bad_args", "No recordings in this profile. The person records from the browser-hand toolbar button's popup.");
       if (this.rec?.id === want) return this.rec;
       const rec = await this.read(want);
       if (!rec) throw new ToolError("bad_args", `No recording ${want}. Call recording_list for the ids.`);
@@ -598,5 +647,51 @@ export class Recorder {
       await this.d.local.set({ [INDEX_KEY]: index });
       return `Deleted recording ${id}.`;
     });
+  }
+}
+
+// The toolbar popup's ops (plans/08-recorder-popup.md, Decision 4): the
+// popup reads and deletes through the worker, whose `Recorder` holds the
+// index, so a delete stays deleted.
+
+export type PopupMsg =
+  | { __bhPopup: "list" }
+  | { __bhPopup: "get"; id: string }
+  | { __bhPopup: "delete"; id: string }
+  | { __bhPopup: "start"; windowId: number }
+  | { __bhPopup: "stop" };
+
+export type PopupReply = { ok: true; value: unknown } | { ok: false; error: string };
+
+export interface SenderLike {
+  id?: string;
+  tab?: unknown;
+  url?: string;
+}
+
+/** Only the extension's own popup page: never a tab, a content script or another extension. */
+export function fromPopup(sender: SenderLike, extensionId: string, popupUrl: string): boolean {
+  return sender.id === extensionId && sender.tab === undefined && sender.url === popupUrl;
+}
+
+/** One popup op; `activeTab` finds the tab of the window Start records. */
+export async function popupOp(rec: Recorder, msg: PopupMsg, activeTab: (windowId: number) => Promise<TabLike | undefined>): Promise<unknown> {
+  switch (msg.__bhPopup) {
+    case "list":
+      return rec.list();
+    case "get":
+    case "delete":
+      if (typeof msg.id !== "string") throw new ToolError("bad_args", "Needs a recording id.");
+      return msg.__bhPopup === "get" ? rec.get(msg.id) : rec.remove(msg.id);
+    case "stop":
+      return rec.stop();
+    case "start": {
+      if (!Number.isInteger(msg.windowId)) throw new ToolError("bad_args", "Needs a window id.");
+      const tab = await activeTab(msg.windowId);
+      if (!tab) throw new ToolError("bad_args", "That window has no tab to record.");
+      return rec.start(tab);
+    }
+    default:
+      throw new ToolError("bad_args", "Unknown popup op.");
   }
 }

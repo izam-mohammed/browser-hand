@@ -14,13 +14,15 @@ writeFileSync("src/options/theme.gen.css", themeCss(readFileSync("../design/them
 const common = { outdir: "dist", entryNames: "[name]", bundle: true, target: "chrome120", logLevel: "info" };
 
 // The service worker and the extension's pages load as modules.
-await build({ ...common, entryPoints: ["src/background.ts", "src/claim.ts", "src/options/options.ts"], format: "esm" });
+await build({ ...common, entryPoints: ["src/background.ts", "src/claim.ts", "src/options/options.ts", "src/popup/popup.ts"], format: "esm" });
 
 // Content scripts run as classic scripts, so no top-level import or export.
 await build({ ...common, entryPoints: ["src/page/content.ts", "src/page/main-world.ts"], format: "iife" });
 
-for (const file of ["manifest.json", "claim.html", "options.html"]) cpSync(file, `dist/${file}`);
+for (const file of ["manifest.json", "claim.html", "options.html", "popup.html"]) cpSync(file, `dist/${file}`);
 for (const file of ["theme.gen.css", "options.css"]) cpSync(`src/options/${file}`, `dist/${file}`);
+// The toolbar popup shares the settings page's tokens (plans/08-recorder-popup.md).
+cpSync("src/popup/popup.css", "dist/popup.css");
 cpSync("icons", "dist/icons", { recursive: true });
 // Fonts, both OFL: Inter is the one the GIF labels use; JetBrains Mono v2.304.
 cpSync("fonts", "dist/fonts", { recursive: true });

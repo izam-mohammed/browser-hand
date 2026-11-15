@@ -1,6 +1,7 @@
 // Service worker: holds the native port to browser-hand, answers calls,
 // takes profile claims from claim.html (`docs/protocol.md`), runs the
-// toolbar button that records the person's steps (`recorder.ts`), and
+// toolbar button and its popup that record the person's steps
+// (`recorder.ts`, plans/08-recorder-popup.md), and
 // applies the settings the native host sends, serving the settings page
 // (`settings.ts`, plans/06-settings.md).
 import { DebuggerManager } from "./debugger";
@@ -11,7 +12,7 @@ import { NetworkLog } from "./network";
 import { toPage } from "./page-client";
 import type { RecMsg } from "./page/content";
 import type { Step } from "./page/record";
-import { Recorder, type RecorderDeps, type TabLike } from "./recorder";
+import { POPUP, Recorder, fromPopup, popupOp, type PopupMsg, type PopupReply, type RecorderDeps, type TabLike } from "./recorder";
 import { replayStep, type ReplayDeps, type Resolved } from "./replay";
 import { capture, captureVisible, shotPrefs, DEFAULT_SHOT, type Shot, type ShotPrefs } from "./screenshot";
 import { SettingsHub, type PortLike } from "./settings";
@@ -124,6 +125,8 @@ const recorder = new Recorder({
   now: () => Date.now(),
   blocked: (url) => sites.access(url) === "blocked",
 });
+// Chrome may not keep a global popup value while the worker sleeps.
+void recorder.syncPopup();
 
 /** Blocked sites as network rules on the tabs of browser-hand groups. */
 const siteRules = new SiteRuleSync({
@@ -354,7 +357,8 @@ function reconnect() {
   connect();
 }
 
-// Recording: the button, the shortcut, and what moves tabs in and out.
+// Recording: the button, the shortcut, and what moves tabs in and out. The
+// button reaches onClicked only while recording; otherwise it opens the popup.
 chrome.action.onClicked.addListener((tab) => void recorder.toggle(tab as TabLike));
 chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command !== "toggle-recording") return;
@@ -391,6 +395,17 @@ chrome.runtime.onMessage.addListener((msg: RecMsg, sender, reply) => {
   on.then(
     (v) => reply({ on: v }),
     () => reply({ on: false }),
+  );
+  return true;
+});
+
+// The toolbar popup lists, opens, deletes and starts recordings.
+chrome.runtime.onMessage.addListener((msg: PopupMsg, sender, reply: (r: PopupReply) => void) => {
+  if (typeof msg?.__bhPopup !== "string" || !fromPopup(sender, chrome.runtime.id, chrome.runtime.getURL(POPUP))) return;
+  const activeTab = async (windowId: number) => (await chrome.tabs.query({ active: true, windowId }))[0] as TabLike | undefined;
+  popupOp(recorder, msg, activeTab).then(
+    (value) => reply({ ok: true, value }),
+    (e) => reply({ ok: false, error: e instanceof Error ? e.message : String(e) }),
   );
   return true;
 });

@@ -1150,7 +1150,7 @@ impl Server {
     }
 
     #[tool(
-        description = "List the step recordings the person made in the selected profile, newest first: id, title, start time, steps and whether one is still recording. The person starts and stops a recording with the browser-hand toolbar button or Alt+Shift+R; there is no tool to start one.",
+        description = "List the step recordings the person made in the selected profile, newest first: id, title, start time, steps and whether one is still recording. The person starts a recording from the browser-hand toolbar button's popup (or Alt+Shift+R) and stops it with the button; there is no tool to start one.",
         annotations(read_only_hint = true)
     )]
     pub async fn recording_list(&self) -> Result<CallToolResult, McpError> {

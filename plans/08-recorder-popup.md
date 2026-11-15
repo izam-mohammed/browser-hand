@@ -334,6 +334,10 @@ repository instructions for recording useful development findings.
   `popup--steps` (file `Settings`, page `Settings`; export needs a Penpot
   login) to `design/popup--idle.png`, `design/popup--empty.png` and
   `design/popup--steps.png`, and `design/README.md` lists them.
+  Not done 21/10/2026: export needs a Penpot login. Phases 2 to 4 were built
+  from the boards' shapes, text and fills, read from the file through the
+  Penpot API (a `.penpot` export), not from PNGs. `design/README.md` already
+  lists the three boards as not exported yet.
 - [ ] `scripts/prove/action-popup.sh` loads a proof extension kept in
   `scripts/prove/action-popup/` with a `default_popup`, per
   `docs/external/chrome-extension-apis.md` § chrome.action: the popup's
@@ -343,36 +347,70 @@ repository instructions for recording useful development findings.
   window, clicks again (still `onClicked`), then the worker sets
   `popup.html` and the next click opens the popup. It prints `PASS` when
   every step held.
+  Written 21/10/2026, not run yet: it needs the person at Chrome. The proof
+  extension reports to a local server the script runs (`serve.py` on
+  127.0.0.1:8791, one JSON line per event), so it needs no `key` and no
+  host manifest. The worker reports `getPopup()` each time it wakes, so the
+  script can tell a value lost on the worker stop (a note, covered by the
+  sync on wake) from a failed click (FAIL). The script's header lists the
+  person's steps a to f.
 - [ ] Check: the script exits 0 and prints `PASS`; a popup value lost when
   the worker stops is handled by the sync on wake in Phase 2, anything else
   reopens Decision 1.
 
 ### Phase 2: the rough cut (needs you: try it)
 
-- [ ] With no recording, the button opens `popup.html`: Start records the
+- [x] With no recording, the button opens `popup.html`: Start records the
   popup's window and closes the popup, the recordings list newest first
   with title, time and step count, and a Settings link calling
   `chrome.runtime.openOptionsPage()`, laid out as `design/popup--idle.png`,
   plain (expected in `extension/src/popup/`), pinned by
   `extension/test/popup.test.ts`.
-- [ ] While recording, the popup is switched off globally, so a click stops
+  Landed 21/10/2026: `PopupPage` in `page.ts` (built once, one `render`, as
+  `SettingsPage`), `popup.ts` its entry. Times read "Today 18:09",
+  "Yesterday 11:20", else "2026-10-19 11:20" in local time, as the board
+  has them. The Settings link also closes the popup. One addition: a popup
+  that opens while a recording is on (Chrome lost the switch) sends a new
+  `stop` op and closes, so that click still stops at once.
+- [x] While recording, the popup is switched off globally, so a click stops
   at once; every stop path switches it back, and the worker syncs it from
   `rec:active` on wake (expected in `extension/src/recorder.ts` and
   `extension/src/background.ts`), pinned by `record.test.ts`.
-- [ ] Popup messages reach `Recorder` only from the popup page, never from a
+  Landed 21/10/2026: `setPopup` joins `RecorderDeps.action`; `startNow`
+  switches it off, `stopNow` and `full` back on, and `Recorder.syncPopup()`
+  runs when `background.ts` loads. `start` returns false, and does nothing,
+  when a recording is on.
+- [x] Popup messages reach `Recorder` only from the popup page, never from a
   tab (expected in `extension/src/background.ts`), pinned by
   `record.test.ts` "refuses popup ops from a tab".
-- [ ] A recording opens to its steps, one `stepLine` per step with a back
+  Landed 21/10/2026: the check (`fromPopup`) and the ops (`popupOp`: list,
+  get, delete, start, stop) are in `recorder.ts` so the tests reach them;
+  `background.ts` only wires them to `runtime.onMessage`, and Start finds
+  the window's active tab with `tabs.query`.
+- [x] A recording opens to its steps, one `stepLine` per step with a back
   control, as `design/popup--steps.png` (expected in
   `extension/src/popup/lines.ts`), pinned by `popup.test.ts` and the
   golden `host/tests/fixtures/recording-lines.txt`, which `host/tests/mcp.rs`
   also checks.
-- [ ] The button's title says a click opens browser-hand and the shortcut
+  Landed 21/10/2026: the board draws friendlier lines ("type "hisham" in
+  Username"); the popup shows `recording_get`'s lines as Decision 3 chose,
+  Claude's steps included. `recordings.json` gains `rec_old`'s 4 steps
+  (already in its list) so the golden file covers scroll, a blocked site,
+  a shadow selector chain, a long value cut by character and a number value.
+- [x] The button's title says a click opens browser-hand and the shortcut
   records; `Alt+Shift+R` still toggles (expected in
   `extension/manifest.json` and `extension/src/recorder.ts`).
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 21/10/2026: "browser-hand: click to record your steps or see past
+  ones (Alt+Shift+R records at once)"; the FULL title ends "Click to open
+  browser-hand."
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes, and `dist/` holds
   `popup.html` and `popup.js`.
+  Landed 21/10/2026: 222 extension tests and 100 host tests pass (lines:
+  extension 78.4%, host 82.8%), `cargo clippy -D warnings` and
+  `cargo fmt --check` are clean, and `npm run build` puts `popup.html`,
+  `popup.js` and `popup.css` in `dist/`. `sh scripts/build.sh` was not run
+  here, since it reloads the person's live extension; it runs after merge.
 - [ ] You try it: reload the extension, click the button (the popup opens,
   nothing records), press Start, do a short task, click the button (it stops,
   no popup), click again and open the new recording. Say whether the popup
@@ -381,34 +419,60 @@ repository instructions for recording useful development findings.
 
 ### Phase 3: the rest of the flow
 
-- [ ] No recordings shows `design/popup--empty.png`; a stopped recording
+- [x] No recordings shows `design/popup--empty.png`; a stopped recording
   shows its stop reason; "FULL" and the idle stop leave the popup on
   (expected in `extension/src/popup/page.ts`), pinned by `popup.test.ts`
   and `record.test.ts`.
-- [ ] The steps view's Delete asks "Delete for good" in place and removes
+  Landed 21/10/2026: the steps view's line under the title always says how
+  it ended ("stopped by you", "stopped: its window closed"); a list row adds
+  it only when the person did not stop it. A FULL wrote nothing, so `full`
+  now also tries a small index-only write with the reason ("could not save:
+  ..."); when that fails too, the row says "stopped".
+- [x] The steps view's Delete asks "Delete for good" in place and removes
   the recording through `Recorder.remove`, then returns to the list,
   pinned by `popup.test.ts`.
-- [ ] The popup works by keyboard: focus starts on Start, Tab reaches each
+  Landed 21/10/2026: Delete turns into "Keep it" in the same place, focused,
+  and "Delete for good" (the `danger` fill) appears at the other end of the
+  row; a refused delete shows the worker's reason and keeps the recording.
+- [x] The popup works by keyboard: focus starts on Start, Tab reaches each
   recording, Enter opens it, Escape goes back, pinned by `popup.test.ts`.
-- [ ] `README.md`'s "how to record" says a click opens the popup and the
+  Landed 21/10/2026: every row is a button; opening one focuses Back, and
+  Escape first leaves the confirm, then the steps, putting focus back on
+  the row it came from.
+- [x] `README.md`'s "how to record" says a click opens the popup and the
   shortcut records at once; `plans/05-record-steps.md` Decision 1 and
   `plans/06-settings.md` § Constraints get `Amended by 08-recorder-popup.md`
   notes and dated sections; `host/src/instructions.md` and the skill say the
   person starts recording from the popup.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 21/10/2026: also the README's intro and Settings section, the
+  `recording_list` description, `NONE_YET` and `Recorder.get`'s error, and
+  the skill's note on where Pace is set.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 21/10/2026: as Phase 2's check; `sh scripts/build.sh` not run here.
 
 ### Phase 4: the look
 
-- [ ] The popup matches `design/popup--idle.png`, `design/popup--empty.png`
+- [x] The popup matches `design/popup--idle.png`, `design/popup--empty.png`
   and `design/popup--steps.png` at 360 px wide in light and dark, from
   `theme.gen.css` tokens only, and never taller than 600 px, pinned by
   `popup.test.ts` (no colour literal in `popup.css`, as `theme.test.ts`
   holds for the settings page).
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Landed 21/10/2026: matched to the boards' measures (52 px header, 44 px
+  Start, 56 px rows, 16 px gutters) with no PNGs to compare against. Where
+  the board uses a size with no token, the token next to it: Start's label
+  is 14 px (board 15), the row chevron 24 px (board 20). The steps panel
+  scrolls at 384 px so the popup stays under 600 px; a wrapped step line
+  indents under its own text. "Delete for good" is `danger` with `surface`
+  text (4.83:1 light, 6.42:1 dark).
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes, and headless screenshots
   of a popup preview (`KNOWLEDGE.md`, the settings preview) sit beside the
   boards for the person to compare.
+  Landed 21/10/2026: tests as Phase 2's check. Headless Chrome shots of a
+  preview on a fake worker (idle, empty, steps, confirm, light and dark)
+  were taken and checked by eye; they are not committed, since the boards
+  they sit beside are not exported yet.
 
 ### Phase 5: the walk (needs you at Chrome)
 
@@ -422,8 +486,10 @@ repository instructions for recording useful development findings.
 
 ### Phase 6: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to date)
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+  Landed 21/10/2026: https://github.com/izam-mohammed/browser-hand/pull/18,
+  opened before phases 1, 2's try-it and 5, which need the person.

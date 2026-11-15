@@ -55,3 +55,8 @@ Findings that cost time once. Read before each phase.
   `file://`), and screenshot it with headless Chrome and a throwaway
   `--user-data-dir`; `--blink-settings=preferredColorScheme=0` gives dark
   mode, `1` light.
+- **A Penpot board's text and colours can be read without an export
+  login**: `export_file` writes a `.penpot` zip whose
+  `files/<file>/pages/<page>/<shape>.json` hold each shape's fills, strokes,
+  radius and text runs (size, weight, colour); `get_page_tree` gives only
+  names and boxes. The popup was built from these (plans/08-recorder-popup.md).
