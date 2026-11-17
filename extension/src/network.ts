@@ -15,6 +15,19 @@ export interface RequestEntry {
   error?: string;
 }
 
+const SECRET_KEY = /token|key|secret|sig|password|auth|code|session/i;
+
+/** A request URL with credentials hidden (plans/13-chrome-parity.md,
+ * decision 1): userinfo, and the value of any query or fragment key whose
+ * name looks like a secret. Done on the text, so the rest of the URL is
+ * kept as it came. Redacted once when the request starts; the real value is
+ * never kept. */
+export function redactUrl(url: string): string {
+  return url
+    .replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/?#@]*@/i, "$1REDACTED@")
+    .replace(/([?&#;])([^=&#;]*)=([^&#;]*)/g, (m, sep: string, key: string) => (SECRET_KEY.test(key) ? `${sep}${key}=REDACTED` : m));
+}
+
 type Started = { requestId: string; tabId: number; url: string; method: string; type: string; timeStamp: number };
 type Finished = { requestId: string; tabId: number; statusCode?: number; timeStamp: number };
 type Failed = { requestId: string; tabId: number; error: string; timeStamp: number };
@@ -36,7 +49,7 @@ export class NetworkLog {
       this.hostOf.set(d.tabId, host);
     }
     const list = this.byTab.get(d.tabId) ?? [];
-    list.push({ requestId: d.requestId, url: d.url, method: d.method, type: d.type, start: d.timeStamp });
+    list.push({ requestId: d.requestId, url: redactUrl(d.url), method: d.method, type: d.type, start: d.timeStamp });
     if (list.length > MAX_PER_TAB) list.shift();
     this.byTab.set(d.tabId, list);
   }

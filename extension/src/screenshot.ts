@@ -66,6 +66,27 @@ export async function capture(
   tabId: number,
   opts: { scale?: number; region?: [number, number, number, number] },
   prefs: ShotPrefs = DEFAULT_SHOT,
+  around?: Around,
+): Promise<Shot> {
+  await around?.hide();
+  try {
+    return await captureShot(dbg, tabId, opts, prefs);
+  } finally {
+    await around?.show();
+  }
+}
+
+/** Hides the page's cursor overlay for the capture. */
+export interface Around {
+  hide(): Promise<void>;
+  show(): Promise<void>;
+}
+
+async function captureShot(
+  dbg: DebuggerManager,
+  tabId: number,
+  opts: { scale?: number; region?: [number, number, number, number] },
+  prefs: ShotPrefs,
 ): Promise<Shot> {
   if (!dbg.isAttached(tabId)) {
     await dbg.attach(tabId);

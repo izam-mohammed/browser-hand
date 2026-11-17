@@ -38,6 +38,8 @@ export interface InputDeps {
   rect(ref: string): Promise<Rect>;
   scrollIntoView(ref: string): Promise<void>;
   viewport(): Promise<{ width: number; height: number }>;
+  /** Shows a move on the page's cursor overlay; fire and forget. */
+  cursor?(path: Pt[], intervalMs: number): void;
 }
 
 export interface ComputerArgs {
@@ -101,6 +103,8 @@ export class Input {
     const from = await this.start();
     const path = pace === "fast" ? [to] : movePath(from, to, width, this.d.rng, this.p);
     const extra = { button: buttons ? "left" : "none", buttons, modifiers };
+    // The page's cursor twin gets the whole path at once and animates it.
+    this.d.cursor?.([from, ...path], this.p.moveIntervalMs);
     const t0 = this.d.now();
     for (const [i, pt] of path.entries()) {
       // Behind schedule (slow answers from Chrome): skip points, never the

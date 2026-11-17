@@ -14,7 +14,7 @@ import type { RecMsg } from "./page/content";
 import type { Step } from "./page/record";
 import { POPUP, Recorder, fromPopup, popupOp, type PopupMsg, type PopupReply, type RecorderDeps, type TabLike } from "./recorder";
 import { replayStep, type ReplayDeps, type Resolved } from "./replay";
-import { capture, captureVisible, shotPrefs, DEFAULT_SHOT, type Shot, type ShotPrefs } from "./screenshot";
+import { capture, captureVisible, shotPrefs, DEFAULT_SHOT, type Around, type Shot, type ShotPrefs } from "./screenshot";
 import { SettingsHub, type PortLike } from "./settings";
 import { SiteRuleSync } from "./site-rules";
 import { SiteRules, useFor } from "./sites";
@@ -107,11 +107,19 @@ function inputFor(tabId: number): Input {
       rect: (ref) => toPage<Rect>(tabId, { op: "rect", ref }),
       scrollIntoView: async (ref) => void (await toPage(tabId, { op: "scroll_into_view", ref })),
       viewport: () => toPage<{ width: number; height: number }>(tabId, { op: "viewport" }),
+      // A page without the content script (chrome://) has no overlay; the move still happens.
+      cursor: (path, intervalMs) => void toPage(tabId, { op: "cursor_move", path, intervalMs }).catch(() => {}),
     }, params);
     inputs.set(tabId, input);
   }
   return input;
 }
+
+/** Hides and shows the tab's cursor overlay around a capture; never fails. */
+const cursorAround = (tabId: number): Around => ({
+  hide: () => toPage(tabId, { op: "cursor_hide" }).then(() => {}, () => {}),
+  show: () => toPage(tabId, { op: "cursor_show" }).then(() => {}, () => {}),
+});
 
 const recorder = new Recorder({
   action: chrome.action,
@@ -180,9 +188,17 @@ const shotContent = (s: Shot): Content[] => [text(s.text), { type: "image", data
 async function screenshot(session: string, tabId: number, opts: { scale?: number; region?: [number, number, number, number] }) {
   const tab = await tabs.ownTab(session, tabId, "read");
   try {
-    return await capture(dbg, tabId, opts, shot);
+    return await capture(dbg, tabId, opts, shot, cursorAround(tabId));
   } catch (e) {
-    if (e instanceof ToolError && e.code === "debugger_refused" && !opts.region) return captureVisible(tab, shot);
+    if (e instanceof ToolError && e.code === "debugger_refused" && !opts.region) {
+      const around = cursorAround(tabId);
+      await around.hide();
+      try {
+        return await captureVisible(tab, shot);
+      } finally {
+        await around.show();
+      }
+    }
     throw e;
   }
 }
