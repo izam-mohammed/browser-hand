@@ -210,7 +210,7 @@ repository instructions for recording useful development findings.
 - [x] The page follows `prefers-color-scheme` with tokens on `:root`, keeps
   a 16 px gutter at 390 px wide with no horizontal scroll, and passes
   4.5:1 text contrast (in `site/index.html`).
-- [ ] `scripts/check-site.sh` fails on a `<script`, an external URL outside
+- [x] `scripts/check-site.sh` fails on a `<script`, an external URL outside
   an allow-list, a link into the private repository or a local path, and
   runs inside the project's check command; `docs/standards.md` gains its
   row.

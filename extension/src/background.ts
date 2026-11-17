@@ -24,6 +24,7 @@ import {
 } from "./recorder";
 import { type ReplayDeps, type Resolved, replayStep } from "./replay";
 import {
+  type Around,
   capture,
   captureVisible,
   DEFAULT_SHOT,
@@ -135,6 +136,9 @@ function inputFor(tabId: number): Input {
         rect: (ref) => toPage<Rect>(tabId, { op: "rect", ref }),
         scrollIntoView: async (ref) => void (await toPage(tabId, { op: "scroll_into_view", ref })),
         viewport: () => toPage<{ width: number; height: number }>(tabId, { op: "viewport" }),
+        // A page without the content script (chrome://) has no overlay; the move still happens.
+        cursor: (path, intervalMs) =>
+          void toPage(tabId, { op: "cursor_move", path, intervalMs }).catch(() => {}),
       },
       params,
     );
@@ -142,6 +146,20 @@ function inputFor(tabId: number): Input {
   }
   return input;
 }
+
+/** Hides and shows the tab's cursor overlay around a capture; never fails. */
+const cursorAround = (tabId: number): Around => ({
+  hide: () =>
+    toPage(tabId, { op: "cursor_hide" }).then(
+      () => {},
+      () => {},
+    ),
+  show: () =>
+    toPage(tabId, { op: "cursor_show" }).then(
+      () => {},
+      () => {},
+    ),
+});
 
 const recorder = new Recorder({
   action: chrome.action,
@@ -225,10 +243,17 @@ async function screenshot(
 ) {
   const tab = await tabs.ownTab(session, tabId, "read");
   try {
-    return await capture(dbg, tabId, opts, shot);
+    return await capture(dbg, tabId, opts, shot, cursorAround(tabId));
   } catch (e) {
-    if (e instanceof ToolError && e.code === "debugger_refused" && !opts.region)
-      return captureVisible(tab, shot);
+    if (e instanceof ToolError && e.code === "debugger_refused" && !opts.region) {
+      const around = cursorAround(tabId);
+      await around.hide();
+      try {
+        return await captureVisible(tab, shot);
+      } finally {
+        await around.show();
+      }
+    }
     throw e;
   }
 }

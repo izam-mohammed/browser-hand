@@ -37,6 +37,28 @@ pub const STORE_EXTENSION_ID: Option<&str> = None;
 pub const INSTRUCTIONS: &str = include_str!("instructions.md");
 
 const PROBE_WAIT: Duration = Duration::from_millis(800);
+/// How long a call waits for a dropped profile's host to come back.
+pub const RECONNECT_WAIT: Duration = Duration::from_secs(6);
+const RECONNECT_POLL: Duration = Duration::from_millis(250);
+
+/// Runs `find` now and every `step` until it gives something or `total`
+/// has passed.
+pub async fn wait_for<T, F, Fut>(total: Duration, step: Duration, mut find: F) -> Option<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Option<T>>,
+{
+    let deadline = tokio::time::Instant::now() + total;
+    loop {
+        if let Some(found) = find().await {
+            return Some(found);
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return None;
+        }
+        tokio::time::sleep(step).await;
+    }
+}
 const CLAIM_WAIT: Duration = Duration::from_secs(10);
 /// Chrome cold-starting and loading the profile takes longer.
 const CLAIM_WAIT_COLD: Duration = Duration::from_secs(30);
@@ -460,11 +482,20 @@ impl Server {
 
         let b = bound.as_mut().expect("bound above");
         if !b.conn.is_alive() {
-            let hosts = self.hosts().await;
-            let Some(h) = Self::host_for(&hosts, &b.profile.dir) else {
+            // Chrome restarts the extension's worker now and then and the
+            // host's socket goes for a moment: wait for the same profile,
+            // never another one (plans/13-chrome-parity.md, decision 2).
+            let dir = b.profile.dir.clone();
+            let found = wait_for(RECONNECT_WAIT, RECONNECT_POLL, || async {
+                let hosts = self.hosts().await;
+                Self::host_for(&hosts, &dir).cloned()
+            })
+            .await;
+            let Some(h) = found else {
                 return Err(format!(
-                    "not_connected: the profile \"{}\" is no longer connected. Call select_profile again.",
-                    b.profile.name
+                    "not_connected: the profile \"{}\" is no longer connected (waited {} s for it to come back). Call select_profile again.",
+                    b.profile.name,
+                    RECONNECT_WAIT.as_secs()
                 ));
             };
             b.conn = HostConn::connect(&h.path)

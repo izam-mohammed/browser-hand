@@ -79,6 +79,7 @@ describe("typing timing", () => {
 
 /** An Input whose CDP calls and sleeps are recorded, not sent. */
 function recorder(rect = { x: 200, y: 150, width: 80, height: 30, inViewport: true }) {
+  const cursor: { path: { x: number; y: number }[]; intervalMs: number }[] = [];
   const events: { method: string; params: any }[] = [];
   let slept = 0;
   const deps: InputDeps = {
@@ -90,8 +91,9 @@ function recorder(rect = { x: 200, y: 150, width: 80, height: 30, inViewport: tr
     rect: async () => rect,
     scrollIntoView: async () => {},
     viewport: async () => ({ width: 1200, height: 800 }),
+    cursor: (path, intervalMs) => void cursor.push({ path, intervalMs }),
   };
-  return { input: new Input(deps), events, slept: () => slept };
+  return { input: new Input(deps), events, cursor, slept: () => slept };
 }
 
 const types = (events: { method: string; params: any }[]) => events.map((e) => e.params.type);
@@ -113,6 +115,28 @@ describe("computer actions", () => {
     await input.run({ action: "left_click", coordinate: [600, 400] }, "fast");
     expect(types(events)).toEqual(["mouseMoved", "mousePressed", "mouseReleased"]);
     expect(slept()).toBe(0);
+  });
+
+  it("sends the page cursor each move's whole path once, before the events", async () => {
+    const { input, events, cursor } = recorder();
+    await input.run({ action: "left_click", coordinate: [600, 400] }, "human");
+    expect(cursor).toHaveLength(1);
+    const moved = events.filter((e) => e.params.type === "mouseMoved");
+    expect(cursor[0]!.path.length).toBe(moved.length + 1);
+    expect(cursor[0]!.path.at(-1)).toEqual({ x: 600, y: 400 });
+    expect(cursor[0]!.intervalMs).toBeGreaterThan(0);
+  });
+
+  it("sends the page cursor a drag's start and end as two moves", async () => {
+    const { input, cursor } = recorder();
+    await input.run(
+      { action: "left_click_drag", start_coordinate: [10, 10], coordinate: [300, 200] },
+      "fast",
+    );
+    expect(cursor.map((c) => c.path.at(-1))).toEqual([
+      { x: 10, y: 10 },
+      { x: 300, y: 200 },
+    ]);
   });
 
   it("a double click sends click counts 1 then 2", async () => {

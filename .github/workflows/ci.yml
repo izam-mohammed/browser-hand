@@ -32,7 +32,8 @@ jobs:
           workspaces: host
       - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2
         with:
-          tool: cargo-llvm-cov,osv-scanner
+          # mdBook and lychee versions are the pins in docs/standards.md.
+          tool: cargo-llvm-cov,osv-scanner,mdbook@0.5.2,lychee@0.24.2
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24

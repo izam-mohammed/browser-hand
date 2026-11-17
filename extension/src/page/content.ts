@@ -4,6 +4,7 @@
 // Also injected on demand into tabs that were open before the extension
 // loaded.
 import { ConsoleBuffer } from "./console";
+import { Cursor, pageEnv } from "./cursor";
 import { find, formatFind } from "./find";
 import { dropFiles, element, formInput, PageError, setFiles } from "./forms";
 import {
@@ -39,6 +40,9 @@ export type PageOp =
   | { op: "rect"; ref: string }
   | { op: "scroll_into_view"; ref: string }
   | { op: "viewport" }
+  | { op: "cursor_move"; path: { x: number; y: number }[]; intervalMs: number }
+  | { op: "cursor_hide" }
+  | { op: "cursor_show" }
   | { op: "record_start" }
   | { op: "record_stop" }
   | { op: "resolve"; selectors: Selector[] }
@@ -56,6 +60,7 @@ if (!g[marker]) {
   g[marker] = true;
   const consoleBuffer = new ConsoleBuffer();
   consoleBuffer.listen(window);
+  const cursor = new Cursor(document, pageEnv(window));
 
   // Steps wait in the outbox until the service worker takes them; it
   // answers `on: false` once this window stops recording.
@@ -104,6 +109,15 @@ if (!g[marker]) {
         return true;
       case "viewport":
         return { width: innerWidth, height: innerHeight, dpr: devicePixelRatio, scrollX, scrollY };
+      case "cursor_move":
+        cursor.move(msg.path, msg.intervalMs);
+        return true;
+      case "cursor_hide":
+        cursor.hide();
+        return true;
+      case "cursor_show":
+        cursor.show();
+        return true;
       case "record_start":
         capture.start();
         return true;

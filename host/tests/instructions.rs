@@ -28,6 +28,8 @@ fn the_instructions_carry_the_rules_that_matter() {
         "Never edit ~/.config/browser-hand/config.toml",
         "never work around it",
         "nextStep",
+        "REDACTED",
+        "may have run",
     ] {
         assert!(INSTRUCTIONS.contains(must), "missing: {must}");
     }

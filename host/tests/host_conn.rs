@@ -132,7 +132,7 @@ async fn a_silent_host_times_out_and_a_host_that_leaves_disconnects() {
     let r = conn
         .call("s", "find", json!({}), Duration::from_secs(2))
         .await;
-    assert!(matches!(r, Err(CallError::Disconnected)));
+    assert!(matches!(r, Err(CallError::CutOff)));
     // Once the reader has seen the close, the connection reports itself dead.
     tokio::time::sleep(Duration::from_millis(100)).await;
     assert!(!conn.is_alive());

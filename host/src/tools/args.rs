@@ -6,6 +6,57 @@ use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Reads `v` as `T`, or says how to respell it when it is JSON text
+/// (plans/13-chrome-parity.md, decision 3). The text is never parsed into
+/// the value: a mis-read string could click somewhere.
+fn typed<T: serde::de::DeserializeOwned, E: serde::de::Error>(
+    v: Value,
+    field: &str,
+    shape: &str,
+) -> Result<T, E> {
+    if let Value::String(s) = &v {
+        let looks_json = matches!(
+            serde_json::from_str::<Value>(s),
+            Ok(Value::Array(_) | Value::Object(_))
+        );
+        return Err(E::custom(if looks_json {
+            format!("{field} was sent as text ({s}); send it as {shape} itself, not as text, with no quotes around it")
+        } else {
+            format!("{field} was sent as text ({s}); it must be {shape}, not as text")
+        }));
+    }
+    serde_json::from_value(v).map_err(|e| E::custom(format!("{field}: {e}; send {shape}")))
+}
+
+/// A `deserialize_with` function for an optional field of `T` that names
+/// the field and its shape when the value arrives as text.
+macro_rules! guarded {
+    (opt $name:ident, $field:literal, $shape:literal) => {
+        fn $name<'de, D: serde::Deserializer<'de>, T: serde::de::DeserializeOwned>(
+            d: D,
+        ) -> Result<Option<T>, D::Error> {
+            match Value::deserialize(d)? {
+                Value::Null => Ok(None),
+                v => typed(v, $field, $shape).map(Some),
+            }
+        }
+    };
+    (req $name:ident, $field:literal, $shape:literal) => {
+        fn $name<'de, D: serde::Deserializer<'de>, T: serde::de::DeserializeOwned>(
+            d: D,
+        ) -> Result<T, D::Error> {
+            typed(Value::deserialize(d)?, $field, $shape)
+        }
+    };
+}
+
+guarded!(opt coordinate_json, "coordinate", "an array like [300, 200]");
+guarded!(opt start_coordinate_json, "start_coordinate", "an array like [300, 200]");
+guarded!(opt region_json, "region", "an array like [x0, y0, x1, y1]");
+guarded!(opt values_json, "values", "an object like {\"4\": \"new text\"}");
+guarded!(req paths_json, "paths", "an array like [\"/path/a.png\"]");
+guarded!(req actions_json, "actions", "an array of {name, input} objects");
+
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct SelectProfileArgs {
     /// The profile's name as list_profiles shows it, or its dir (e.g. "Profile 3").
@@ -156,6 +207,7 @@ pub struct JavascriptArgs {
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct FileUploadArgs {
     /// Absolute paths of the files to upload; under 10 MB together.
+    #[serde(deserialize_with = "paths_json")]
     pub paths: Vec<String>,
     /// Reference of the file input from read_page or find. Never click a file input.
     #[serde(rename = "ref")]
@@ -215,10 +267,18 @@ pub struct ComputerArgs {
     pub tab_id: i64,
     /// (x, y) in the viewport's pixels, as read off the latest screenshot (divide image pixels
     /// by the scale it reports). Required for clicks without ref, scroll and the drag's end.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "coordinate_json",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub coordinate: Option<[f64; 2]>,
     /// (x, y) where left_click_drag starts.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "start_coordinate_json",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub start_coordinate: Option<[f64; 2]>,
     /// Element reference from read_page or find; for clicks, hover and scroll_to, instead of coordinate.
     #[serde(default, rename = "ref", skip_serializing_if = "Option::is_none")]
@@ -243,7 +303,11 @@ pub struct ComputerArgs {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repeat: Option<u32>,
     /// (x0, y0, x1, y1) viewport rectangle to capture for zoom.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "region_json",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub region: Option<[f64; 4]>,
     /// Shrinks the returned image for screenshot and zoom, 0.1 to 1. Coordinates stay in the viewport frame.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -280,7 +344,11 @@ pub struct UploadImageArgs {
     #[serde(default, rename = "ref", skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     /// Viewport (x, y) to drop the image on, for drag-and-drop targets.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "coordinate_json",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub coordinate: Option<[f64; 2]>,
     /// File name for the upload (default "image.png").
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -298,6 +366,7 @@ pub struct BatchItem {
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct BatchArgs {
     /// Tool calls to run in order; the batch stops at the first error.
+    #[serde(deserialize_with = "actions_json")]
     pub actions: Vec<BatchItem>,
 }
 
@@ -394,7 +463,11 @@ pub struct RecordingReplayArgs {
     pub from: Option<u32>,
     /// New values for change steps, by step number: {"4": "new search words"}. Masked steps
     /// (passwords, card numbers) need one, or the replay stops there.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "values_json",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub values: Option<std::collections::BTreeMap<String, String>>,
     /// Tab to replay in. Must be in this session's group; a new tab is created when left out.
     #[serde(default, rename = "tabId", skip_serializing_if = "Option::is_none")]

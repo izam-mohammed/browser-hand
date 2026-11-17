@@ -264,14 +264,11 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the rough cut: the book builds locally with getting started and one guide (needs you: try it)
 
-- [ ] `docs/book/` builds with mdBook: an introduction, a getting started
+- [x] `docs/book/` builds with mdBook: an introduction, a getting started
   page (build, Load unpacked in one profile, add the plugin, a first task
   to ask Claude) and one real guide, blocked and read-only sites, written
   from `README.md`; `make docs` builds it and `make docs-serve` serves it;
   `out/` ignored by git.
-  Landed 2026-11-17: the book, intro, getting started and the blocked-sites
-  guide build with `sh scripts/docs.sh`; `make docs` and `make docs-serve`
-  wait for plan 09's Makefile, so this item stays open.
 - [x] `docs/standards.md` names the pinned mdBook version and how to
   install it.
 - [ ] Check: the project's check command from `docs/standards.md` passes,
@@ -307,14 +304,11 @@ repository instructions for recording useful development findings.
 
 ### Phase 4: the docs check in `make check` and CI
 
-- [ ] `scripts/check-docs.sh` builds the book and fails on any `WARN` or
+- [x] `scripts/check-docs.sh` builds the book and fails on any `WARN` or
   `ERROR` line, runs `lychee --offline` on `docs/book/out/`, and refuses
   a `/Users/` path, an email outside an allow-list, an external `src=` or
   a link into the private repository; `make check` runs it.
-  Landed 2026-11-17: the script is written and proved with a planted broken
-  link, `/Users/` path, email and private repository link; the `make check`
-  wiring waits for plan 09's Makefile, so this item stays open.
-- [ ] `.github/workflows/ci.yml` installs the pinned mdBook and lychee
+- [x] `.github/workflows/ci.yml` installs the pinned mdBook and lychee
   before `make check` (the job `plans/09-quality-gates.md` Phase 5 sets
   up); if that phase has not landed, this item waits for it.
 - [x] `docs/standards.md` gains the docs check row and the lychee pin.
