@@ -26,6 +26,7 @@ A change is done when it passes locally and on its pull request, where
 | Host coverage | cargo-llvm-cov | `.github/workflows/ci.yml` | `cargo llvm-cov --locked --summary-only --fail-under-lines 70` in `host/` | lines at or over 70 % |
 | Extension coverage | vitest, `@vitest/coverage-v8` | `extension/vitest.config.mjs` | `npm --prefix extension run coverage` | lines at or over 65 % |
 | Build | cargo, esbuild | `scripts/build.sh` | `sh scripts/build.sh` | builds and installs the native host |
+| Site | sh, grep | `scripts/check-site.sh` | `sh scripts/check-site.sh` | prints `PASS`: no script, no external URL, no link into the private repository, no local path (not in CI yet) |
 | Proofs | sh | `scripts/prove/` | `sh scripts/prove/<name>.sh` | prints `PASS` (needs Chrome and a person) |
 
 ## Tests
