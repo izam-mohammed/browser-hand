@@ -31,13 +31,16 @@ export function speedLabel(v: number): string {
 /** Why the GIF folder cannot be saved (the host checks the same). */
 export function folderProblem(folder: string): string | null {
   if (!folder) return "Needs a folder.";
-  if (!(folder === "~" || folder.startsWith("~/") || folder.startsWith("/"))) return "Start with ~/ or /.";
+  if (!(folder === "~" || folder.startsWith("~/") || folder.startsWith("/")))
+    return "Start with ~/ or /.";
   if (folder.split("/").includes("..")) return "May not contain ..";
   return null;
 }
 
 function numberProblem(v: number, lo: number, hi: number, unit: string): string | null {
-  return Number.isInteger(v) && v >= lo && v <= hi ? null : `A whole number from ${lo} to ${hi} ${unit}.`;
+  return Number.isInteger(v) && v >= lo && v <= hi
+    ? null
+    : `A whole number from ${lo} to ${hi} ${unit}.`;
 }
 
 /** How many edits `draft` holds over `base`: one per value, one per
@@ -91,14 +94,22 @@ export class SettingsPage {
     port.onMessage.addListener((msg) => this.receive(msg));
     port.onDisconnect.addListener(() => {
       // The worker went away (the extension reloaded): nothing can be saved.
-      if (this.latest) this.receive({ type: "state", state: { ...this.latest, connected: false, down: "not_running" } });
+      if (this.latest)
+        this.receive({
+          type: "state",
+          state: { ...this.latest, connected: false, down: "not_running" },
+        });
     });
     this.render();
   }
 
   // Building.
 
-  private el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = {}, ...kids: (Node | string)[]): HTMLElementTagNameMap[K] {
+  private el<K extends keyof HTMLElementTagNameMap>(
+    tag: K,
+    attrs: Attrs = {},
+    ...kids: (Node | string)[]
+  ): HTMLElementTagNameMap[K] {
     const e = this.doc.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
       if (v === undefined || v === false) continue;
@@ -116,14 +127,26 @@ export class SettingsPage {
   }
 
   private section(title: string, desc: string | null, ...body: Node[]) {
-    return this.el("section", { class: "card" }, this.el("h2", {}, title), ...(desc ? [this.el("p", { class: "desc" }, desc)] : []), ...body);
+    return this.el(
+      "section",
+      { class: "card" },
+      this.el("h2", {}, title),
+      ...(desc ? [this.el("p", { class: "desc" }, desc)] : []),
+      ...body,
+    );
   }
 
   private row(id: string, label: string, help: string, control: Node) {
     return this.el(
       "div",
       { class: "row" },
-      this.el("div", { class: "text" }, this.el("label", { for: id, id: `${id}-label` }, label), this.el("p", { class: "help" }, help), this.el("p", { class: "error", id: `${id}-error`, hidden: true })),
+      this.el(
+        "div",
+        { class: "text" },
+        this.el("label", { for: id, id: `${id}-label` }, label),
+        this.el("p", { class: "help" }, help),
+        this.el("p", { class: "error", id: `${id}-error`, hidden: true }),
+      ),
       this.el("div", { class: "control" }, control),
     );
   }
@@ -131,23 +154,54 @@ export class SettingsPage {
   private slider(id: string, min: number, max: number, step: number, onInput: (v: number) => void) {
     const input = this.el("input", { type: "range", id, min, max, step });
     input.addEventListener("input", () => onInput(Number(input.value)));
-    return this.el("div", { class: "slider" }, input, this.el("output", { id: `${id}-value`, for: id }));
+    return this.el(
+      "div",
+      { class: "slider" },
+      input,
+      this.el("output", { id: `${id}-value`, for: id }),
+    );
   }
 
   private toggle(id: string, onFlip: (on: boolean) => void) {
-    const b = this.el("button", { type: "button", role: "switch", id, class: "toggle", "aria-checked": "false" }, this.el("span", { class: "knob" }));
+    const b = this.el(
+      "button",
+      { type: "button", role: "switch", id, class: "toggle", "aria-checked": "false" },
+      this.el("span", { class: "knob" }),
+    );
     b.addEventListener("click", () => onFlip(b.getAttribute("aria-checked") !== "true"));
     return b;
   }
 
   private number(id: string, unit: string, onInput: (v: number) => void) {
-    const input = this.el("input", { type: "text", inputmode: "numeric", id, class: "mono", autocomplete: "off", spellcheck: "false" });
-    input.addEventListener("input", () => onInput(input.value.trim() === "" ? NaN : Number(input.value)));
-    return this.el("div", { class: "field unit" }, input, this.el("span", { class: "unit-label" }, unit));
+    const input = this.el("input", {
+      type: "text",
+      inputmode: "numeric",
+      id,
+      class: "mono",
+      autocomplete: "off",
+      spellcheck: "false",
+    });
+    input.addEventListener("input", () =>
+      onInput(input.value.trim() === "" ? NaN : Number(input.value)),
+    );
+    return this.el(
+      "div",
+      { class: "field unit" },
+      input,
+      this.el("span", { class: "unit-label" }, unit),
+    );
   }
 
   private patterns(key: ListKey, label: string, help: string) {
-    const input = this.el("input", { type: "text", id: `${key}-input`, class: "mono", placeholder: "example.com/*", autocomplete: "off", spellcheck: "false", "aria-label": `Add to ${label.toLowerCase()}` });
+    const input = this.el("input", {
+      type: "text",
+      id: `${key}-input`,
+      class: "mono",
+      placeholder: "example.com/*",
+      autocomplete: "off",
+      spellcheck: "false",
+      "aria-label": `Add to ${label.toLowerCase()}`,
+    });
     const add = this.el("button", { type: "button", class: "button", id: `${key}-add` }, "Add");
     const submit = () => this.addPattern(key, input.value.trim());
     add.addEventListener("click", submit);
@@ -172,18 +226,46 @@ export class SettingsPage {
     const pace = this.el(
       "div",
       { class: "segmented", role: "radiogroup", id: "pace", "aria-labelledby": "pace-label" },
-      this.el("button", { type: "button", role: "radio", id: "pace-human", "aria-checked": "false" }, "Human"),
-      this.el("button", { type: "button", role: "radio", id: "pace-fast", "aria-checked": "false" }, "Fast"),
+      this.el(
+        "button",
+        { type: "button", role: "radio", id: "pace-human", "aria-checked": "false" },
+        "Human",
+      ),
+      this.el(
+        "button",
+        { type: "button", role: "radio", id: "pace-fast", "aria-checked": "false" },
+        "Fast",
+      ),
     );
-    this.get("pace-human").addEventListener("click", () => this.edit((d) => (d.input.pace = "human")));
-    this.get("pace-fast").addEventListener("click", () => this.edit((d) => (d.input.pace = "fast")));
+    this.get("pace-human").addEventListener("click", () =>
+      this.edit((d) => (d.input.pace = "human")),
+    );
+    this.get("pace-fast").addEventListener("click", () =>
+      this.edit((d) => (d.input.pace = "fast")),
+    );
 
     const profile = this.el("select", { id: "default-profile" });
-    profile.addEventListener("change", () => this.edit((d) => (d.sessions.default_profile = profile.value)));
-    const size = this.el("select", { id: "shot-size" }, ...SIZES.map(([v, label]) => this.el("option", { value: v }, label)));
-    size.addEventListener("change", () => this.edit((d) => (d.capture.screenshot_size = size.value)));
-    const folder = this.el("input", { type: "text", id: "gif-folder", class: "mono", autocomplete: "off", spellcheck: "false" });
-    folder.addEventListener("input", () => this.edit((d) => (d.capture.gif_folder = folder.value.trim())));
+    profile.addEventListener("change", () =>
+      this.edit((d) => (d.sessions.default_profile = profile.value)),
+    );
+    const size = this.el(
+      "select",
+      { id: "shot-size" },
+      ...SIZES.map(([v, label]) => this.el("option", { value: v }, label)),
+    );
+    size.addEventListener("change", () =>
+      this.edit((d) => (d.capture.screenshot_size = size.value)),
+    );
+    const folder = this.el("input", {
+      type: "text",
+      id: "gif-folder",
+      class: "mono",
+      autocomplete: "off",
+      spellcheck: "false",
+    });
+    folder.addEventListener("input", () =>
+      this.edit((d) => (d.capture.gif_folder = folder.value.trim())),
+    );
 
     const main = this.el(
       "main",
@@ -197,12 +279,22 @@ export class SettingsPage {
           this.el("h1", {}, "browser-hand"),
           this.el("p", { class: "intro" }, "Settings apply to every Chrome profile."),
         ),
-        this.el("span", { class: "pill", id: "pill", role: "status" }, this.el("i", { class: "dot" }), this.el("span", { id: "pill-text" })),
+        this.el(
+          "span",
+          { class: "pill", id: "pill", role: "status" },
+          this.el("i", { class: "dot" }),
+          this.el("span", { id: "pill-text" }),
+        ),
       ),
       this.el(
         "div",
         { class: "banner", id: "banner", hidden: true, role: "alert" },
-        this.el("div", {}, this.el("strong", { id: "banner-title" }), this.el("p", { id: "banner-body" })),
+        this.el(
+          "div",
+          {},
+          this.el("strong", { id: "banner-title" }),
+          this.el("p", { id: "banner-body" }),
+        ),
         this.el("button", { type: "button", class: "button", id: "retry" }, "Retry"),
       ),
       this.el("div", { class: "warnings", id: "warnings", hidden: true }),
@@ -213,34 +305,96 @@ export class SettingsPage {
           "Input",
           "How the cursor and keyboard move. Human pace is slower and harder for sites to tell apart from you.",
           this.row("pace", "Pace", "Fast keeps the same events without travel time.", pace),
-          this.row("typing", "Typing speed", "Multiplies the gap between keys. 0.5 is twice as fast.", this.slider("typing", 0.25, 3, 0.05, (v) => this.edit((d) => (d.input.typing_speed = v)))),
-          this.row("mouse", "Mouse speed", "Scales how fast the cursor travels.", this.slider("mouse", 0.25, 3, 0.05, (v) => this.edit((d) => (d.input.mouse_speed = v)))),
+          this.row(
+            "typing",
+            "Typing speed",
+            "Multiplies the gap between keys. 0.5 is twice as fast.",
+            this.slider("typing", 0.25, 3, 0.05, (v) =>
+              this.edit((d) => (d.input.typing_speed = v)),
+            ),
+          ),
+          this.row(
+            "mouse",
+            "Mouse speed",
+            "Scales how fast the cursor travels.",
+            this.slider("mouse", 0.25, 3, 0.05, (v) => this.edit((d) => (d.input.mouse_speed = v))),
+          ),
         ),
         this.section(
           "Sessions",
           "What Claude opens when a session starts and ends.",
-          this.row("default-profile", "Default profile", "Used when Claude is not told which profile to drive.", this.el("div", { class: "select" }, profile)),
-          this.row("new-window", "Open a new window", "Off puts the tab group in your current window.", this.toggle("new-window", (on) => this.edit((d) => (d.sessions.new_window = on)))),
-          this.row("close-tabs", "Close tabs when the session ends", "Off leaves Claude's tabs open for you.", this.toggle("close-tabs", (on) => this.edit((d) => (d.sessions.close_tabs_on_end = on)))),
+          this.row(
+            "default-profile",
+            "Default profile",
+            "Used when Claude is not told which profile to drive.",
+            this.el("div", { class: "select" }, profile),
+          ),
+          this.row(
+            "new-window",
+            "Open a new window",
+            "Off puts the tab group in your current window.",
+            this.toggle("new-window", (on) => this.edit((d) => (d.sessions.new_window = on))),
+          ),
+          this.row(
+            "close-tabs",
+            "Close tabs when the session ends",
+            "Off leaves Claude's tabs open for you.",
+            this.toggle("close-tabs", (on) =>
+              this.edit((d) => (d.sessions.close_tabs_on_end = on)),
+            ),
+          ),
         ),
         this.section(
           "Site access",
           "Enforced in the extension, so a request from the server cannot get past it. One pattern per line, * matches anything.",
           this.patterns("blocked", "Blocked sites", "Claude never opens or acts on these."),
-          this.patterns("read_only", "Read-only sites", "Claude can read these but not click, type or run scripts."),
+          this.patterns(
+            "read_only",
+            "Read-only sites",
+            "Claude can read these but not click, type or run scripts.",
+          ),
         ),
         this.section(
           "Capture",
           "Screenshots Claude takes and GIFs it records.",
-          this.row("shot-size", "Screenshot size", "Bigger shows more detail and costs more tokens.", this.el("div", { class: "select" }, size)),
-          this.row("shot-quality", "Screenshot quality", "JPEG quality.", this.slider("shot-quality", 30, 100, 1, (v) => this.edit((d) => (d.capture.screenshot_quality = v)))),
-          this.row("gif-folder", "GIF folder", "Where GIFs and saved screenshots go.", this.el("div", { class: "field wide" }, folder)),
-          this.row("gif-delay", "GIF frame delay", "Playback speed of recordings.", this.number("gif-delay", "ms", (v) => this.edit((d) => (d.capture.gif_frame_delay_ms = v)))),
+          this.row(
+            "shot-size",
+            "Screenshot size",
+            "Bigger shows more detail and costs more tokens.",
+            this.el("div", { class: "select" }, size),
+          ),
+          this.row(
+            "shot-quality",
+            "Screenshot quality",
+            "JPEG quality.",
+            this.slider("shot-quality", 30, 100, 1, (v) =>
+              this.edit((d) => (d.capture.screenshot_quality = v)),
+            ),
+          ),
+          this.row(
+            "gif-folder",
+            "GIF folder",
+            "Where GIFs and saved screenshots go.",
+            this.el("div", { class: "field wide" }, folder),
+          ),
+          this.row(
+            "gif-delay",
+            "GIF frame delay",
+            "Playback speed of recordings.",
+            this.number("gif-delay", "ms", (v) =>
+              this.edit((d) => (d.capture.gif_frame_delay_ms = v)),
+            ),
+          ),
         ),
         this.section(
           "Debugger",
           null,
-          this.row("idle", "Detach after idle", 'How soon the "started debugging" bar goes away after the last action.', this.number("idle", "s", (v) => this.edit((d) => (d.debugger.detach_after_idle_s = v)))),
+          this.row(
+            "idle",
+            "Detach after idle",
+            'How soon the "started debugging" bar goes away after the last action.',
+            this.number("idle", "s", (v) => this.edit((d) => (d.debugger.detach_after_idle_s = v))),
+          ),
         ),
       ),
       this.el("footer", { class: "version", id: "version" }),
@@ -261,7 +415,12 @@ export class SettingsPage {
       "div",
       { class: "toast", id: "toast", hidden: true, role: "status" },
       this.el("i", { class: "dot", id: "toast-dot" }),
-      this.el("div", {}, this.el("strong", { id: "toast-title" }), this.el("p", { id: "toast-body" })),
+      this.el(
+        "div",
+        {},
+        this.el("strong", { id: "toast-title" }),
+        this.el("p", { id: "toast-body" }),
+      ),
     );
     this.get("retry").addEventListener("click", () => this.port.postMessage({ op: "retry" }));
     this.get("discard").addEventListener("click", () => this.discard());
@@ -292,11 +451,16 @@ export class SettingsPage {
         this.draft = clone(this.latest.settings);
         this.listErrors.clear();
         this.saveError = null;
-        this.toast("Not saved: changed in another profile", "The page now shows the saved settings; make your change again.", "warning");
+        this.toast(
+          "Not saved: changed in another profile",
+          "The page now shows the saved settings; make your change again.",
+          "warning",
+        );
       } else {
         this.saveError = msg.error?.message ?? "Not saved.";
         if (msg.error?.field === "sites.blocked") this.listErrors.set("blocked", msg.error.message);
-        if (msg.error?.field === "sites.read_only") this.listErrors.set("read_only", msg.error.message);
+        if (msg.error?.field === "sites.read_only")
+          this.listErrors.set("read_only", msg.error.message);
       }
     }
     this.render();
@@ -341,7 +505,8 @@ export class SettingsPage {
     this.draft = clone(this.base.settings);
     this.listErrors.clear();
     this.saveError = null;
-    for (const k of ["blocked", "read_only"] as const) this.get<HTMLInputElement>(`${k}-input`).value = "";
+    for (const k of ["blocked", "read_only"] as const)
+      this.get<HTMLInputElement>(`${k}-input`).value = "";
     this.render();
   }
 
@@ -360,9 +525,21 @@ export class SettingsPage {
   }
 
   private save() {
-    if (!this.base || !this.draft || !this.connected || this.saving || !this.dirty() || this.fieldErrors().size) return;
+    if (
+      !this.base ||
+      !this.draft ||
+      !this.connected ||
+      this.saving ||
+      !this.dirty() ||
+      this.fieldErrors().size
+    )
+      return;
     this.saving = true;
-    this.port.postMessage({ op: "save", settings: clone(this.draft), revision: this.base.revision });
+    this.port.postMessage({
+      op: "save",
+      settings: clone(this.draft),
+      revision: this.base.revision,
+    });
     this.render();
   }
 
@@ -400,7 +577,9 @@ export class SettingsPage {
     const live = this.connected;
     this.renderHeader(s);
     this.get("sections").classList.toggle("readonly", !live);
-    for (const c of this.root.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement>(".sections input, .sections button, .sections select")) {
+    for (const c of this.root.querySelectorAll<
+      HTMLInputElement | HTMLButtonElement | HTMLSelectElement
+    >(".sections input, .sections button, .sections select")) {
       c.disabled = !live;
     }
     if (d) {
@@ -408,7 +587,10 @@ export class SettingsPage {
       this.renderSessions(d, s);
       this.renderSites(d);
       this.renderCapture(d);
-      this.setValue("idle", Number.isNaN(d.debugger.detach_after_idle_s) ? "" : String(d.debugger.detach_after_idle_s));
+      this.setValue(
+        "idle",
+        Number.isNaN(d.debugger.detach_after_idle_s) ? "" : String(d.debugger.detach_after_idle_s),
+      );
     }
     const errors = this.fieldErrors();
     for (const id of ["gif-folder", "gif-delay", "idle"]) this.setError(id, errors.get(id));
@@ -426,19 +608,23 @@ export class SettingsPage {
     banner.hidden = !down || down === "connecting";
     if (down === "older") {
       this.get("banner-title").textContent = "The browser-hand host is older than this extension";
-      this.get("banner-body").textContent = "Settings are read-only until it is updated. Rebuild it (sh scripts/build.sh), run browser-hand install, then Retry.";
+      this.get("banner-body").textContent =
+        "Settings are read-only until it is updated. Rebuild it (sh scripts/build.sh), run browser-hand install, then Retry.";
     } else if (down) {
       this.get("banner-title").textContent = "The browser-hand host is not running";
       const said = s?.detail ? ` Chrome said: ${s.detail}` : "";
       const last = s?.seen ? " Values are the last ones the extension saw." : "";
-      this.get("banner-body").textContent = `Settings are read-only until it connects. Run browser-hand install, then Retry.${last}${said}`;
+      this.get("banner-body").textContent =
+        `Settings are read-only until it connects. Run browser-hand install, then Retry.${last}${said}`;
     }
 
     const warnings = this.get("warnings");
     const list = live ? (s?.warnings ?? []) : [];
     warnings.hidden = list.length === 0;
     warnings.replaceChildren(
-      ...(list.length ? [this.el("strong", {}, "Some saved settings could not be used, so their defaults apply:")] : []),
+      ...(list.length
+        ? [this.el("strong", {}, "Some saved settings could not be used, so their defaults apply:")]
+        : []),
       ...list.map((w) => this.el("code", {}, w)),
     );
   }
@@ -469,11 +655,16 @@ export class SettingsPage {
     const select = this.get<HTMLSelectElement>("default-profile");
     const profiles = s?.profiles ?? [];
     const want = d.sessions.default_profile;
-    const options: [string, string][] = [["", "Ask each time"], ...profiles.map((p): [string, string] => [p.dir, p.name === p.dir ? p.name : `${p.name}`])];
+    const options: [string, string][] = [
+      ["", "Ask each time"],
+      ...profiles.map((p): [string, string] => [p.dir, p.name === p.dir ? p.name : `${p.name}`]),
+    ];
     if (want && !profiles.some((p) => p.dir === want)) options.push([want, `${want} (not found)`]);
     const key = JSON.stringify(options);
     if (select.dataset.options !== key) {
-      select.replaceChildren(...options.map(([v, label]) => this.el("option", { value: v }, label)));
+      select.replaceChildren(
+        ...options.map(([v, label]) => this.el("option", { value: v }, label)),
+      );
       select.dataset.options = key;
     }
     this.setValue("default-profile", want);
@@ -487,7 +678,16 @@ export class SettingsPage {
       ul.replaceChildren(
         ...(d.sites[key].length
           ? d.sites[key].map((p) => {
-              const remove = this.el("button", { type: "button", class: "remove", "aria-label": `Remove ${p}`, disabled: !this.connected }, "×");
+              const remove = this.el(
+                "button",
+                {
+                  type: "button",
+                  class: "remove",
+                  "aria-label": `Remove ${p}`,
+                  disabled: !this.connected,
+                },
+                "×",
+              );
               remove.addEventListener("click", () => this.removePattern(key, p));
               return this.el("li", {}, this.el("code", {}, p), remove);
             })
@@ -507,7 +707,10 @@ export class SettingsPage {
     this.get("shot-quality-value").textContent = String(d.capture.screenshot_quality);
     this.fill("shot-quality");
     this.setValue("gif-folder", d.capture.gif_folder);
-    this.setValue("gif-delay", Number.isNaN(d.capture.gif_frame_delay_ms) ? "" : String(d.capture.gif_frame_delay_ms));
+    this.setValue(
+      "gif-delay",
+      Number.isNaN(d.capture.gif_frame_delay_ms) ? "" : String(d.capture.gif_frame_delay_ms),
+    );
   }
 
   private renderSaveBar(invalid: boolean) {
@@ -516,7 +719,8 @@ export class SettingsPage {
     bar.hidden = n === 0 || !this.connected;
     this.root.classList.toggle("editing", !bar.hidden);
     this.get("count").textContent = `${n} unsaved change${n === 1 ? "" : "s"}`;
-    this.get("save-error").textContent = this.saveError ?? (invalid ? "Fix the marked values to save." : "");
+    this.get("save-error").textContent =
+      this.saveError ?? (invalid ? "Fix the marked values to save." : "");
     (this.get("save") as HTMLButtonElement).disabled = this.saving || invalid;
     (this.get("discard") as HTMLButtonElement).disabled = this.saving;
     this.get("save").textContent = this.saving ? "Saving" : "Save";

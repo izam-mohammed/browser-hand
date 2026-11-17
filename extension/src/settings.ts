@@ -24,7 +24,12 @@ export const DEFAULTS: Settings = {
   input: { pace: "human", typing_speed: 1.0, mouse_speed: 1.0 },
   sessions: { default_profile: "", new_window: true, close_tabs_on_end: false },
   sites: { blocked: [], read_only: [] },
-  capture: { screenshot_size: "1280x800", screenshot_quality: 80, gif_folder: "~/Downloads/browser-hand", gif_frame_delay_ms: 700 },
+  capture: {
+    screenshot_size: "1280x800",
+    screenshot_quality: 80,
+    gif_folder: "~/Downloads/browser-hand",
+    gif_frame_delay_ms: 700,
+  },
   debugger: { detach_after_idle_s: 30 },
 };
 
@@ -52,7 +57,12 @@ export type PageMsg = { op: "save"; settings: Settings; revision: string } | { o
 /** Worker to page. */
 export type WorkerMsg =
   | { type: "state"; state: PageState }
-  | { type: "saved"; ok: boolean; path?: string; error?: { field: string | null; message: string } };
+  | {
+      type: "saved";
+      ok: boolean;
+      path?: string;
+      error?: { field: string | null; message: string };
+    };
 
 /** The parts of a `runtime.Port` the hub uses. */
 export interface PortLike {
@@ -64,7 +74,10 @@ export interface PortLike {
 }
 
 export interface HubDeps {
-  local: { get(key: string): Promise<{ [k: string]: unknown }>; set(items: { [k: string]: unknown }): Promise<void> };
+  local: {
+    get(key: string): Promise<{ [k: string]: unknown }>;
+    set(items: { [k: string]: unknown }): Promise<void>;
+  };
   /** Sends a frame on the native port; false when the port is down. */
   post(frame: Frame): boolean;
   /** Retry: connect the native port again now. */
@@ -93,7 +106,10 @@ export class SettingsHub {
   private pages = new Set<PortLike>();
   private listeners: ((s: Settings) => void)[] = [];
   private nextId = 1;
-  private pending = new Map<number, { resolve: (f: SavedFrame | null) => void; timer: ReturnType<typeof setTimeout> }>();
+  private pending = new Map<
+    number,
+    { resolve: (f: SavedFrame | null) => void; timer: ReturnType<typeof setTimeout> }
+  >();
 
   constructor(private d: HubDeps) {}
 
@@ -135,7 +151,9 @@ export class SettingsHub {
     const last = this.last;
     return {
       connected: this.connected,
-      ...(this.connected ? {} : { down: this.down, ...(this.detail ? { detail: this.detail } : {}) }),
+      ...(this.connected
+        ? {}
+        : { down: this.down, ...(this.detail ? { detail: this.detail } : {}) }),
       settings: this.settings,
       revision: last?.revision ?? "0",
       path: last?.path ?? "",
@@ -192,7 +210,9 @@ export class SettingsHub {
       this.last = { settings, revision, path, profiles, warnings };
       const json = JSON.stringify(this.last);
       if (json.length <= LAST_MAX_BYTES) {
-        this.d.local.set({ [LAST_KEY]: this.last }).catch((e) => console.warn("browser-hand: could not keep the settings", e));
+        this.d.local
+          .set({ [LAST_KEY]: this.last })
+          .catch((e) => console.warn("browser-hand: could not keep the settings", e));
       }
       this.changed();
       this.broadcast();
@@ -211,7 +231,8 @@ export class SettingsHub {
    * else: a content script or another page cannot change the settings. */
   accept(port: PortLike): boolean {
     if (port.name !== PORT_NAME) return false;
-    if (port.sender?.id !== this.d.extensionId || !port.sender?.url?.startsWith(this.d.optionsUrl)) return false;
+    if (port.sender?.id !== this.d.extensionId || !port.sender?.url?.startsWith(this.d.optionsUrl))
+      return false;
     this.pages.add(port);
     port.onDisconnect.addListener(() => this.pages.delete(port));
     port.onMessage.addListener((msg: PageMsg) => void this.fromPage(port, msg));
@@ -229,8 +250,13 @@ export class SettingsHub {
 
   /** Asks the host to save; answers as the page shows it. */
   async save(settings: Settings, revision: string): Promise<WorkerMsg> {
-    const refused = (message: string): WorkerMsg => ({ type: "saved", ok: false, error: { field: null, message } });
-    if (!this.connected) return refused("The browser-hand host is not connected; nothing was saved.");
+    const refused = (message: string): WorkerMsg => ({
+      type: "saved",
+      ok: false,
+      error: { field: null, message },
+    });
+    if (!this.connected)
+      return refused("The browser-hand host is not connected; nothing was saved.");
     const id = this.nextId++;
     const answer = new Promise<SavedFrame | null>((resolve) => {
       const timer = setTimeout(() => {
@@ -245,7 +271,10 @@ export class SettingsHub {
       return refused("The browser-hand host is not connected; nothing was saved.");
     }
     const f = await answer;
-    if (!f) return refused("The browser-hand host did not answer. It may be older than this extension: rebuild it and run browser-hand install.");
+    if (!f)
+      return refused(
+        "The browser-hand host did not answer. It may be older than this extension: rebuild it and run browser-hand install.",
+      );
     return {
       type: "saved",
       ok: f.ok,

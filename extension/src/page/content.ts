@@ -6,18 +6,36 @@
 import { ConsoleBuffer } from "./console";
 import { find, formatFind } from "./find";
 import { PageError, dropFiles, element, formInput, setFiles } from "./forms";
-import { Capture, Outbox, fieldKind, resolveSelectors, type Selector, type StepMsg } from "./record";
+import {
+  Capture,
+  Outbox,
+  fieldKind,
+  resolveSelectors,
+  type Selector,
+  type StepMsg,
+} from "./record";
 import { pageText } from "./text";
 import { readPage, refFor } from "./walker";
 
 export type PageOp =
-  | { op: "read_page"; filter?: "interactive" | "all"; depth?: number; ref_id?: string; max_chars?: number }
+  | {
+      op: "read_page";
+      filter?: "interactive" | "all";
+      depth?: number;
+      ref_id?: string;
+      max_chars?: number;
+    }
   | { op: "find"; query: string }
   | { op: "text" }
   | { op: "console"; pattern?: string; onlyErrors?: boolean; limit?: number; clear?: boolean }
   | { op: "form_input"; ref: string; value: string | number | boolean }
   | { op: "set_files"; ref: string; files: { name: string; mimeType: string; data: string }[] }
-  | { op: "drop_files"; x: number; y: number; files: { name: string; mimeType: string; data: string }[] }
+  | {
+      op: "drop_files";
+      x: number;
+      y: number;
+      files: { name: string; mimeType: string; data: string }[];
+    }
   | { op: "rect"; ref: string }
   | { op: "scroll_into_view"; ref: string }
   | { op: "viewport" }
@@ -42,7 +60,9 @@ if (!g[marker]) {
   // Steps wait in the outbox until the service worker takes them; it
   // answers `on: false` once this window stops recording.
   const outbox = new Outbox(async (msg) => {
-    const r = (await chrome.runtime.sendMessage({ __bhRec: "step", ...msg } satisfies RecMsg)) as { on?: boolean } | undefined;
+    const r = (await chrome.runtime.sendMessage({ __bhRec: "step", ...msg } satisfies RecMsg)) as
+      | { on?: boolean }
+      | undefined;
     if (r && r.on === false) capture.stop();
   });
   const capture = new Capture(window, (msg) => outbox.push(msg));
@@ -92,7 +112,8 @@ if (!g[marker]) {
         return true;
       case "resolve": {
         const { el, tried } = resolveSelectors(document, msg.selectors);
-        if (!el) throw new PageError("page_error", `No element matches. Tried: ${tried.join("; ")}`);
+        if (!el)
+          throw new PageError("page_error", `No element matches. Tried: ${tried.join("; ")}`);
         return { ref: refFor(el), kind: fieldKind(el), tried };
       }
       case "scroll_xy":
@@ -102,15 +123,18 @@ if (!g[marker]) {
     }
   };
 
-  chrome.runtime.onMessage.addListener((msg: PageOp & { __bh?: true }, _sender, reply: (r: PageReply) => void) => {
-    if (!msg?.__bh) return;
-    // Recording reaches every frame; everything else is the top frame's.
-    if (msg.op !== "record_start" && msg.op !== "record_stop" && window !== window.top) return;
-    try {
-      reply({ ok: true, value: run(msg) });
-    } catch (e) {
-      const code = e instanceof PageError ? e.code : ((e as { code?: string }).code ?? "page_error");
-      reply({ ok: false, code, message: e instanceof Error ? e.message : String(e) });
-    }
-  });
+  chrome.runtime.onMessage.addListener(
+    (msg: PageOp & { __bh?: true }, _sender, reply: (r: PageReply) => void) => {
+      if (!msg?.__bh) return;
+      // Recording reaches every frame; everything else is the top frame's.
+      if (msg.op !== "record_start" && msg.op !== "record_stop" && window !== window.top) return;
+      try {
+        reply({ ok: true, value: run(msg) });
+      } catch (e) {
+        const code =
+          e instanceof PageError ? e.code : ((e as { code?: string }).code ?? "page_error");
+        reply({ ok: false, code, message: e instanceof Error ? e.message : String(e) });
+      }
+    },
+  );
 }

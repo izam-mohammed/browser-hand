@@ -97,7 +97,14 @@ export type Use = "read" | "act" | "any";
 /** `computer` actions that only look (Edge cases: screenshot, zoom, scroll, scroll_to). */
 const LOOKING = new Set(["screenshot", "zoom", "scroll", "scroll_to"]);
 /** Tools that only read the page, or touch the window and not the page. */
-const READING = new Set(["read_page", "find", "get_page_text", "read_console_messages", "read_network_requests", "resize_window"]);
+const READING = new Set([
+  "read_page",
+  "find",
+  "get_page_text",
+  "read_console_messages",
+  "read_network_requests",
+  "resize_window",
+]);
 
 /** What `tool` (with its `action` for `computer`) does to its tab.
  * `navigate` checks its own way (`TabTools.navigate`): leaving a site is
@@ -122,7 +129,10 @@ export function gate(rules: SiteRules, url: string | undefined, use: Use) {
   if (use === "any") return;
   const access = rules.access(url);
   if (access === "blocked") {
-    throw new ToolError("blocked", `${hostOf(url!)} is blocked in browser-hand settings; ask the person.`);
+    throw new ToolError(
+      "blocked",
+      `${hostOf(url!)} is blocked in browser-hand settings; ask the person.`,
+    );
   }
   if (access === "read_only" && use === "act") {
     throw new ToolError(

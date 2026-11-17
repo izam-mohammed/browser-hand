@@ -19,7 +19,11 @@ export interface ShotPrefs {
   quality: number;
 }
 
-export const DEFAULT_SHOT: ShotPrefs = { maxWidth: MAX_WIDTH, maxHeight: MAX_HEIGHT, quality: JPEG_QUALITY };
+export const DEFAULT_SHOT: ShotPrefs = {
+  maxWidth: MAX_WIDTH,
+  maxHeight: MAX_HEIGHT,
+  quality: JPEG_QUALITY,
+};
 
 /** The settings' `"1280x800"` and quality as `ShotPrefs`. */
 export function shotPrefs(size: string, quality: number): ShotPrefs {
@@ -44,20 +48,36 @@ function withTimeout<T>(p: Promise<T>, what: string): Promise<T> {
   return Promise.race([
     p,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new ToolError("timeout", `${what} took over ${CAPTURE_TIMEOUT_MS / 1000} s`)), CAPTURE_TIMEOUT_MS),
+      setTimeout(
+        () => reject(new ToolError("timeout", `${what} took over ${CAPTURE_TIMEOUT_MS / 1000} s`)),
+        CAPTURE_TIMEOUT_MS,
+      ),
     ),
   ]);
 }
 
 /** Output size per CSS pixel for a full screenshot. */
-export function fitScale(width: number, height: number, userScale = 1, prefs: ShotPrefs = DEFAULT_SHOT): number {
+export function fitScale(
+  width: number,
+  height: number,
+  userScale = 1,
+  prefs: ShotPrefs = DEFAULT_SHOT,
+): number {
   const fit = Math.min(1, prefs.maxWidth / width, prefs.maxHeight / height);
   return fit * Math.min(1, Math.max(0.1, userScale));
 }
 
 /** Output size per CSS pixel for a zoomed region: enlarged up to 3x. */
-export function zoomScale(width: number, height: number, userScale = 1, prefs: ShotPrefs = DEFAULT_SHOT): number {
-  const enlarge = Math.min(3, Math.max(1, Math.min(prefs.maxWidth / width, prefs.maxHeight / height)));
+export function zoomScale(
+  width: number,
+  height: number,
+  userScale = 1,
+  prefs: ShotPrefs = DEFAULT_SHOT,
+): number {
+  const enlarge = Math.min(
+    3,
+    Math.max(1, Math.min(prefs.maxWidth / width, prefs.maxHeight / height)),
+  );
   return enlarge * Math.min(1, Math.max(0.1, userScale));
 }
 
@@ -83,7 +103,8 @@ export async function capture(
   let outScale: number;
   if (opts.region) {
     const [x0, y0, x1, y1] = opts.region;
-    if (!(x1 > x0 && y1 > y0)) throw new ToolError("bad_args", "region must be [x0, y0, x1, y1] with x1 > x0 and y1 > y0");
+    if (!(x1 > x0 && y1 > y0))
+      throw new ToolError("bad_args", "region must be [x0, y0, x1, y1] with x1 > x0 and y1 > y0");
     clip = { x: vv.pageX + x0, y: vv.pageY + y0, width: x1 - x0, height: y1 - y0 };
     outScale = zoomScale(clip.width, clip.height, opts.scale, prefs);
   } else {
@@ -114,11 +135,20 @@ export async function capture(
 }
 
 /** For a tab Chrome will not attach to: the visible area of the active tab. */
-export async function captureVisible(tab: chrome.tabs.Tab, prefs: ShotPrefs = DEFAULT_SHOT): Promise<Shot> {
+export async function captureVisible(
+  tab: chrome.tabs.Tab,
+  prefs: ShotPrefs = DEFAULT_SHOT,
+): Promise<Shot> {
   if (!tab.active || tab.windowId === undefined) {
-    throw new ToolError("debugger_refused", "Cannot screenshot this tab: Chrome refused to attach and it is not the active tab");
+    throw new ToolError(
+      "debugger_refused",
+      "Cannot screenshot this tab: Chrome refused to attach and it is not the active tab",
+    );
   }
-  const url = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "jpeg", quality: prefs.quality });
+  const url = await chrome.tabs.captureVisibleTab(tab.windowId, {
+    format: "jpeg",
+    quality: prefs.quality,
+  });
   return {
     data: url.slice(url.indexOf(",") + 1),
     mimeType: "image/jpeg",

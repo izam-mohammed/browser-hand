@@ -32,7 +32,12 @@ export function installHooks(win: Window & typeof globalThis) {
   const toJson = win.JSON.stringify;
   const now = win.Date.now;
   const post = (level: string, text: string) =>
-    dispatch.call(doc, new Custom(HOOK_TAG, { detail: toJson({ level, text: text.slice(0, MAX_ENTRY_CHARS), time: now() }) }));
+    dispatch.call(
+      doc,
+      new Custom(HOOK_TAG, {
+        detail: toJson({ level, text: text.slice(0, MAX_ENTRY_CHARS), time: now() }),
+      }),
+    );
 
   for (const level of ["log", "info", "warn", "error", "debug"] as const) {
     const original = win.console[level];
@@ -45,6 +50,10 @@ export function installHooks(win: Window & typeof globalThis) {
       return original.apply(this, args);
     };
   }
-  win.addEventListener("error", (e) => post("exception", `${e.message} at ${e.filename}:${e.lineno}:${e.colno}`));
-  win.addEventListener("unhandledrejection", (e) => post("exception", `Unhandled rejection: ${stringify(e.reason)}`));
+  win.addEventListener("error", (e) =>
+    post("exception", `${e.message} at ${e.filename}:${e.lineno}:${e.colno}`),
+  );
+  win.addEventListener("unhandledrejection", (e) =>
+    post("exception", `Unhandled rejection: ${stringify(e.reason)}`),
+  );
 }

@@ -15,7 +15,14 @@ export interface RequestEntry {
   error?: string;
 }
 
-type Started = { requestId: string; tabId: number; url: string; method: string; type: string; timeStamp: number };
+type Started = {
+  requestId: string;
+  tabId: number;
+  url: string;
+  method: string;
+  type: string;
+  timeStamp: number;
+};
 type Finished = { requestId: string; tabId: number; statusCode?: number; timeStamp: number };
 type Failed = { requestId: string; tabId: number; error: string; timeStamp: number };
 
@@ -36,7 +43,13 @@ export class NetworkLog {
       this.hostOf.set(d.tabId, host);
     }
     const list = this.byTab.get(d.tabId) ?? [];
-    list.push({ requestId: d.requestId, url: d.url, method: d.method, type: d.type, start: d.timeStamp });
+    list.push({
+      requestId: d.requestId,
+      url: d.url,
+      method: d.method,
+      type: d.type,
+      start: d.timeStamp,
+    });
     if (list.length > MAX_PER_TAB) list.shift();
     this.byTab.set(d.tabId, list);
   }
@@ -71,13 +84,19 @@ export class NetworkLog {
     const found = opts.urlPattern ? all.filter((e) => e.url.includes(opts.urlPattern!)) : all;
     const shown = found.slice(-(opts.limit ?? 100));
     if (opts.clear) this.byTab.delete(tabId);
-    if (!shown.length) return "No network requests recorded for this tab (since its last cross-domain navigation).";
+    if (!shown.length)
+      return "No network requests recorded for this tab (since its last cross-domain navigation).";
     const lines = shown.map((e) => {
-      const outcome = e.error ? `failed ${e.error}` : e.status !== undefined ? String(e.status) : "pending";
+      const outcome = e.error
+        ? `failed ${e.error}`
+        : e.status !== undefined
+          ? String(e.status)
+          : "pending";
       const time = e.durationMs !== undefined ? ` ${e.durationMs} ms` : "";
       return `${e.method} ${e.url} [${e.type}] ${outcome}${time}`;
     });
-    if (found.length > shown.length) lines.unshift(`(${found.length} requests; showing the last ${shown.length})`);
+    if (found.length > shown.length)
+      lines.unshift(`(${found.length} requests; showing the last ${shown.length})`);
     return lines.join("\n");
   }
 

@@ -33,7 +33,8 @@ export interface ReplayDeps {
 }
 
 const expectsLoad = (step: Step) =>
-  Array.isArray(step.assertedEvents) && step.assertedEvents.some((e) => (e as { type?: string })?.type === "navigation");
+  Array.isArray(step.assertedEvents) &&
+  step.assertedEvents.some((e) => (e as { type?: string })?.type === "navigation");
 
 async function find(d: ReplayDeps, tabId: number, step: Step): Promise<Resolved> {
   const selectors = step.selectors ?? [];
@@ -63,7 +64,10 @@ async function withLoad(d: ReplayDeps, tabId: number, step: Step, act: () => Pro
 /** Replays one step on `tabId`, saying what it did. */
 export async function replayStep(d: ReplayDeps, tabId: number, step: Step): Promise<string> {
   if (Array.isArray(step.frame) && step.frame.length) {
-    throw new ToolError("page_error", "This step is inside a frame; replay reaches the top frame only. Do it with computer instead.");
+    throw new ToolError(
+      "page_error",
+      "This step is inside a frame; replay reaches the top frame only. Do it with computer instead.",
+    );
   }
   switch (step.type) {
     case "setViewport":
@@ -75,7 +79,12 @@ export async function replayStep(d: ReplayDeps, tabId: number, step: Step): Prom
     case "doubleClick": {
       const r = await find(d, tabId, step);
       await d.show(tabId);
-      const action = step.type === "doubleClick" ? "double_click" : step.button === "secondary" ? "right_click" : "left_click";
+      const action =
+        step.type === "doubleClick"
+          ? "double_click"
+          : step.button === "secondary"
+            ? "right_click"
+            : "left_click";
       const note = await withLoad(d, tabId, step, () => d.act(tabId, { action, ref: r.ref }));
       return `${action.replace("_", " ")} on ${r.tried.at(-1)}${note}`;
     }

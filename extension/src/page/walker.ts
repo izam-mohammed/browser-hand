@@ -20,7 +20,9 @@ let nextRef = 1;
 let docTag = newTag();
 
 function newTag(): string {
-  return Math.floor(Math.random() * 36 ** 4).toString(36).padStart(4, "0");
+  return Math.floor(Math.random() * 36 ** 4)
+    .toString(36)
+    .padStart(4, "0");
 }
 
 export function refFor(el: Element): string {
@@ -95,9 +97,23 @@ const TAG_ROLES: Record<string, string> = {
 };
 
 const INTERACTIVE_ROLES = new Set([
-  "button", "link", "textbox", "searchbox", "checkbox", "radio", "combobox", "slider",
-  "switch", "tab", "menuitem", "menuitemcheckbox", "menuitemradio", "option", "spinbutton",
-  "listbox", "treeitem",
+  "button",
+  "link",
+  "textbox",
+  "searchbox",
+  "checkbox",
+  "radio",
+  "combobox",
+  "slider",
+  "switch",
+  "tab",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "option",
+  "spinbutton",
+  "listbox",
+  "treeitem",
 ]);
 
 const SKIP_TAGS = new Set(["script", "style", "noscript", "template", "head", "meta", "link"]);
@@ -112,10 +128,14 @@ export function roleOf(el: Element): string | null {
     if (type === "hidden") return null;
     return INPUT_ROLES[type] ?? "textbox";
   }
-  if (tag === "select" && ((el as HTMLSelectElement).multiple || (el as HTMLSelectElement).size > 1)) {
+  if (
+    tag === "select" &&
+    ((el as HTMLSelectElement).multiple || (el as HTMLSelectElement).size > 1)
+  ) {
     return "listbox";
   }
-  if ((el as HTMLElement).isContentEditable && el.getAttribute("contenteditable") !== null) return "textbox";
+  if ((el as HTMLElement).isContentEditable && el.getAttribute("contenteditable") !== null)
+    return "textbox";
   return TAG_ROLES[tag] ?? null;
 }
 
@@ -133,7 +153,10 @@ export function nameOf(el: Element): string {
   const doc = el.ownerDocument;
   const labelledBy = el.getAttribute("aria-labelledby");
   if (labelledBy) {
-    const parts = labelledBy.split(/\s+/).map((id) => doc.getElementById(id)).filter(Boolean) as Element[];
+    const parts = labelledBy
+      .split(/\s+/)
+      .map((id) => doc.getElementById(id))
+      .filter(Boolean) as Element[];
     const name = clean(parts.map(textOf).join(" "));
     if (name) return name;
   }
@@ -151,7 +174,11 @@ export function nameOf(el: Element): string {
     if (tag === "input" && (type === "submit" || type === "button" || type === "reset")) {
       return clean((el as HTMLInputElement).value) || clean(el.getAttribute("title"));
     }
-    return clean(el.getAttribute("placeholder")) || clean(el.getAttribute("title")) || clean(el.getAttribute("name"));
+    return (
+      clean(el.getAttribute("placeholder")) ||
+      clean(el.getAttribute("title")) ||
+      clean(el.getAttribute("name"))
+    );
   }
   if (tag === "img" || (tag === "input" && (el as HTMLInputElement).type === "image")) {
     return clean(el.getAttribute("alt")) || clean(el.getAttribute("title"));
@@ -173,15 +200,18 @@ function isHidden(el: Element): boolean {
 function details(el: Element, role: string): string {
   const out: string[] = [];
   const tag = el.tagName.toLowerCase();
-  if (role === "heading") out.push(`level=${tag.length === 2 ? tag[1] : el.getAttribute("aria-level") ?? "?"}`);
+  if (role === "heading")
+    out.push(`level=${tag.length === 2 ? tag[1] : (el.getAttribute("aria-level") ?? "?")}`);
   if (role === "link") {
     const href = el.getAttribute("href") ?? "";
     out.push(`href="${clean(href, 80)}"`);
   }
   if (tag === "input" || tag === "textarea") {
     const input = el as HTMLInputElement;
-    if (input.type === "checkbox" || input.type === "radio") out.push(input.checked ? "checked" : "unchecked");
-    else if (input.type !== "password" && input.value) out.push(`value="${clean(input.value, 60)}"`);
+    if (input.type === "checkbox" || input.type === "radio")
+      out.push(input.checked ? "checked" : "unchecked");
+    else if (input.type !== "password" && input.value)
+      out.push(`value="${clean(input.value, 60)}"`);
     if (input.type && input.type !== "text" && tag === "input") out.push(`type=${input.type}`);
   }
   if (tag === "select") {
@@ -189,7 +219,8 @@ function details(el: Element, role: string): string {
     const chosen = sel.selectedOptions?.[0];
     if (chosen) out.push(`value="${clean(chosen.textContent, 60)}"`);
   }
-  if ((el as HTMLButtonElement).disabled || el.getAttribute("aria-disabled") === "true") out.push("disabled");
+  if ((el as HTMLButtonElement).disabled || el.getAttribute("aria-disabled") === "true")
+    out.push("disabled");
   const expanded = el.getAttribute("aria-expanded");
   if (expanded) out.push(`expanded=${expanded}`);
   return out.length ? ` ${out.join(" ")}` : "";
@@ -219,13 +250,20 @@ export function walk(root: Element, opts: WalkOptions = {}): string[] {
     if (role && (filter === "all" || interactive)) {
       const name = nameOf(el);
       // Containers named only by their children's text add noise.
-      const showName = interactive || ["heading", "img", "label", "option", "cell", "columnheader", "paragraph"].includes(role);
+      const showName =
+        interactive ||
+        ["heading", "img", "label", "option", "cell", "columnheader", "paragraph"].includes(role);
       const label = showName && name ? ` "${name}"` : "";
       lines.push(`${"  ".repeat(level)}- ${role}${label} [${refFor(el)}]${details(el, role)}`);
       shown = true;
     } else if (filter === "all" && !role) {
       // Loose text directly inside a generic element.
-      const own = clean([...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(" "));
+      const own = clean(
+        [...el.childNodes]
+          .filter((n) => n.nodeType === 3)
+          .map((n) => n.textContent)
+          .join(" "),
+      );
       if (own) lines.push(`${"  ".repeat(level)}- text "${own}"`);
     }
     if (interactive && role !== "listbox" && role !== "combobox") return; // names already carry the text
@@ -241,7 +279,11 @@ export function readPage(doc: Document, opts: WalkOptions = {}): string {
   let root: Element | null = doc.body ?? doc.documentElement;
   if (opts.ref_id) {
     root = resolveRef(opts.ref_id);
-    if (!root) throw Object.assign(new Error(`${opts.ref_id} is not on the page any more. Call read_page again.`), { code: "bad_args" });
+    if (!root)
+      throw Object.assign(
+        new Error(`${opts.ref_id} is not on the page any more. Call read_page again.`),
+        { code: "bad_args" },
+      );
   }
   if (!root) return "(empty page)";
   const lines = walk(root, opts);

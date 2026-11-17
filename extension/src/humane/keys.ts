@@ -24,20 +24,37 @@ const MODIFIER_KEYS: Record<keyof typeof MOD, KeyDef> = {
 
 const PUNCT: Record<string, [code: string, keyCode: number, shift: boolean]> = {
   " ": ["Space", 32, false],
-  "`": ["Backquote", 192, false], "~": ["Backquote", 192, true],
-  "-": ["Minus", 189, false], _: ["Minus", 189, true],
-  "=": ["Equal", 187, false], "+": ["Equal", 187, true],
-  "[": ["BracketLeft", 219, false], "{": ["BracketLeft", 219, true],
-  "]": ["BracketRight", 221, false], "}": ["BracketRight", 221, true],
-  "\\": ["Backslash", 220, false], "|": ["Backslash", 220, true],
-  ";": ["Semicolon", 186, false], ":": ["Semicolon", 186, true],
-  "'": ["Quote", 222, false], '"': ["Quote", 222, true],
-  ",": ["Comma", 188, false], "<": ["Comma", 188, true],
-  ".": ["Period", 190, false], ">": ["Period", 190, true],
-  "/": ["Slash", 191, false], "?": ["Slash", 191, true],
-  "!": ["Digit1", 49, true], "@": ["Digit2", 50, true], "#": ["Digit3", 51, true],
-  $: ["Digit4", 52, true], "%": ["Digit5", 53, true], "^": ["Digit6", 54, true],
-  "&": ["Digit7", 55, true], "*": ["Digit8", 56, true], "(": ["Digit9", 57, true],
+  "`": ["Backquote", 192, false],
+  "~": ["Backquote", 192, true],
+  "-": ["Minus", 189, false],
+  _: ["Minus", 189, true],
+  "=": ["Equal", 187, false],
+  "+": ["Equal", 187, true],
+  "[": ["BracketLeft", 219, false],
+  "{": ["BracketLeft", 219, true],
+  "]": ["BracketRight", 221, false],
+  "}": ["BracketRight", 221, true],
+  "\\": ["Backslash", 220, false],
+  "|": ["Backslash", 220, true],
+  ";": ["Semicolon", 186, false],
+  ":": ["Semicolon", 186, true],
+  "'": ["Quote", 222, false],
+  '"': ["Quote", 222, true],
+  ",": ["Comma", 188, false],
+  "<": ["Comma", 188, true],
+  ".": ["Period", 190, false],
+  ">": ["Period", 190, true],
+  "/": ["Slash", 191, false],
+  "?": ["Slash", 191, true],
+  "!": ["Digit1", 49, true],
+  "@": ["Digit2", 50, true],
+  "#": ["Digit3", 51, true],
+  $: ["Digit4", 52, true],
+  "%": ["Digit5", 53, true],
+  "^": ["Digit6", 54, true],
+  "&": ["Digit7", 55, true],
+  "*": ["Digit8", 56, true],
+  "(": ["Digit9", 57, true],
   ")": ["Digit0", 48, true],
 };
 
@@ -45,9 +62,17 @@ const PUNCT: Record<string, [code: string, keyCode: number, shift: boolean]> = {
 export function charKey(ch: string): KeyDef | null {
   if (ch === "\n" || ch === "\r") return named("Enter");
   if (ch === "\t") return named("Tab");
-  if (/^[a-z]$/.test(ch)) return { key: ch, code: `Key${ch.toUpperCase()}`, keyCode: ch.toUpperCase().charCodeAt(0), text: ch };
-  if (/^[A-Z]$/.test(ch)) return { key: ch, code: `Key${ch}`, keyCode: ch.charCodeAt(0), text: ch, shift: true };
-  if (/^[0-9]$/.test(ch)) return { key: ch, code: `Digit${ch}`, keyCode: ch.charCodeAt(0), text: ch };
+  if (/^[a-z]$/.test(ch))
+    return {
+      key: ch,
+      code: `Key${ch.toUpperCase()}`,
+      keyCode: ch.toUpperCase().charCodeAt(0),
+      text: ch,
+    };
+  if (/^[A-Z]$/.test(ch))
+    return { key: ch, code: `Key${ch}`, keyCode: ch.charCodeAt(0), text: ch, shift: true };
+  if (/^[0-9]$/.test(ch))
+    return { key: ch, code: `Digit${ch}`, keyCode: ch.charCodeAt(0), text: ch };
   const p = PUNCT[ch];
   if (p) return { key: ch, code: p[0], keyCode: p[1], text: ch, shift: p[2] };
   return null;
@@ -72,8 +97,16 @@ const NAMED: Record<string, KeyDef> = {
 for (let i = 1; i <= 12; i++) NAMED[`f${i}`] = { key: `F${i}`, code: `F${i}`, keyCode: 111 + i };
 
 const ALIASES: Record<string, string> = {
-  return: "enter", esc: "escape", del: "delete", up: "arrowup", down: "arrowdown",
-  left: "arrowleft", right: "arrowright", pgup: "pageup", pgdn: "pagedown", " ": "space",
+  return: "enter",
+  esc: "escape",
+  del: "delete",
+  up: "arrowup",
+  down: "arrowdown",
+  left: "arrowleft",
+  right: "arrowright",
+  pgup: "pageup",
+  pgdn: "pagedown",
+  " ": "space",
 };
 
 export function named(name: string): KeyDef | null {
@@ -82,8 +115,18 @@ export function named(name: string): KeyDef | null {
 }
 
 const MOD_NAMES: Record<string, keyof typeof MOD> = {
-  cmd: "meta", command: "meta", meta: "meta", win: "meta", windows: "meta", super: "meta",
-  ctrl: "ctrl", control: "ctrl", alt: "alt", option: "alt", opt: "alt", shift: "shift",
+  cmd: "meta",
+  command: "meta",
+  meta: "meta",
+  win: "meta",
+  windows: "meta",
+  super: "meta",
+  ctrl: "ctrl",
+  control: "ctrl",
+  alt: "alt",
+  option: "alt",
+  opt: "alt",
+  shift: "shift",
 };
 
 export function modifierKey(m: keyof typeof MOD): KeyDef {
@@ -107,7 +150,8 @@ export function parseCombo(s: string): Combo {
     if (!mod) throw new ToolError("bad_args", `Unknown modifier "${m}" in "${s}"`);
     if (!mods.includes(mod)) mods.push(mod);
   }
-  const key = named(main) ?? (main.length === 1 ? charKey(main) ?? charKey(main.toLowerCase()) : null);
+  const key =
+    named(main) ?? (main.length === 1 ? (charKey(main) ?? charKey(main.toLowerCase())) : null);
   if (!key) throw new ToolError("bad_args", `Unknown key "${main}" in "${s}"`);
   return { mods, key };
 }
@@ -118,7 +162,9 @@ export function modifiersBits(mods: (keyof typeof MOD)[]): number {
 
 /** Page zoom shortcuts are refused, as Claude in Chrome does; use zoom. */
 export function isZoomShortcut(c: Combo): boolean {
-  return (c.mods.includes("meta") || c.mods.includes("ctrl")) && ["=", "+", "-", "0"].includes(c.key.key);
+  return (
+    (c.mods.includes("meta") || c.mods.includes("ctrl")) && ["=", "+", "-", "0"].includes(c.key.key)
+  );
 }
 
 /** macOS editing commands a Meta shortcut should run (CDP `commands`), since

@@ -7,7 +7,8 @@ import { ToolError, type ErrorCode } from "./wire";
 const NOT_THERE = /Receiving end does not exist|Could not establish connection/;
 
 export async function toPage<T = unknown>(tabId: number, op: PageOp): Promise<T> {
-  const send = () => chrome.tabs.sendMessage(tabId, { ...op, __bh: true }, { frameId: 0 }) as Promise<PageReply>;
+  const send = () =>
+    chrome.tabs.sendMessage(tabId, { ...op, __bh: true }, { frameId: 0 }) as Promise<PageReply>;
   let reply: PageReply;
   try {
     reply = await send();
