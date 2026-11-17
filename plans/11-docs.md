@@ -269,7 +269,10 @@ repository instructions for recording useful development findings.
   to ask Claude) and one real guide, blocked and read-only sites, written
   from `README.md`; `make docs` builds it and `make docs-serve` serves it;
   `out/` ignored by git.
-- [ ] `docs/standards.md` names the pinned mdBook version and how to
+  Landed 2026-11-17: the book, intro, getting started and the blocked-sites
+  guide build with `sh scripts/docs.sh`; `make docs` and `make docs-serve`
+  wait for plan 09's Makefile, so this item stays open.
+- [x] `docs/standards.md` names the pinned mdBook version and how to
   install it.
 - [ ] Check: the project's check command from `docs/standards.md` passes,
   and `make docs` writes `docs/book/out/index.html` with no warning.
@@ -279,25 +282,25 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: the reference is generated from the host
 
-- [ ] `reference/tools.md` (every tool with its description, read-only
+- [x] `reference/tools.md` (every tool with its description, read-only
   hint and input fields from `Server::tool_router()`) and
   `reference/settings.md` (every key in its section with type, default
   and what the settings page calls it, from a `JsonSchema` derive on
   `Settings`) are written by `UPDATE_DOCS=1 cargo test --test docs` and
   checked by the same test without it, pinned by `host/tests/docs.rs`.
-- [ ] `reference/commands.md` lists `mcp`, `native-host`,
+- [x] `reference/commands.md` lists `mcp`, `native-host`,
   `install [--uninstall]` and `reload`, and the test fails when
   `host/src/main.rs` accepts a command the page does not name.
-- [ ] Check: the project's check command passes, and a changed tool
+- [x] Check: the project's check command passes, and a changed tool
   description without regenerating fails `cargo test --test docs`.
 
 ### Phase 3: guides and examples
 
-- [ ] Guides for choosing profiles, pace and how input moves, recording
+- [x] Guides for choosing profiles, pace and how input moves, recording
   and replay (as `plans/08-recorder-popup.md` leaves it), screenshots and
   GIFs, and troubleshooting (the host not running, the extension not
   connected, `reload`), in `docs/book/src/guides/`.
-- [ ] An examples page of tasks to ask Claude, each with the tool calls
+- [x] An examples page of tasks to ask Claude, each with the tool calls
   it leads to, using only the fake profiles of `host/tests/mcp.rs`.
 - [ ] Check: the project's check command passes, and `make docs` shows
   every page in the sidebar.
@@ -308,10 +311,13 @@ repository instructions for recording useful development findings.
   `ERROR` line, runs `lychee --offline` on `docs/book/out/`, and refuses
   a `/Users/` path, an email outside an allow-list, an external `src=` or
   a link into the private repository; `make check` runs it.
+  Landed 2026-11-17: the script is written and proved with a planted broken
+  link, `/Users/` path, email and private repository link; the `make check`
+  wiring waits for plan 09's Makefile, so this item stays open.
 - [ ] `.github/workflows/ci.yml` installs the pinned mdBook and lychee
   before `make check` (the job `plans/09-quality-gates.md` Phase 5 sets
   up); if that phase has not landed, this item waits for it.
-- [ ] `docs/standards.md` gains the docs check row and the lychee pin.
+- [x] `docs/standards.md` gains the docs check row and the lychee pin.
 - [ ] Check: `make check` passes, and a planted broken link, `/Users/`
   path and email each make `sh scripts/check-docs.sh` fail.
 
