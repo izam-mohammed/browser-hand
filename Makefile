@@ -1,7 +1,7 @@
 # One command for every check: `make check`. See docs/standards.md.
 # Tools needed beyond cargo and npm: gitleaks and osv-scanner (security),
 # mdbook and lychee (docs, pinned in docs/standards.md).
-.PHONY: help check lint format test coverage build security docs docs-serve docs-check
+.PHONY: help check lint windows format test coverage build security docs docs-serve docs-check
 
 HOST = --manifest-path host/Cargo.toml
 EXT = npm --prefix extension
@@ -16,6 +16,12 @@ lint:  ## rustfmt, Clippy, Biome, tsc
 	cargo clippy $(HOST) --all-targets --locked -- -D warnings
 	$(EXT) run lint
 	$(EXT) run typecheck
+	$(MAKE) --no-print-directory windows
+
+windows:  ## Clippy for x86_64-pc-windows-gnu (compile proof only; needs the rustup target)
+	@if rustup target list --installed | grep -qx x86_64-pc-windows-gnu; then \
+		cargo clippy $(HOST) --all-targets --locked --target x86_64-pc-windows-gnu -- -D warnings; \
+	else echo "skipped: rustup target add x86_64-pc-windows-gnu"; fi
 
 format:  ## Rewrite files to the format
 	cargo fmt $(HOST)
