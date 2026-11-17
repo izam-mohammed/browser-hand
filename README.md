@@ -40,12 +40,14 @@ Needs Rust (1.88+), Node (to build the extension) and Google Chrome.
    `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/dev.browserhand.host.json`
    (`plugin/server/browser-hand install --uninstall` removes it).
 
-2. In each Chrome profile Claude may use: open `chrome://extensions`, turn on
-   Developer mode, choose **Load unpacked** and pick `extension/dist`. The
-   extension ID is always `ednpkicgdjiiihmophoifehfeeoabjdc`. This is needed
-   once per profile: after that, every `sh scripts/build.sh` reloads the
-   extension in each profile that has it connected
-   (`plugin/server/browser-hand reload` does only that).
+2. Get the extension into each Chrome profile Claude may use. Once the
+   extension is published on the Chrome Web Store (unlisted) and its ID is
+   built in, step 1 also writes
+   `~/Library/Application Support/Google/Chrome/External Extensions/<id>.json`:
+   quit and reopen Chrome, then click **Enable** in each profile (Chrome asks
+   up to three times; the store page's **Add to Chrome** also works, and
+   `select_profile` opens it for a profile that has no extension). Until
+   then, or to work on browser-hand itself, see [Development](#development).
 
 3. Start Claude Code with the plugin, which brings the server and the
    `browser-hand` skill:
@@ -59,6 +61,31 @@ Needs Rust (1.88+), Node (to build the extension) and Google Chrome.
    ```sh
    claude mcp add --scope user browser-hand -- "$PWD/plugin/server/browser-hand" mcp
    ```
+
+### Development
+
+Build with `sh scripts/build.sh`, or only register the host with
+`plugin/server/browser-hand install --no-store`, which writes the host
+manifest and no External Extensions file. In each profile: open
+`chrome://extensions`, turn on Developer mode, choose **Load unpacked** and
+pick `extension/dist`. The extension ID is always
+`ednpkicgdjiiihmophoifehfeeoabjdc`. This is needed once per profile: after
+that, every `sh scripts/build.sh` reloads the extension in each profile that
+has it connected (`plugin/server/browser-hand reload` does only that).
+
+Keep one build on per profile: with the store build and the unpacked one both
+on, `list_profiles` warns. Turning Developer mode off disables the unpacked
+build, so the profile then needs the store build.
+
+### Managed install (optional)
+
+`plugin/server/browser-hand install --mobileconfig ~/browser-hand.mobileconfig`
+writes a configuration profile that force-installs the store extension
+(`ExtensionInstallForcelist`), to the path you name and nowhere else. It never
+installs it: you open the file and approve it in System Settings > Privacy &
+Security > Profiles. What it costs: an administrator password, Chrome showing
+as managed, and in return no **Enable** click and no "started debugging this
+browser" bar. It needs the store ID built in.
 
 ## Settings
 
