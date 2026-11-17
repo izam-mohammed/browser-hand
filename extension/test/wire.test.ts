@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { Reassembler, type Frame } from "../src/wire";
+import { type Frame, Reassembler } from "../src/wire";
 
 const fixture = (name: string) =>
   JSON.parse(readFileSync(new URL(`../../host/tests/fixtures/${name}`, import.meta.url), "utf8"));

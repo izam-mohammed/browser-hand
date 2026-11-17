@@ -1,0 +1,11 @@
+# Advisories read and accepted, each with a reason and a date to look again.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0462"
+ignoreUntil = 2026-12-31
+reason = "rmcp's Streamable HTTP client buffers bodies without a limit; the host uses only rmcp's server and stdio transport. rmcp is pinned to ~3.8 in host/Cargo.toml (breaks often): bump with 3.9 in a plan of its own."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0192"
+ignoreUntil = 2026-12-31
+reason = "ttf-parser is unmaintained, with no fixed version; it is pulled in by ab_glyph for the cursor and label overlay in host/src. Replace the font crate when one is chosen."

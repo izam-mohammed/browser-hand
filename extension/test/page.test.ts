@@ -116,7 +116,11 @@ describe("find", () => {
 describe("form_input", () => {
   const refOf = (id: string) => {
     const out = readPage(document);
-    const line = { email: 'textbox "Email address"', remember: 'checkbox "Remember me"', go: 'button "Log in"' }[id]!;
+    const line = {
+      email: 'textbox "Email address"',
+      remember: 'checkbox "Remember me"',
+      go: 'button "Log in"',
+    }[id]!;
     return new RegExp(`${line} \\[(ref_\\w+)\\]`).exec(out)?.[1] ?? "";
   };
 
@@ -189,7 +193,9 @@ describe("console hooks", () => {
     const buffer = new ConsoleBuffer();
     buffer.listen(window);
     document.dispatchEvent(
-      new CustomEvent(HOOK_TAG, { detail: JSON.stringify({ level: "log", text: "x".repeat(50_000), time: 0 }) }),
+      new CustomEvent(HOOK_TAG, {
+        detail: JSON.stringify({ level: "log", text: "x".repeat(50_000), time: 0 }),
+      }),
     );
     const out = buffer.read({});
     expect(out.length).toBeLessThan(4100);

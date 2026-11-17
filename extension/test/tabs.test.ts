@@ -1,9 +1,18 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SiteRules } from "../src/sites";
-import { GROUP_TITLE, TabTools, normaliseUrl, type GroupStore, type TabOptions } from "../src/tabs";
+import { GROUP_TITLE, type GroupStore, normaliseUrl, type TabOptions, TabTools } from "../src/tabs";
 import { ToolError } from "../src/wire";
 
-type FakeTab = { id: number; windowId: number; groupId: number; url: string; title: string; active: boolean; status?: string; openerTabId?: number };
+type FakeTab = {
+  id: number;
+  windowId: number;
+  groupId: number;
+  url: string;
+  title: string;
+  active: boolean;
+  status?: string;
+  openerTabId?: number;
+};
 type FakeGroup = { id: number; windowId: number; title?: string; color?: string };
 
 /** Just enough of chrome.tabs / tabGroups / windows, in memory. */
@@ -15,7 +24,14 @@ function fakeChrome() {
    * where a URL redirects to, as a server would. */
   const load = { status: "loading", redirects: new Map<string, string>() };
   /** The person's own window, holding one tab of theirs. */
-  const personal: FakeTab = { id: next++, windowId: 1, groupId: -1, url: "https://news.test/", title: "News", active: true };
+  const personal: FakeTab = {
+    id: next++,
+    windowId: 1,
+    groupId: -1,
+    url: "https://news.test/",
+    title: "News",
+    active: true,
+  };
   tabs.set(personal.id, personal);
   const dropEmptyGroups = () => {
     for (const g of groups.values()) {
@@ -26,7 +42,14 @@ function fakeChrome() {
     windows: {
       async create(_: object) {
         const windowId = next++;
-        const tab: FakeTab = { id: next++, windowId, groupId: -1, url: "about:blank", title: "", active: true };
+        const tab: FakeTab = {
+          id: next++,
+          windowId,
+          groupId: -1,
+          url: "about:blank",
+          title: "",
+          active: true,
+        };
         tabs.set(tab.id, tab);
         return { id: windowId, tabs: [{ id: tab.id }] };
       },
@@ -44,7 +67,14 @@ function fakeChrome() {
         return [...tabs.values()].filter((t) => t.groupId === q.groupId).map((t) => ({ ...t }));
       },
       async create(p: { windowId: number; active?: boolean }) {
-        const t: FakeTab = { id: next++, windowId: p.windowId, groupId: -1, url: "about:blank", title: "", active: p.active ?? true };
+        const t: FakeTab = {
+          id: next++,
+          windowId: p.windowId,
+          groupId: -1,
+          url: "about:blank",
+          title: "",
+          active: p.active ?? true,
+        };
         tabs.set(t.id, t);
         return { ...t };
       },
@@ -59,7 +89,11 @@ function fakeChrome() {
         t.status = load.status;
         return { ...t };
       },
-      async group(o: { tabIds: number[]; groupId?: number; createProperties?: { windowId: number } }) {
+      async group(o: {
+        tabIds: number[];
+        groupId?: number;
+        createProperties?: { windowId: number };
+      }) {
         let gid = o.groupId;
         if (gid === undefined) {
           gid = next++;
@@ -135,7 +169,9 @@ describe("tab tools", () => {
     await tools.tabsContext("b", { createIfEmpty: true });
     const aTab = a.tabs[0]!.tabId;
     await expect(tools.tabsClose("b", { tabId: aTab })).rejects.toMatchObject({ code: "no_tab" });
-    await expect(tools.navigate("b", { tabId: aTab, url: "example.com" })).rejects.toBeInstanceOf(ToolError);
+    await expect(tools.navigate("b", { tabId: aTab, url: "example.com" })).rejects.toBeInstanceOf(
+      ToolError,
+    );
     expect(chrome.tabs.has(aTab)).toBe(true);
   });
 
@@ -206,7 +242,10 @@ describe("tab tools under the settings", () => {
   it("navigate refuses a blocked site before loading it", async () => {
     const t = tools();
     const { tabId } = await t.tabsCreate("a");
-    await expect(t.navigate("a", { tabId, url: "www.bank.com/login" })).rejects.toMatchObject({ code: "blocked", message: expect.stringMatching(/www.bank.com is blocked/) });
+    await expect(t.navigate("a", { tabId, url: "www.bank.com/login" })).rejects.toMatchObject({
+      code: "blocked",
+      message: expect.stringMatching(/www.bank.com is blocked/),
+    });
     expect(chrome.tabs.get(tabId)!.url).toBe("about:blank");
   });
 
@@ -215,7 +254,9 @@ describe("tab tools under the settings", () => {
     const { tabId } = await t.tabsCreate("a");
     chrome.load.status = "complete";
     chrome.load.redirects.set("https://short.test/x", "https://bank.com/account");
-    await expect(t.navigate("a", { tabId, url: "short.test/x" })).rejects.toMatchObject({ code: "blocked" });
+    await expect(t.navigate("a", { tabId, url: "short.test/x" })).rejects.toMatchObject({
+      code: "blocked",
+    });
     expect(chrome.tabs.get(tabId)!.url).toBe("about:blank");
   });
 
@@ -233,7 +274,10 @@ describe("tab tools under the settings", () => {
   it("tabs_context lists a blocked tab with no title or URL", async () => {
     const t = tools();
     const { tabId } = await t.tabsCreate("a");
-    Object.assign(chrome.tabs.get(tabId)!, { url: "https://bank.com/statements", title: "Your statements" });
+    Object.assign(chrome.tabs.get(tabId)!, {
+      url: "https://bank.com/statements",
+      title: "Your statements",
+    });
     const ctx = await t.tabsContext("a", {});
     expect(ctx.tabs).toEqual([{ tabId, title: "", url: "", active: true, blocked: true }]);
     expect(JSON.stringify(ctx)).not.toContain("bank");
@@ -268,7 +312,15 @@ describe("tab tools under the settings", () => {
     const t = tools();
     const { tabId } = await t.tabsCreate("a");
     const groupId = chrome.tabs.get(tabId)!.groupId;
-    const popup = { id: 900, windowId: chrome.tabs.get(tabId)!.windowId, groupId, url: "https://bank.com/", title: "", active: true, openerTabId: tabId };
+    const popup = {
+      id: 900,
+      windowId: chrome.tabs.get(tabId)!.windowId,
+      groupId,
+      url: "https://bank.com/",
+      title: "",
+      active: true,
+      openerTabId: tabId,
+    };
     chrome.tabs.set(popup.id, popup);
     await t.committed({ tabId: 900, frameId: 0, url: "https://bank.com/" });
     expect(chrome.tabs.has(900)).toBe(false);

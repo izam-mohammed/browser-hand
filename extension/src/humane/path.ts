@@ -3,7 +3,7 @@
 // overshoot and correction on long moves (plans/03-humane-input.md,
 // decision 3).
 import { PARAMS, type Params } from "./params";
-import { clamp, uniform, type Rng } from "./random";
+import { clamp, type Rng, uniform } from "./random";
 import { fittsMs } from "./timing";
 
 export interface Pt {
@@ -51,7 +51,13 @@ export function segment(from: Pt, to: Pt, durationMs: number, rng: Rng, p: Param
 }
 
 /** The whole move: one curve, or an overshoot then a short correction. */
-export function movePath(from: Pt, to: Pt, targetWidth: number, rng: Rng, p: Params = PARAMS): Pt[] {
+export function movePath(
+  from: Pt,
+  to: Pt,
+  targetWidth: number,
+  rng: Rng,
+  p: Params = PARAMS,
+): Pt[] {
   const dist = Math.hypot(to.x - from.x, to.y - from.y);
   const total = fittsMs(dist, targetWidth, p);
   if (dist < p.overshootFromPx) return segment(from, to, total, rng, p);
@@ -65,7 +71,13 @@ export function movePath(from: Pt, to: Pt, targetWidth: number, rng: Rng, p: Par
 }
 
 /** Where on an element to aim: near the centre, never the edge. */
-export function aimPoint(center: Pt, width: number, height: number, rng: Rng, p: Params = PARAMS): Pt {
+export function aimPoint(
+  center: Pt,
+  width: number,
+  height: number,
+  rng: Rng,
+  p: Params = PARAMS,
+): Pt {
   return {
     x: center.x + (rng() * 2 - 1) * (width / 2) * p.aimSpread,
     y: center.y + (rng() * 2 - 1) * (height / 2) * p.aimSpread,

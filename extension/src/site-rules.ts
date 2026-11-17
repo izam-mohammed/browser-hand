@@ -11,7 +11,11 @@ export interface Rule {
   id: number;
   priority: number;
   action: { type: "block" };
-  condition: { regexFilter: string; resourceTypes: ("main_frame" | "sub_frame")[]; tabIds: number[] };
+  condition: {
+    regexFilter: string;
+    resourceTypes: ("main_frame" | "sub_frame")[];
+    tabIds: number[];
+  };
 }
 
 export interface SiteRulesDeps {
@@ -33,7 +37,11 @@ export function sessionRules(blocked: readonly string[], tabIds: readonly number
     id: i + 1,
     priority: 1,
     action: { type: "block" },
-    condition: { regexFilter: dnrRegex(p), resourceTypes: ["main_frame", "sub_frame"], tabIds: [...tabIds].sort((a, b) => a - b) },
+    condition: {
+      regexFilter: dnrRegex(p),
+      resourceTypes: ["main_frame", "sub_frame"],
+      tabIds: [...tabIds].sort((a, b) => a - b),
+    },
   }));
 }
 

@@ -28,7 +28,14 @@ describe("network log", () => {
 
   it("ignores requests from no tab and reports failures", () => {
     const log = new NetworkLog();
-    log.started({ requestId: "9", tabId: -1, url: "https://x.test/", method: "GET", type: "other", timeStamp: 0 });
+    log.started({
+      requestId: "9",
+      tabId: -1,
+      url: "https://x.test/",
+      method: "GET",
+      type: "other",
+      timeStamp: 0,
+    });
     start(log, "1", "https://a.test/f");
     log.failed({ requestId: "1", tabId: 1, error: "net::ERR_FAILED", timeStamp: 1005 });
     expect(log.read(1, {})).toContain("failed net::ERR_FAILED");
@@ -81,12 +88,16 @@ describe("debugger manager", () => {
   it("a refused attach is debugger_refused naming the reason", async () => {
     const { api } = fakeApi(true);
     const dbg = new DebuggerManager(api as never);
-    await expect(dbg.send(5, "Runtime.evaluate")).rejects.toMatchObject({ code: "debugger_refused" });
+    await expect(dbg.send(5, "Runtime.evaluate")).rejects.toMatchObject({
+      code: "debugger_refused",
+    });
   });
 
   it("a debugger Chrome drops mid-command is debugger_refused naming the frame cause", async () => {
     const { api } = fakeApi();
-    api.sendCommand.mockRejectedValueOnce(new Error("Debugger is not attached to the tab with id: 5."));
+    api.sendCommand.mockRejectedValueOnce(
+      new Error("Debugger is not attached to the tab with id: 5."),
+    );
     const dbg = new DebuggerManager(api as never);
     await expect(dbg.send(5, "Input.dispatchMouseEvent")).rejects.toMatchObject({
       code: "debugger_refused",

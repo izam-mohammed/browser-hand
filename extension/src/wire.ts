@@ -10,7 +10,10 @@ export const PROTOCOL = 1;
 
 /** A tool failure that becomes an error `result` frame. */
 export class ToolError extends Error {
-  constructor(readonly code: ErrorCode, message: string) {
+  constructor(
+    readonly code: ErrorCode,
+    message: string,
+  ) {
     super(message);
   }
 }

@@ -32,7 +32,8 @@ export const ICONS = {
 };
 /** The popup page; `""` switches it off, so a click reaches `onClicked`. */
 export const POPUP = "popup.html";
-export const IDLE_TITLE = "browser-hand: click to record your steps or see past ones (Alt+Shift+R records at once)";
+export const IDLE_TITLE =
+  "browser-hand: click to record your steps or see past ones (Alt+Shift+R records at once)";
 const REC_TITLE = "browser-hand is recording this window: click to stop (Alt+Shift+R)";
 
 export interface Meta {
@@ -145,7 +146,8 @@ const summary = (r: Recording): Summary => ({
   ...(r.stopReason ? { stopReason: r.stopReason } : {}),
 });
 
-const sameTarget = (a: Step, b: Step) => JSON.stringify(a.selectors?.[0]) === JSON.stringify(b.selectors?.[0]);
+const sameTarget = (a: Step, b: Step) =>
+  JSON.stringify(a.selectors?.[0]) === JSON.stringify(b.selectors?.[0]);
 
 export class Recorder {
   /** `undefined` until read back from storage.session. */
@@ -188,7 +190,8 @@ export class Recorder {
   }
 
   private async loadIndex(): Promise<Summary[]> {
-    if (!this.index) this.index = ((await this.d.local.get(INDEX_KEY))[INDEX_KEY] as Summary[] | undefined) ?? [];
+    if (!this.index)
+      this.index = ((await this.d.local.get(INDEX_KEY))[INDEX_KEY] as Summary[] | undefined) ?? [];
     return this.index;
   }
 
@@ -238,14 +241,17 @@ export class Recorder {
 
   private async tabsOf(windowId: number): Promise<number[]> {
     try {
-      return (await this.d.tabs.query({ windowId })).map((t) => t.id).filter((id): id is number => id !== undefined);
+      return (await this.d.tabs.query({ windowId }))
+        .map((t) => t.id)
+        .filter((id): id is number => id !== undefined);
     } catch {
       return []; // the window is gone
     }
   }
 
   private async eachTab(windowIds: number[], fn: (tabId: number) => Promise<unknown>) {
-    for (const w of windowIds) await Promise.all((await this.tabsOf(w)).map((t) => fn(t).catch(() => {})));
+    for (const w of windowIds)
+      await Promise.all((await this.tabsOf(w)).map((t) => fn(t).catch(() => {})));
   }
 
   /** Every frame of every tab in the windows starts or stops listening. */
@@ -372,11 +378,28 @@ export class Recorder {
       steps.push({ ...BLOCKED_STEP });
       meta.push({ ts: now, tabId, actor: "person", blocked: true });
     } else if (tab.url) {
-      steps.push({ type: "navigate", url: tab.url, assertedEvents: [{ type: "navigation", url: tab.url, title: tab.title ?? "" }] });
-      meta.push({ ts: now, tabId, actor: "person", ...(isRestricted(tab.url) ? { unrecorded: true as const } : {}) });
+      steps.push({
+        type: "navigate",
+        url: tab.url,
+        assertedEvents: [{ type: "navigation", url: tab.url, title: tab.title ?? "" }],
+      });
+      meta.push({
+        ts: now,
+        tabId,
+        actor: "person",
+        ...(isRestricted(tab.url) ? { unrecorded: true as const } : {}),
+      });
     }
     const title = blocked ? "Recording" : titleFor(tab);
-    this.rec = { id, title, startedAt: now, stoppedAt: null, windowId: tab.windowId, flow: { title, steps }, meta };
+    this.rec = {
+      id,
+      title,
+      startedAt: now,
+      stoppedAt: null,
+      windowId: tab.windowId,
+      flow: { title, steps },
+      meta,
+    };
     this.active = { id, homeWindowId: tab.windowId, windowIds: [tab.windowId], lastStepAt: now };
     await this.d.session.set({ [ACTIVE_KEY]: this.active });
     await this.popup(false);
@@ -465,14 +488,24 @@ export class Recorder {
       if (step.type === "doubleClick") {
         for (let n = 0; n < 2; n++) {
           const i = steps.length - 1;
-          if (i >= 0 && steps[i]!.type === "click" && meta[i]!.tabId === tabId && sameTarget(steps[i]!, step)) {
+          if (
+            i >= 0 &&
+            steps[i]!.type === "click" &&
+            meta[i]!.tabId === tabId &&
+            sameTarget(steps[i]!, step)
+          ) {
             steps.pop();
             meta.pop();
           }
         }
       }
       steps.push(step);
-      meta.push({ ts: msg.ts, tabId, actor: this.actor(tabId), ...(msg.masked ? { masked: true as const } : {}) });
+      meta.push({
+        ts: msg.ts,
+        tabId,
+        actor: this.actor(tabId),
+        ...(msg.masked ? { masked: true as const } : {}),
+      });
       a.lastStepAt = this.d.now();
       if (steps.length >= MAX_STEPS) {
         await this.stopNow(`reached ${MAX_STEPS} steps`);
@@ -490,7 +523,13 @@ export class Recorder {
   }
 
   /** A top-frame page load in some tab (webNavigation.onCommitted). */
-  navigated(d: { tabId: number; frameId: number; url: string; transitionType?: string; transitionQualifiers?: string[] }): Promise<void> {
+  navigated(d: {
+    tabId: number;
+    frameId: number;
+    url: string;
+    transitionType?: string;
+    transitionQualifiers?: string[];
+  }): Promise<void> {
     return this.run(async () => {
       const a = await this.load();
       if (!a || !this.rec || d.frameId !== 0 || d.url === "about:blank") return;
@@ -510,7 +549,10 @@ export class Recorder {
       const { steps } = this.rec.flow;
       const { meta } = this.rec;
       const q = d.transitionQualifiers ?? [];
-      const byPage = ["link", "form_submit"].includes(d.transitionType ?? "") || q.includes("client_redirect") || q.includes("server_redirect");
+      const byPage =
+        ["link", "form_submit"].includes(d.transitionType ?? "") ||
+        q.includes("client_redirect") ||
+        q.includes("server_redirect");
       let last = -1;
       for (let i = meta.length - 1; i >= 0; i--) {
         if (meta[i]!.tabId === d.tabId) {
@@ -521,15 +563,31 @@ export class Recorder {
       const prev = last >= 0 ? steps[last]! : undefined;
       const recent = last >= 0 && this.d.now() - meta[last]!.ts < NAV_JOIN_MS;
       const nav = { type: "navigation", url: d.url, title: "" };
-      if (prev && recent && byPage && ["click", "doubleClick", "keyUp", "change"].includes(prev.type) && !prev.assertedEvents) {
+      if (
+        prev &&
+        recent &&
+        byPage &&
+        ["click", "doubleClick", "keyUp", "change"].includes(prev.type) &&
+        !prev.assertedEvents
+      ) {
         prev.assertedEvents = [nav];
-      } else if (prev && recent && q.includes("server_redirect") && (prev.type === "navigate" || prev.assertedEvents)) {
+      } else if (
+        prev &&
+        recent &&
+        q.includes("server_redirect") &&
+        (prev.type === "navigate" || prev.assertedEvents)
+      ) {
         // A redirect: the step that started the load now names where it ended.
         if (prev.type === "navigate") prev.url = d.url;
         prev.assertedEvents = [nav];
       } else {
         steps.push({ type: "navigate", url: d.url, assertedEvents: [nav] });
-        meta.push({ ts: this.d.now(), tabId: d.tabId, actor: this.actor(d.tabId), ...(isRestricted(d.url) ? { unrecorded: true as const } : {}) });
+        meta.push({
+          ts: this.d.now(),
+          tabId: d.tabId,
+          actor: this.actor(d.tabId),
+          ...(isRestricted(d.url) ? { unrecorded: true as const } : {}),
+        });
         a.lastStepAt = this.d.now();
       }
       this.scheduleFlush();
@@ -574,14 +632,14 @@ export class Recorder {
   tabUpdated(tabId: number, windowId: number): Promise<void> {
     return this.run(async () => {
       const a = await this.load();
-      if (a && a.windowIds.includes(windowId)) await this.badgeTab(tabId, "rec");
+      if (a?.windowIds.includes(windowId)) await this.badgeTab(tabId, "rec");
     });
   }
 
   windowRemoved(windowId: number): Promise<void> {
     return this.run(async () => {
       const a = await this.load();
-      if (!a || !a.windowIds.includes(windowId)) return;
+      if (!a?.windowIds.includes(windowId)) return;
       if (windowId === a.homeWindowId) {
         await this.stopNow("its window closed");
         return;
@@ -625,10 +683,15 @@ export class Recorder {
       await this.load();
       const index = await this.loadIndex();
       const want = id ?? index[0]?.id;
-      if (!want) throw new ToolError("bad_args", "No recordings in this profile. The person records from the browser-hand toolbar button's popup.");
+      if (!want)
+        throw new ToolError(
+          "bad_args",
+          "No recordings in this profile. The person records from the browser-hand toolbar button's popup.",
+        );
       if (this.rec?.id === want) return this.rec;
       const rec = await this.read(want);
-      if (!rec) throw new ToolError("bad_args", `No recording ${want}. Call recording_list for the ids.`);
+      if (!rec)
+        throw new ToolError("bad_args", `No recording ${want}. Call recording_list for the ids.`);
       return rec;
     });
   }
@@ -637,11 +700,15 @@ export class Recorder {
     return this.run(async () => {
       await this.load();
       if (this.active?.id === id) {
-        throw new ToolError("bad_args", `${id} is recording now; the person stops it with the toolbar button first.`);
+        throw new ToolError(
+          "bad_args",
+          `${id} is recording now; the person stops it with the toolbar button first.`,
+        );
       }
       const index = await this.loadIndex();
       const at = index.findIndex((s) => s.id === id);
-      if (at < 0) throw new ToolError("bad_args", `No recording ${id}. Call recording_list for the ids.`);
+      if (at < 0)
+        throw new ToolError("bad_args", `No recording ${id}. Call recording_list for the ids.`);
       index.splice(at, 1);
       await this.d.local.remove(recKey(id));
       await this.d.local.set({ [INDEX_KEY]: index });
@@ -675,7 +742,11 @@ export function fromPopup(sender: SenderLike, extensionId: string, popupUrl: str
 }
 
 /** One popup op; `activeTab` finds the tab of the window Start records. */
-export async function popupOp(rec: Recorder, msg: PopupMsg, activeTab: (windowId: number) => Promise<TabLike | undefined>): Promise<unknown> {
+export async function popupOp(
+  rec: Recorder,
+  msg: PopupMsg,
+  activeTab: (windowId: number) => Promise<TabLike | undefined>,
+): Promise<unknown> {
   switch (msg.__bhPopup) {
     case "list":
       return rec.list();

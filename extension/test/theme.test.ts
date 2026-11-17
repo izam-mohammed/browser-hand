@@ -12,7 +12,23 @@ describe("the settings page's CSS", () => {
 
   it("holds every colour in both modes and the global tokens", () => {
     const css = themeCss(theme);
-    for (const name of ["bg", "surface", "raised", "border", "control", "text", "text2", "text3", "accent", "accentText", "onAccent", "success", "warning", "danger", "info"]) {
+    for (const name of [
+      "bg",
+      "surface",
+      "raised",
+      "border",
+      "control",
+      "text",
+      "text2",
+      "text3",
+      "accent",
+      "accentText",
+      "onAccent",
+      "success",
+      "warning",
+      "danger",
+      "info",
+    ]) {
       expect(css.match(new RegExp(`--color-${name}:`, "g")), name).toHaveLength(2);
     }
     expect(css).toContain("--color-accent: #D97706;");

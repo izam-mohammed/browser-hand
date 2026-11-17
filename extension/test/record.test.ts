@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Capture, MASKED, Outbox, SCROLL_SETTLE_MS, framePath, resolveSelectors, selectorsFor, type Step, type StepMsg } from "../src/page/record";
+import {
+  Capture,
+  framePath,
+  MASKED,
+  Outbox,
+  resolveSelectors,
+  SCROLL_SETTLE_MS,
+  type Step,
+  type StepMsg,
+  selectorsFor,
+} from "../src/page/record";
 import { resetRefs } from "../src/page/walker";
 import {
   ACTIVE_KEY,
@@ -8,19 +18,19 @@ import {
   BUDGET_BYTES,
   BUSY_TAIL_MS,
   FLUSH_MS,
+  fromPopup,
   IDLE_MS,
   INDEX_KEY,
   MAX_RECORDINGS,
   MAX_STEPS,
   POPUP,
-  Recorder,
-  fromPopup,
   popupOp,
-  type Recording,
+  Recorder,
   type RecorderDeps,
+  type Recording,
   type Summary,
 } from "../src/recorder";
-import { RESOLVE_WAIT_MS, replayStep, type ReplayDeps } from "../src/replay";
+import { RESOLVE_WAIT_MS, type ReplayDeps, replayStep } from "../src/replay";
 
 // The page side: capture-phase listeners, selectors, masking.
 
@@ -52,7 +62,11 @@ describe("capture", () => {
     resetRefs();
     document.body.innerHTML = PAGE;
     steps = [];
-    cap = new Capture(window, (m) => steps.push(m), (e) => trustedEvents.has(e));
+    cap = new Capture(
+      window,
+      (m) => steps.push(m),
+      (e) => trustedEvents.has(e),
+    );
     cap.start();
   });
   afterEach(() => cap.stop());
@@ -64,7 +78,12 @@ describe("capture", () => {
     expect(steps).toHaveLength(1);
     expect(steps[0]!.step).toMatchObject({
       type: "click",
-      selectors: [['aria/Save[role="button"]'], ["text/Save"], ["#save"], ['xpath///*[@id="save"]']],
+      selectors: [
+        ['aria/Save[role="button"]'],
+        ["text/Save"],
+        ["#save"],
+        ['xpath///*[@id="save"]'],
+      ],
       offsetX: 0,
       offsetY: 0,
     });
@@ -185,7 +204,9 @@ describe("selectors", () => {
     expect(sel).toContainEqual(["#card-host", "button"]);
     expect(sel).toContainEqual(["pierce/button"]);
     expect(sel.some((s) => String(s).startsWith("xpath/"))).toBe(false);
-    expect(resolveSelectors(document, [["#card-host", "button"]]).el).toBe(root.querySelector("button"));
+    expect(resolveSelectors(document, [["#card-host", "button"]]).el).toBe(
+      root.querySelector("button"),
+    );
     expect(resolveSelectors(document, ["pierce/button.buy"]).el).toBe(root.querySelector("button"));
   });
 
@@ -252,7 +273,8 @@ function fakeChrome() {
   };
   const pick = (m: Map<string, unknown>, keys: string | string[]) => {
     const out: { [k: string]: unknown } = {};
-    for (const k of typeof keys === "string" ? [keys] : keys) if (m.has(k)) out[k] = structuredClone(m.get(k));
+    for (const k of typeof keys === "string" ? [keys] : keys)
+      if (m.has(k)) out[k] = structuredClone(m.get(k));
     return out;
   };
   const deps: RecorderDeps = {
@@ -280,7 +302,10 @@ function fakeChrome() {
       remove: async (k) => {
         for (const key of typeof k === "string" ? [k] : k) local.delete(key);
       },
-      getBytesInUse: async (keys) => (ctl.bytes ? ctl.bytes(keys) : keys.reduce((n, k) => n + JSON.stringify(local.get(k) ?? "").length, 0)),
+      getBytesInUse: async (keys) =>
+        ctl.bytes
+          ? ctl.bytes(keys)
+          : keys.reduce((n, k) => n + JSON.stringify(local.get(k) ?? "").length, 0),
     },
     session: {
       get: async (k) => pick(session, k),
@@ -295,9 +320,20 @@ function fakeChrome() {
   return { deps, local, session, badges, titles, popups, sent, windows, ctl };
 }
 
-const TAB = { id: 11, windowId: 1, url: "https://shop.test/", title: "Shop", width: 1280, height: 800 };
-const click = (name: string, ts = 0): StepMsg => ({ step: { type: "click", selectors: [[`aria/${name}`]], offsetX: 1, offsetY: 1 }, ts });
-const stored = (c: ReturnType<typeof fakeChrome>, id: string) => c.local.get(`rec:${id}`) as Recording;
+const TAB = {
+  id: 11,
+  windowId: 1,
+  url: "https://shop.test/",
+  title: "Shop",
+  width: 1280,
+  height: 800,
+};
+const click = (name: string, ts = 0): StepMsg => ({
+  step: { type: "click", selectors: [[`aria/${name}`]], offsetX: 1, offsetY: 1 },
+  ts,
+});
+const stored = (c: ReturnType<typeof fakeChrome>, id: string) =>
+  c.local.get(`rec:${id}`) as Recording;
 
 describe("recorder", () => {
   let c: ReturnType<typeof fakeChrome>;
@@ -314,7 +350,11 @@ describe("recorder", () => {
 
   it("the button records its window, with REC on every tab's badge", async () => {
     await rec.toggle(TAB);
-    expect([c.badges.get(11), c.badges.get(12), c.badges.get(21)]).toEqual(["REC", "REC", undefined]);
+    expect([c.badges.get(11), c.badges.get(12), c.badges.get(21)]).toEqual([
+      "REC",
+      "REC",
+      undefined,
+    ]);
     expect(c.sent.map(([t, m]) => [t, (m as { op: string }).op])).toEqual([
       [11, "record_start"],
       [12, "record_start"],
@@ -334,10 +374,25 @@ describe("recorder", () => {
   it("drops steps on a blocked site and notes the gap once, with no address", async () => {
     await rec.toggle(TAB);
     await rec.step(11, 1, click("Before", 1), "https://shop.test/");
-    await rec.navigated({ tabId: 11, frameId: 0, url: "https://www.bank.test/login", transitionType: "link" });
+    await rec.navigated({
+      tabId: 11,
+      frameId: 0,
+      url: "https://www.bank.test/login",
+      transitionType: "link",
+    });
     expect(await rec.step(11, 1, click("Sign in", 2), "https://www.bank.test/login")).toBe(true);
-    await rec.step(11, 1, { step: { type: "change", selectors: [["#acct"]], value: "12345678" }, ts: 3 }, "https://www.bank.test/login");
-    await rec.navigated({ tabId: 11, frameId: 0, url: "https://shop.test/after", transitionType: "link" });
+    await rec.step(
+      11,
+      1,
+      { step: { type: "change", selectors: [["#acct"]], value: "12345678" }, ts: 3 },
+      "https://www.bank.test/login",
+    );
+    await rec.navigated({
+      tabId: 11,
+      frameId: 0,
+      url: "https://shop.test/after",
+      transitionType: "link",
+    });
     await rec.step(11, 1, click("After", 4), "https://shop.test/after");
     await rec.toggle(TAB);
     const r = stored(c, await newest());
@@ -345,7 +400,14 @@ describe("recorder", () => {
     expect(json).not.toContain("bank");
     expect(json).not.toContain("12345678");
     expect(json).not.toContain("Sign in");
-    expect(r.flow.steps.map((s) => s.type)).toEqual(["setViewport", "navigate", "click", "navigate", "navigate", "click"]);
+    expect(r.flow.steps.map((s) => s.type)).toEqual([
+      "setViewport",
+      "navigate",
+      "click",
+      "navigate",
+      "navigate",
+      "click",
+    ]);
     expect(r.meta[3]).toMatchObject({ tabId: 11, blocked: true });
     expect(r.flow.steps[3]).toEqual(BLOCKED_STEP);
   });
@@ -373,7 +435,11 @@ describe("recorder", () => {
 
   it("masks a step the page marked sensitive even if a value slipped through", async () => {
     await rec.toggle(TAB);
-    await rec.step(11, 1, { step: { type: "change", selectors: [["#pw"]], value: "hunter2" }, ts: 1, masked: true });
+    await rec.step(11, 1, {
+      step: { type: "change", selectors: [["#pw"]], value: "hunter2" },
+      ts: 1,
+      masked: true,
+    });
     const r = await rec.get();
     expect(r.flow.steps.at(-1)!.value).toBe(MASKED);
     expect(r.meta.at(-1)!.masked).toBe(true);
@@ -384,7 +450,11 @@ describe("recorder", () => {
     await rec.step(11, 1, click("Row"));
     await rec.step(11, 1, click("Row"));
     await rec.step(11, 1, { step: { type: "doubleClick", selectors: [["aria/Row"]] }, ts: 0 });
-    expect((await rec.get()).flow.steps.map((s) => s.type)).toEqual(["setViewport", "navigate", "doubleClick"]);
+    expect((await rec.get()).flow.steps.map((s) => s.type)).toEqual([
+      "setViewport",
+      "navigate",
+      "doubleClick",
+    ]);
   });
 
   it("marks steps made while Claude's input acts on the tab as Claude's", async () => {
@@ -393,18 +463,46 @@ describe("recorder", () => {
     await rec.step(12, 1, click("Other tab"));
     await vi.advanceTimersByTimeAsync(BUSY_TAIL_MS);
     await rec.step(11, 1, click("By the person"));
-    expect((await rec.get()).meta.slice(-3).map((m) => m.actor)).toEqual(["claude", "person", "person"]);
+    expect((await rec.get()).meta.slice(-3).map((m) => m.actor)).toEqual([
+      "claude",
+      "person",
+      "person",
+    ]);
   });
 
   it("turns page loads into navigate steps, or into the step that caused them", async () => {
     await rec.toggle(TAB);
     await rec.step(11, 1, click("Results", c.ctl.now));
-    await rec.navigated({ tabId: 11, frameId: 0, url: "https://shop.test/results", transitionType: "link" });
-    await rec.navigated({ tabId: 11, frameId: 1, url: "https://ads.test/", transitionType: "auto_subframe" });
-    await rec.navigated({ tabId: 12, frameId: 0, url: "https://news.test/", transitionType: "typed" });
-    await rec.navigated({ tabId: 12, frameId: 0, url: "chrome://settings/", transitionType: "typed" });
+    await rec.navigated({
+      tabId: 11,
+      frameId: 0,
+      url: "https://shop.test/results",
+      transitionType: "link",
+    });
+    await rec.navigated({
+      tabId: 11,
+      frameId: 1,
+      url: "https://ads.test/",
+      transitionType: "auto_subframe",
+    });
+    await rec.navigated({
+      tabId: 12,
+      frameId: 0,
+      url: "https://news.test/",
+      transitionType: "typed",
+    });
+    await rec.navigated({
+      tabId: 12,
+      frameId: 0,
+      url: "chrome://settings/",
+      transitionType: "typed",
+    });
     const r = await rec.get();
-    expect(r.flow.steps.slice(2).map((s) => [s.type, s.url ?? (s.assertedEvents as { url: string }[])?.[0]?.url])).toEqual([
+    expect(
+      r.flow.steps
+        .slice(2)
+        .map((s) => [s.type, s.url ?? (s.assertedEvents as { url: string }[])?.[0]?.url]),
+    ).toEqual([
       ["click", "https://shop.test/results"],
       ["navigate", "https://news.test/"],
       ["navigate", "chrome://settings/"],
@@ -458,7 +556,10 @@ describe("recorder", () => {
     await woken.step(11, 1, click("After"));
     await woken.toggle(TAB);
     const r = stored(c, (await woken.list()).recordings[0]!.id);
-    expect(r.flow.steps.slice(-2).map((s) => s.selectors)).toEqual([[["aria/Before"]], [["aria/After"]]]);
+    expect(r.flow.steps.slice(-2).map((s) => s.selectors)).toEqual([
+      [["aria/Before"]],
+      [["aria/After"]],
+    ]);
     expect(r.stoppedAt).not.toBeNull();
   });
 
@@ -618,26 +719,45 @@ describe("recorder popup switch", () => {
     const url = "chrome-extension://bh/popup.html";
     expect(fromPopup({ id: "bh", url }, "bh", url)).toBe(true);
     expect(fromPopup({ id: "bh", url, tab: { id: 11 } }, "bh", url)).toBe(false);
-    expect(fromPopup({ id: "bh", url: "https://evil.test/popup.html", tab: { id: 11 } }, "bh", url)).toBe(false);
-    expect(fromPopup({ id: "bh", url: "chrome-extension://bh/options.html" }, "bh", url)).toBe(false);
-    expect(fromPopup({ id: "other", url: "chrome-extension://other/popup.html" }, "bh", url)).toBe(false);
+    expect(
+      fromPopup({ id: "bh", url: "https://evil.test/popup.html", tab: { id: 11 } }, "bh", url),
+    ).toBe(false);
+    expect(fromPopup({ id: "bh", url: "chrome-extension://bh/options.html" }, "bh", url)).toBe(
+      false,
+    );
+    expect(fromPopup({ id: "other", url: "chrome-extension://other/popup.html" }, "bh", url)).toBe(
+      false,
+    );
   });
 
   it("popup ops: start records the window's active tab, then list, get and delete", async () => {
     const tabs = new Map([[1, TAB]]);
     const activeTab = async (w: number) => tabs.get(w);
     expect(await popupOp(rec, { __bhPopup: "start", windowId: 1 }, activeTab)).toBe(true);
-    await expect(popupOp(rec, { __bhPopup: "start", windowId: 9 }, activeTab)).rejects.toMatchObject({ code: "bad_args" });
+    await expect(
+      popupOp(rec, { __bhPopup: "start", windowId: 9 }, activeTab),
+    ).rejects.toMatchObject({ code: "bad_args" });
     const id = await newest();
-    const listed = (await popupOp(rec, { __bhPopup: "list" }, activeTab)) as { recordings: Summary[]; recording: string | null };
+    const listed = (await popupOp(rec, { __bhPopup: "list" }, activeTab)) as {
+      recordings: Summary[];
+      recording: string | null;
+    };
     expect(listed.recording).toBe(id);
     await popupOp(rec, { __bhPopup: "stop" }, activeTab);
-    expect(((await popupOp(rec, { __bhPopup: "get", id }, activeTab)) as Recording).stoppedAt).not.toBeNull();
+    expect(
+      ((await popupOp(rec, { __bhPopup: "get", id }, activeTab)) as Recording).stoppedAt,
+    ).not.toBeNull();
     expect(await popupOp(rec, { __bhPopup: "delete", id }, activeTab)).toMatch(/Deleted/);
     expect(c.local.has(`rec:${id}`)).toBe(false);
-    await expect(popupOp(rec, { __bhPopup: "get" } as never, activeTab)).rejects.toMatchObject({ code: "bad_args" });
-    await expect(popupOp(rec, { __bhPopup: "start", windowId: "1" } as never, activeTab)).rejects.toMatchObject({ code: "bad_args" });
-    await expect(popupOp(rec, { __bhPopup: "nope" } as never, activeTab)).rejects.toMatchObject({ code: "bad_args" });
+    await expect(popupOp(rec, { __bhPopup: "get" } as never, activeTab)).rejects.toMatchObject({
+      code: "bad_args",
+    });
+    await expect(
+      popupOp(rec, { __bhPopup: "start", windowId: "1" } as never, activeTab),
+    ).rejects.toMatchObject({ code: "bad_args" });
+    await expect(popupOp(rec, { __bhPopup: "nope" } as never, activeTab)).rejects.toMatchObject({
+      code: "bad_args",
+    });
   });
 });
 
@@ -699,13 +819,15 @@ describe("replay step", () => {
 
   it("gives up on a missing element after a wait, naming the selectors tried", async () => {
     const { d } = deps(false);
-    await expect(replayStep(d, 1, { type: "click", selectors: [["aria/Gone"], ["#gone"]] })).rejects.toThrow(
-      new RegExp(`within ${RESOLVE_WAIT_MS / 1000} s.*aria/Gone; #gone`),
-    );
+    await expect(
+      replayStep(d, 1, { type: "click", selectors: [["aria/Gone"], ["#gone"]] }),
+    ).rejects.toThrow(new RegExp(`within ${RESOLVE_WAIT_MS / 1000} s.*aria/Gone; #gone`));
   });
 
   it("refuses steps inside frames", async () => {
     const { d } = deps();
-    await expect(replayStep(d, 1, { type: "click", selectors: [["#x"]], frame: [0] })).rejects.toThrow(/top frame only/);
+    await expect(
+      replayStep(d, 1, { type: "click", selectors: [["#x"]], frame: [0] }),
+    ).rejects.toThrow(/top frame only/);
   });
 });

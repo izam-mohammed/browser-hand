@@ -307,7 +307,11 @@ input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
   border: var(--border-width-hairline) solid var(--color-control);
-  background: linear-gradient(to right, var(--color-accent) var(--fill), var(--color-raised) var(--fill));
+  background: linear-gradient(
+    to right,
+    var(--color-accent) var(--fill),
+    var(--color-raised) var(--fill)
+  );
 }
 
 input[type="range"]::-webkit-slider-thumb {

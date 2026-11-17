@@ -1,0 +1,13 @@
+# The "key" field of a Chrome extension manifest is the extension's public
+# key (it pins the extension ID); it is not a secret. The scanner reads it as
+# a generic-api-key. Checked 2026-11-17.
+27b1462df27af7e4fa51323af88b58959cd38d55:scripts/prove/cdp-input/extension/manifest.json:generic-api-key:6
+386ca9876c83ab8a88d97aaea86834f87dcc2fc8:extension/manifest.json:generic-api-key:6
+386ca9876c83ab8a88d97aaea86834f87dcc2fc8:scripts/prove/chrome-bridge/extension/manifest.json:generic-api-key:6
+1fbbfc50130fc79d11b7ea5b5278bced4d0b0cf4:reference/claude-in-chrome/extension/manifest.json:generic-api-key:44
+# Same four files as seen by `gitleaks dir` (the shared gate's working-tree
+# scan), which fingerprints as file:rule:line with no commit.
+extension/manifest.json:generic-api-key:6
+reference/claude-in-chrome/extension/manifest.json:generic-api-key:49
+scripts/prove/cdp-input/extension/manifest.json:generic-api-key:6
+scripts/prove/chrome-bridge/extension/manifest.json:generic-api-key:6

@@ -176,6 +176,7 @@ impl Setup {
 
     fn opts(&self, pace: Option<&str>) -> ServerOptions {
         ServerOptions {
+            store_id: None,
             pace: pace.map(String::from),
             config: self.config_path(),
         }
@@ -185,9 +186,18 @@ impl Setup {
         self._chrome.path().to_owned()
     }
 
+    /// `server` with a Chrome Web Store ID built in.
+    fn server_with_store(&self, claim: bool, store: &str) -> Server {
+        self.build_server(claim, Some(store))
+    }
+
     /// A server whose launcher records the launch and, when `claim` is set,
     /// brings up a host for that profile as the claim page would.
     fn server(&self, claim: bool) -> Server {
+        self.build_server(claim, None)
+    }
+
+    fn build_server(&self, claim: bool, store: Option<&str>) -> Server {
         let launched = self.launched.clone();
         let sockets = self.sockets.path().to_owned();
         let launch: Launcher = Arc::new(move |dir: &str, url: &str| {
@@ -204,8 +214,23 @@ impl Setup {
             self.chrome_dir(),
             self.sockets.path().to_owned(),
             launch,
-            self.opts(None),
+            ServerOptions {
+                store_id: store.map(String::from),
+                ..self.opts(None)
+            },
         )
+    }
+
+    /// Makes the profile look as if Chrome had unpacked `id` into it.
+    fn installed(&self, dir: &str, id: &str) {
+        std::fs::create_dir_all(
+            self.chrome_dir()
+                .join(dir)
+                .join("Extensions")
+                .join(id)
+                .join("1.0_0"),
+        )
+        .unwrap();
     }
 }
 
@@ -470,6 +495,178 @@ async fn opening_a_profile_whose_extension_never_answers_says_what_happened() {
     assert!(t.contains("after starting Chrome"), "{t}");
     assert!(t.contains("within 30 s"), "{t}");
     assert!(t.contains("Load unpacked"), "{t}");
+}
+
+const STORE_ID: &str = "abcdefghijklmnopabcdefghijklmnop";
+
+fn select(name: &str) -> Parameters<SelectProfileArgs> {
+    Parameters(SelectProfileArgs {
+        profile: name.into(),
+    })
+}
+
+#[tokio::test]
+async fn the_claim_page_uses_the_store_id_where_the_profile_has_it_installed() {
+    let s = Setup::new();
+    s.installed("Default", STORE_ID);
+    let r = s
+        .server_with_store(true, STORE_ID)
+        .select_profile(select("Personal"))
+        .await
+        .unwrap();
+    assert!(!is_error(&r), "{}", text(&r));
+    let launched = s.launched.lock().unwrap().clone();
+    assert_eq!(launched.len(), 1);
+    assert!(
+        launched[0].1.starts_with(&format!(
+            "chrome-extension://{STORE_ID}/claim.html#dir=Default&nonce="
+        )),
+        "{}",
+        launched[0].1
+    );
+}
+
+#[tokio::test]
+async fn the_claim_page_uses_the_dev_id_where_the_store_build_is_absent() {
+    let s = Setup::new();
+    s.installed("Profile 3", STORE_ID); // another profile's folder: not this one
+    s.server_with_store(true, STORE_ID)
+        .select_profile(select("Personal"))
+        .await
+        .unwrap();
+    assert!(s.launched.lock().unwrap()[0]
+        .1
+        .starts_with(&format!("chrome-extension://{EXTENSION_ID}/claim.html")));
+}
+
+#[tokio::test]
+async fn a_silent_store_folder_falls_back_to_the_dev_id_once_then_opens_the_store_page() {
+    let s = Setup::new();
+    s.installed("Default", STORE_ID);
+    tokio::time::pause();
+    let r = s
+        .server_with_store(false, STORE_ID)
+        .select_profile(select("Personal"))
+        .await
+        .unwrap();
+    assert!(is_error(&r));
+    let launched = s.launched.lock().unwrap().clone();
+    let urls: Vec<&str> = launched.iter().map(|l| l.1.as_str()).collect();
+    assert_eq!(urls.len(), 3, "{urls:?}");
+    assert!(urls[0].starts_with(&format!("chrome-extension://{STORE_ID}/claim.html")));
+    assert!(urls[1].starts_with(&format!("chrome-extension://{EXTENSION_ID}/claim.html")));
+    assert_eq!(
+        urls[2],
+        format!("https://chromewebstore.google.com/detail/{STORE_ID}")
+    );
+    assert!(launched.iter().all(|l| l.0 == "Default"));
+    let t = text(&r);
+    assert!(
+        t.contains("chrome://extensions"),
+        "installed but silent: {t}"
+    );
+}
+
+#[tokio::test]
+async fn a_profile_without_the_extension_gets_the_store_page_and_what_to_click() {
+    let s = Setup::new();
+    tokio::time::pause();
+    let r = s
+        .server_with_store(false, STORE_ID)
+        .select_profile(select("Work"))
+        .await
+        .unwrap();
+    assert!(is_error(&r));
+    let launched = s.launched.lock().unwrap().clone();
+    // Not installed there: the dev claim page, then the store page; the store
+    // ID's claim page is not tried where Chrome has no folder for it.
+    assert_eq!(launched.len(), 2, "{launched:?}");
+    assert!(launched[0]
+        .1
+        .contains(&format!("{EXTENSION_ID}/claim.html")));
+    assert_eq!(
+        launched[1],
+        (
+            "Profile 3".to_string(),
+            format!("https://chromewebstore.google.com/detail/{STORE_ID}")
+        )
+    );
+    assert!(text(&r).contains("Add to Chrome"), "{}", text(&r));
+}
+
+#[tokio::test]
+async fn with_no_store_id_the_timeout_names_load_unpacked_and_opens_no_store_page() {
+    let s = Setup::new();
+    tokio::time::pause();
+    let r = s
+        .server(false)
+        .select_profile(select("Work"))
+        .await
+        .unwrap();
+    assert!(is_error(&r));
+    assert!(text(&r).contains("Load unpacked"));
+    assert!(s
+        .launched
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|l| !l.1.starts_with("https://")));
+}
+
+#[tokio::test]
+async fn list_profiles_gives_a_next_step_only_to_a_profile_that_is_not_connected() {
+    let s = Setup::new();
+    fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+    s.installed("Profile 4", STORE_ID);
+    let v = json(
+        &s.server_with_store(false, STORE_ID)
+            .list_profiles()
+            .await
+            .unwrap(),
+    );
+    let by = |name: &str| {
+        v["profiles"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["name"] == name)
+            .unwrap()
+            .clone()
+    };
+    assert!(by("Work").get("nextStep").is_none());
+    let personal = by("Personal")["nextStep"].as_str().unwrap().to_owned();
+    assert!(personal.contains("Add to Chrome"), "{personal}");
+    assert!(personal.contains(&format!(
+        "https://chromewebstore.google.com/detail/{STORE_ID}"
+    )));
+    let testing = by("Testing")["nextStep"].as_str().unwrap().to_owned();
+    assert!(testing.contains("chrome://extensions"), "{testing}");
+    // Read only: listing opens nothing.
+    assert!(s.launched.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn list_profiles_names_load_unpacked_when_no_store_id_is_built_in() {
+    let s = Setup::new();
+    let v = json(&s.server(false).list_profiles().await.unwrap());
+    let step = v["profiles"][0]["nextStep"].as_str().unwrap();
+    assert!(step.contains("Load unpacked"), "{step}");
+}
+
+#[tokio::test]
+async fn list_profiles_warns_when_two_builds_answer_for_one_profile() {
+    let s = Setup::new();
+    fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+    fake_profile(s.sockets.path(), 2, Some("Profile 3"), None);
+    let v = json(&s.server(false).list_profiles().await.unwrap());
+    let work = v["profiles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["name"] == "Work")
+        .unwrap();
+    assert!(work["warning"].as_str().unwrap().contains("turn one off"));
+    assert!(v["profiles"][0].get("warning").is_none());
 }
 
 mod more {
@@ -1040,5 +1237,122 @@ mod more {
             "{}",
             text(&r)
         );
+    }
+}
+
+/// Every tool browser_batch can run reaches the browser as the same call it
+/// would be on its own, and the ones it cannot run say why.
+mod batch_dispatch {
+    use super::*;
+    use browser_hand::tools::args::{BatchArgs, BatchItem};
+    use serde_json::json;
+
+    fn item(name: &str, input: Value) -> BatchItem {
+        BatchItem {
+            name: name.into(),
+            input,
+        }
+    }
+
+    async fn batch(items: Vec<BatchItem>) -> CallToolResult {
+        let s = Setup::new();
+        fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+        let server = s.server(false);
+        server
+            .browser_batch(Parameters(BatchArgs { actions: items }))
+            .await
+            .unwrap()
+    }
+
+    fn all(r: &CallToolResult) -> String {
+        let v = serde_json::to_value(r).unwrap();
+        v["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|c| c["text"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[tokio::test]
+    async fn each_forwarded_tool_runs_in_a_batch() {
+        let names = [
+            "tabs_context",
+            "tabs_create",
+            "tabs_close",
+            "navigate",
+            "read_page",
+            "find",
+            "get_page_text",
+            "read_console_messages",
+            "read_network_requests",
+            "form_input",
+            "javascript_tool",
+            "resize_window",
+            "recording_delete",
+        ];
+        let inputs = [
+            json!({}),
+            json!({}),
+            json!({ "tabId": 1 }),
+            json!({ "url": "https://example.com", "tabId": 1 }),
+            json!({ "tabId": 1 }),
+            json!({ "query": "go", "tabId": 1 }),
+            json!({ "tabId": 1 }),
+            json!({ "tabId": 1 }),
+            json!({ "tabId": 1 }),
+            json!({ "ref": "ref_1", "value": "x", "tabId": 1 }),
+            json!({ "action": "javascript_exec", "text": "1", "tabId": 1 }),
+            json!({ "width": 800, "height": 600, "tabId": 1 }),
+            json!({ "id": "rec_1" }),
+        ];
+        let items = names
+            .iter()
+            .zip(inputs)
+            .map(|(n, i)| item(n, i))
+            .collect::<Vec<_>>();
+        let r = batch(items).await;
+        let t = all(&r);
+        assert!(!is_error(&r), "{t}");
+        for (i, name) in names.iter().enumerate() {
+            assert!(t.contains(&format!("[{}/13] {name}: ok", i + 1)), "{t}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_server_side_tools_run_in_a_batch_too() {
+        let r = batch(vec![
+            item("list_profiles", json!({})),
+            item("select_profile", json!({ "profile": "Work" })),
+            item("recording_list", json!({})),
+            item("recording_get", json!({})),
+        ])
+        .await;
+        let t = all(&r);
+        assert!(!is_error(&r), "{t}");
+        assert!(t.contains("[4/4] recording_get: ok"), "{t}");
+    }
+
+    #[tokio::test]
+    async fn what_a_batch_cannot_run_is_refused_by_name() {
+        for (name, input, expect) in [
+            (
+                "navigate",
+                json!({ "url": "https://example.com" }),
+                "needs tabId",
+            ),
+            (
+                "recording_replay",
+                json!({}),
+                "cannot run inside browser_batch",
+            ),
+            ("find", json!({ "wrong": 1 }), "bad_args: find"),
+            ("nonsense", json!({}), "unknown tool"),
+        ] {
+            let r = batch(vec![item(name, input)]).await;
+            assert!(is_error(&r), "{name}");
+            assert!(all(&r).contains(expect), "{name}: {}", all(&r));
+        }
     }
 }

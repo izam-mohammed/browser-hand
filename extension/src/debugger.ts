@@ -76,7 +76,12 @@ export class DebuggerManager {
   }
 
   /** Sends one CDP command, attaching first if needed. */
-  async send<T = any>(tabId: number, method: string, params: { [key: string]: unknown } = {}): Promise<T> {
+  // biome-ignore lint/suspicious/noExplicitAny: the reply type is the caller's claim about the CDP method.
+  async send<T = any>(
+    tabId: number,
+    method: string,
+    params: { [key: string]: unknown } = {},
+  ): Promise<T> {
     await this.attach(tabId);
     try {
       return (await this.api.sendCommand({ tabId }, method, params)) as T;
@@ -86,7 +91,10 @@ export class DebuggerManager {
       const why = e instanceof Error ? e.message : String(e);
       if (!/not attached|different extension/i.test(why)) throw e;
       this.forget(tabId);
-      throw new ToolError("debugger_refused", `Chrome stopped the debugger on tab ${tabId}: ${why}. ${CANNOT_DRIVE}`);
+      throw new ToolError(
+        "debugger_refused",
+        `Chrome stopped the debugger on tab ${tabId}: ${why}. ${CANNOT_DRIVE}`,
+      );
     } finally {
       this.touch(tabId);
     }
