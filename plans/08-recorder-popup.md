@@ -338,7 +338,7 @@ repository instructions for recording useful development findings.
   from the boards' shapes, text and fills, read from the file through the
   Penpot API (a `.penpot` export), not from PNGs. `design/README.md` already
   lists the three boards as not exported yet.
-- [ ] `scripts/prove/action-popup.sh` loads a proof extension kept in
+- [x] `scripts/prove/action-popup.sh` loads a proof extension kept in
   `scripts/prove/action-popup/` with a `default_popup`, per
   `docs/external/chrome-extension-apis.md` § chrome.action: the popup's
   button reports `windows.getCurrent()` and sets the popup to `""`; the
@@ -354,7 +354,15 @@ repository instructions for recording useful development findings.
   script can tell a value lost on the worker stop (a note, covered by the
   sync on wake) from a failed click (FAIL). The script's header lists the
   person's steps a to f.
-- [ ] Check: the script exits 0 and prints `PASS`; a popup value lost when
+  Headless on Chrome for Testing, 17/11/2026: the popup page opened as a tab and its button clicked over
+  CDP; `onClicked` simulated with `chrome.action.onClicked.dispatch(tab)`
+  only once `getPopup()` read `""`; `""` held across a worker stop (about 35 s
+  idle), a tab load and a new window, and `setPopup("popup.html")` brought the
+  popup back. Not shown: a real toolbar click, and that a popup opens over a
+  window (a tab is not a popup). The script's "global popup value was lost"
+  note fired falsely: the wake-up page counted as a popup opened at
+  `clicks == 1`.
+- [x] Check: the script exits 0 and prints `PASS`; a popup value lost when
   the worker stops is handled by the sync on wake in Phase 2, anything else
   reopens Decision 1.
 

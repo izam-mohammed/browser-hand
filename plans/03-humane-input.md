@@ -309,13 +309,17 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: prove trusted CDP input (needs you at Chrome)
 
-- [ ] `scripts/prove/cdp-input.sh` uses the proof extension and test page
+- [x] `scripts/prove/cdp-input.sh` uses the proof extension and test page
   kept in the repo at `scripts/prove/cdp-input/` (no project code), which
   attaches the debugger to the test page, sends a click, a key and `cmd+a` per
   `docs/external/chrome-debugger-cdp.md` § CDP methods, reads back each
   event's `isTrusted` and whether the text got selected, and prints `PASS`
   when all are true.
-- [ ] Check: the script exits 0 and prints `PASS`; a false `isTrusted`
+  Headless on Chrome for Testing, 17/11/2026: all 19 events `isTrusted: true`, value `abc`, selection 0 to
+  3, `navigator.webdriver` false. Not shown: the macOS Meta key. `Meta+A`
+  with `commands:["selectAll"]` also selected on Linux, so the `commands`
+  field does the work, not the Meta key.
+- [x] Check: the script exits 0 and prints `PASS`; a false `isTrusted`
   reopens decision 1 before Phase 2.
 
 ### Phase 2: the humane model

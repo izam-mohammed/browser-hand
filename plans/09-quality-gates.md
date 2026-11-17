@@ -357,8 +357,12 @@ repository instructions for recording useful development findings.
   scanner is downloaded and checksum-verified because the install action
   has no gitleaks. Written, not yet run on a runner.
 - [x] `docs/standards.md` § CI describes both workflows.
-- [ ] Check: `make check` passes locally, and the PR shows `ci` and
+- [x] Check: `make check` passes locally, and the PR shows `ci` and
   `Security` green (waits on the billing hold in `## Open decisions`).
+  17/11/2026: CI ran green on PR 32 and PR 34 (`make check` job and the
+  shared `scan` gate, all stages pass; about 6.5 minutes each). Not shown:
+  whether the billing hold is lifted, since these ran on the self-hosted
+  runner.
 
 ### Phase 6: open the PR
 
