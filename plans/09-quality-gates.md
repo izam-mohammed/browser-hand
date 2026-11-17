@@ -319,18 +319,18 @@ repository instructions for recording useful development findings.
   `host/tests/mcp.rs`).
 - [x] `make coverage` fails under 90 % host lines (`cargo llvm-cov
   --fail-under-lines 90`), and `docs/standards.md` records the floor.
-- [ ] Check: `make check` passes, and `make coverage` prints host lines at
+- [x] Check: `make check` passes, and `make coverage` prints host lines at
   or over 90 %.
 
 ### Phase 4: the extension reaches 90 % lines
 
-- [ ] Tests for the least covered extension modules, taken from
+- [x] Tests for the least covered extension modules, taken from
   `vitest run --coverage` with the text reporter, lowest first (expected in
   `extension/test/`), with Chrome APIs faked as the existing tests do.
-- [ ] `thresholds.lines` set to 90 with `src/wire.gen.ts` excluded (expected
+- [x] `thresholds.lines` set to 90 with `src/wire.gen.ts` excluded (expected
   in `extension/vitest.config.mjs`), and the exclusion named in
   `docs/standards.md`.
-- [ ] Check: `make check` passes, and `make coverage` prints extension lines
+- [x] Check: `make check` passes, and `make coverage` prints extension lines
   at or over 90 %.
 
 ### Phase 5: CI runs the same command
