@@ -39,6 +39,7 @@ A change is done when it passes locally and on its pull request, where
 | Docs book | mdBook, lychee | `docs/book/book.toml` | `sh scripts/check-docs.sh` | builds with no warning, no broken link, nothing loaded from outside, no private detail (also `make check`) |
 | Site | sh, grep | `scripts/check-site.sh` | `sh scripts/check-site.sh` | prints `PASS`: no script, no external URL, no link into the private repository, no local path (also `make check`) |
 | Proofs | sh | `scripts/prove/` | `sh scripts/prove/<name>.sh` | prints `PASS` (needs Chrome and a person) |
+| Testing guide | | `docs/testing.md` | read it | how to run every suite and proof headless on Chrome for Testing (`scripts/prove/cft.sh`), what each proves, and the manual checklist |
 
 ## Tests
 
