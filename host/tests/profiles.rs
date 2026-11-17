@@ -319,6 +319,25 @@ fn the_user_data_dir_flag_is_found_in_a_command_line() {
         profiles::user_data_dir_arg(&args(&["chrome", "https://u"])),
         None
     );
+    // Chromium rewrites its process title: one space-joined word.
+    assert_eq!(
+        profiles::user_data_dir_arg(&args(&[
+            "/o/chrome --headless=new --user-data-dir=/a b/c --profile-directory=Default x"
+        ])),
+        Some("/a b/c".into())
+    );
+    assert_eq!(
+        profiles::user_data_dir_arg(&args(&["/o/chrome --user-data-dir=/last"])),
+        Some("/last".into())
+    );
+}
+
+#[test]
+fn a_browser_whose_profiles_are_not_listed_is_not_stamped() {
+    let roots = roots_of(&[("chrome", "/h/c")]);
+    assert_eq!(profiles::in_roots(Some("chrome"), &roots), Some("chrome"));
+    assert_eq!(profiles::in_roots(Some("brave"), &roots), None);
+    assert_eq!(profiles::in_roots(None, &roots), None);
 }
 
 #[test]

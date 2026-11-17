@@ -230,11 +230,23 @@ pub fn identify(exe: Option<&Path>, udd: Option<&Path>, roots: &[Root]) -> Optio
 }
 
 /// The value of `--user-data-dir` in a command line, `=` or a separate word.
+/// Chromium rewrites its own process title on Linux, so `/proc/<pid>/cmdline`
+/// of a browser is often one space-joined string, not NUL-separated words
+/// (measured on Chrome for Testing 157, 2026-11-17): the flag is then found
+/// inside a word and its value runs to the next ` --` or the end.
 pub fn user_data_dir_arg(args: &[String]) -> Option<PathBuf> {
+    const FLAG: &str = "--user-data-dir=";
     let mut it = args.iter();
     while let Some(a) = it.next() {
-        if let Some(v) = a.strip_prefix("--user-data-dir=") {
-            return Some(v.into());
+        let at = if a.starts_with(FLAG) {
+            Some(0)
+        } else {
+            a.find(&format!(" {FLAG}")).map(|i| i + 1)
+        };
+        if let Some(at) = at {
+            let rest = &a[at + FLAG.len()..];
+            let end = rest.find(" --").unwrap_or(rest.len());
+            return Some(rest[..end].into());
         }
         if a == "--user-data-dir" {
             return it.next().map(PathBuf::from);
@@ -256,7 +268,17 @@ pub fn parent_identity(pid: u32, roots: &[Root]) -> Option<&'static str> {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    identify(exe.as_deref(), user_data_dir_arg(&args).as_deref(), roots)
+    in_roots(
+        identify(exe.as_deref(), user_data_dir_arg(&args).as_deref(), roots),
+        roots,
+    )
+}
+
+/// `key` only when one of `roots` is that browser's. A host named for a
+/// browser whose profiles are not listed could never match one of them, so
+/// it states nothing and falls back to matching by dir.
+pub fn in_roots(key: Option<&'static str>, roots: &[Root]) -> Option<&'static str> {
+    key.filter(|k| roots.iter().any(|r| r.browser == *k))
 }
 
 #[cfg(target_os = "linux")]

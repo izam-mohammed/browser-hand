@@ -156,6 +156,13 @@ any use of `getppid`: none.
   `brave:Default` each see only their own host as connected.
 - The host's parent is unknown (flatpak, snap wrapper, no `/proc`): no
   `browser`; matching is by dir as before.
+- A browser's `/proc/<pid>/cmdline` is one space-joined string, because
+  Chromium rewrites its process title (measured on Chrome for Testing 157,
+  17/11/2026): the flag is found inside a word and its value ends at the
+  next ` --`.
+- A host named for a browser none of whose profiles are listed (a browser
+  outside the table's dirs): it stamps nothing, so matching falls back to
+  the dir (`profiles::in_roots`).
 - A browser started with a `--user-data-dir` that is no table dir: the
   binary name decides; a Chrome for Testing binary reads as `chrome`.
 - `BROWSER_HAND_CHROME_DIR` set (tests, proofs): that dir is the one root,
@@ -227,7 +234,11 @@ repository instructions for recording useful development findings.
 - [x] `host_for`, `bind`, the reconnect wait, `call`'s single-host fallback
   and `do_list_profiles` match by dir and browser (expected in
   `host/src/mcp.rs`), per decision 2.
-- [ ] Check: `make check`.
+- [x] Check: `make check`.
+  Landed 2026-11-17: every `make check` stage passed (lint, tests, coverage, build,
+  docs, site, gitleaks) except osv-scanner, which reports RUSTSEC-2026-0543 on
+  `chrono` 0.4.45, a new advisory on the untouched `host/Cargo.lock`; a plan of
+  its own (the allowlist in `osv-scanner.toml`).
 - [ ] You try it: with Chrome and Brave both running and a profile named
   `Default` in each, run `list_profiles`: each shows connected once with no
   "two extensions" warning, and `select_profile` `brave:Default` then a
@@ -245,20 +256,20 @@ repository instructions for recording useful development findings.
   `host/src/wire.rs`), per decision 3.
 - [x] `renderSessions` in `extension/src/options/page.ts` uses `id`, falling
   back to `dir` from an older host.
-- [ ] Check: `make check`.
+- [x] Check: `make check`.
 
 ### Phase 3: the proof, and the docs
 
-- [ ] A proof `scripts/prove/browser-identity.sh`: two Chrome for Testing
+- [x] A proof `scripts/prove/browser-identity.sh`: two Chrome for Testing
   instances on `<home>/.config/microsoft-edge` and
   `<home>/.config/BraveSoftware/Brave-Browser` under a temp `HOME`, a
   `Default` profile in each, both claimed; prints PASS when `list_profiles`
   shows each connected once and stops showing one after its browser is
   killed.
-- [ ] `docs/protocol.md` (the `hello` line, the compatibility matrix and the
+- [x] `docs/protocol.md` (the `hello` line, the compatibility matrix and the
   `settings` profiles), `docs/testing.md` (the proof row, what needs a
   person), `README.md` and the book where they name this gap.
-- [ ] Check: `make check`, then `sh scripts/prove/browser-identity.sh`
+- [x] Check: `make check`, then `sh scripts/prove/browser-identity.sh`
   prints PASS.
 
 ### Phase 4: the walk (needs you with two browsers)
