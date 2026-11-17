@@ -330,7 +330,7 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: prove the popup switch, land the boards (needs you at Chrome and Penpot)
 
-- [ ] The person exports Penpot boards `popup--idle`, `popup--empty` and
+- [x] The person exports Penpot boards `popup--idle`, `popup--empty` and
   `popup--steps` (file `Settings`, page `Settings`; export needs a Penpot
   login) to `design/popup--idle.png`, `design/popup--empty.png` and
   `design/popup--steps.png`, and `design/README.md` lists them.
@@ -338,6 +338,10 @@ repository instructions for recording useful development findings.
   from the boards' shapes, text and fills, read from the file through the
   Penpot API (a `.penpot` export), not from PNGs. `design/README.md` already
   lists the three boards as not exported yet.
+  Landed 17/11/2026: exported as PNGs through the Penpot API (file id
+  matched `.penpot.json`), 362 px wide with the 1 px edge:
+  `design/popup--idle.png`, `design/popup--empty.png`,
+  `design/popup--steps.png`, listed in `design/README.md`.
 - [x] `scripts/prove/action-popup.sh` loads a proof extension kept in
   `scripts/prove/action-popup/` with a `default_popup`, per
   `docs/external/chrome-extension-apis.md` § chrome.action: the popup's
