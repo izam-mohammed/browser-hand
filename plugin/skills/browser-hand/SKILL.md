@@ -110,6 +110,8 @@ quality, the GIF folder and delay.
 
 - Never click a file input: it opens a native picker you cannot see. Find the
   input's ref and call `file_upload` with absolute paths (10 MB per call).
+  It refuses `.env`, `.pem`, `.key`, anything under `.ssh` (also through a
+  symlink) and hard-linked files; ask the person for another file.
 - `upload_image` only uploads a screenshot you just took (its `imageId`, valid
   for 5 minutes), to a file input `ref` or a drop target `coordinate`. Retry at
   most once, with a fresh screenshot.
