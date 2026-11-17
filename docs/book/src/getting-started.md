@@ -21,7 +21,10 @@ Linux Chrome: `~/.config/google-chrome/`).
 
 With more than one browser installed, profiles are listed as
 `<browser>:<dir>` (`chrome:Default`, `brave:Profile 1`), and a bare `Default`
-that two browsers share is refused until you say which. On Linux, opening a
+that two browsers share is refused until you say which. Each browser's
+native host knows which browser started it, so a `Default` in Chrome and a
+`Default` in Brave are never mixed up, and the settings page's default
+profile lists every browser's profiles. On Linux, opening a
 profile runs the browser's binary from `PATH` (`google-chrome-stable`,
 `google-chrome`, `chromium`, `brave-browser`, `microsoft-edge-stable`,
 `vivaldi-stable` and so on); set `BROWSER_HAND_BROWSER_BIN` to a path when

@@ -57,6 +57,13 @@ pub enum Frame {
         profile_dir: Option<String>,
         extension_version: String,
         instance: String,
+        /// The browser the host runs in (a key of `BROWSERS`), stamped by
+        /// the native host on the hellos it sends its clients; the
+        /// extension sends none. Absent from an older host or when the
+        /// host could not tell (`plans/15-browser-identity.md`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        browser: Option<String>,
     },
     Claimed {
         profile_dir: String,
@@ -111,8 +118,14 @@ pub enum Frame {
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct ProfileRef {
+    /// The directory name the browser uses (`Default`).
     pub dir: String,
     pub name: String,
+    /// What `sessions.default_profile` holds: `dir`, or `<browser>:<dir>`
+    /// when more than one browser is installed.
+    pub id: String,
+    /// The browser's display name (`Brave`).
+    pub browser: String,
 }
 
 /// Why a save was refused: the key at fault when there is one.

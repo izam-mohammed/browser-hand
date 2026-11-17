@@ -656,11 +656,19 @@ export class SettingsPage {
     const select = this.get<HTMLSelectElement>("default-profile");
     const profiles = s?.profiles ?? [];
     const want = d.sessions.default_profile;
+    // An older host sends no `id`: the dir is the value. The browser is named
+    // only when ids carry one (more than one browser is installed).
+    const idOf = (p: (typeof profiles)[number]) => p.id || p.dir;
     const options: [string, string][] = [
       ["", "Ask each time"],
-      ...profiles.map((p): [string, string] => [p.dir, p.name === p.dir ? p.name : `${p.name}`]),
+      ...profiles.map((p): [string, string] => [
+        idOf(p),
+        idOf(p) !== p.dir && p.browser ? `${p.name} (${p.browser})` : p.name,
+      ]),
     ];
-    if (want && !profiles.some((p) => p.dir === want)) options.push([want, `${want} (not found)`]);
+    // A stored bare dir stands for the first browser's profile with it.
+    const match = profiles.find((p) => idOf(p) === want) ?? profiles.find((p) => p.dir === want);
+    if (want && !match) options.push([want, `${want} (not found)`]);
     const key = JSON.stringify(options);
     if (select.dataset.options !== key) {
       select.replaceChildren(
@@ -668,7 +676,7 @@ export class SettingsPage {
       );
       select.dataset.options = key;
     }
-    this.setValue("default-profile", want);
+    this.setValue("default-profile", match ? idOf(match) : want);
     this.get("new-window").setAttribute("aria-checked", String(d.sessions.new_window));
     this.get("close-tabs").setAttribute("aria-checked", String(d.sessions.close_tabs_on_end));
   }

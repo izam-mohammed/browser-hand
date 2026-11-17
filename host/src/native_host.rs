@@ -25,16 +25,22 @@ type Tx = mpsc::UnboundedSender<Frame>;
 #[derive(Debug, Clone)]
 pub struct HostOptions {
     pub config: PathBuf,
-    pub chrome_dir: PathBuf,
+    pub roots: Vec<crate::profiles::Root>,
+    /// The browser this host runs in, from its parent process.
+    pub browser: Option<String>,
     /// How often to look for a change to the file.
     pub poll: Duration,
 }
 
 impl HostOptions {
     pub fn from_env() -> Self {
+        let roots = crate::profiles::roots();
+        let browser = crate::profiles::parent_identity(std::os::unix::process::parent_id(), &roots)
+            .map(String::from);
         HostOptions {
             config: crate::paths::config_path(),
-            chrome_dir: crate::profiles::chrome_dir(),
+            roots,
+            browser,
             poll: config::POLL,
         }
     }
@@ -75,12 +81,15 @@ impl Conf {
                 )
             }
         };
-        let profiles = crate::profiles::read_profiles(&self.opts.chrome_dir)
+        let profiles = crate::profiles::read_all(&self.opts.roots)
             .unwrap_or_default()
             .into_iter()
             .map(|p| ProfileRef {
+                browser: crate::profiles::browser(&p.browser)
+                    .map_or(p.browser.clone(), |b| b.name.to_owned()),
                 dir: p.dir,
                 name: p.name,
+                id: p.id,
             })
             .collect();
         self.sent = Some(revision.clone());
@@ -153,6 +162,8 @@ struct State {
     protocol: u32,
     profile_dir: Option<String>,
     extension_version: String,
+    /// The browser from the host's parent process, stamped on every hello.
+    browser: Option<String>,
     clients: HashMap<u64, Tx>,
     /// Host-wide call id -> (client, the client's own id).
     pending: HashMap<u64, (u64, u64)>,
@@ -168,6 +179,7 @@ impl State {
             profile_dir: self.profile_dir.clone(),
             extension_version: self.extension_version.clone(),
             instance: self.instance.clone(),
+            browser: self.browser.clone(),
         }
     }
 
@@ -195,6 +207,7 @@ where
         protocol: PROTOCOL,
         profile_dir: None,
         extension_version: String::new(),
+        browser: opts.browser.clone(),
         clients: HashMap::new(),
         pending: HashMap::new(),
         sessions: HashMap::new(),

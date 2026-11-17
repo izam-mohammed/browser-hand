@@ -80,3 +80,9 @@ and a TypeScript extension, with the tools Claude in Chrome has
 - [ ] `plans/14-chrome-parity-2.md` - Linux and other Chromium browsers,
   big reads kept in the conversation, and uploads that refuse credential
   files, from the 17/11/2026 reference refresh.
+
+### Phase 15: two browsers, one Default
+
+- [ ] `plans/15-browser-identity.md` - the native host says which browser it
+  runs in, matching and the default-profile list use `<browser>:<dir>`,
+  from the plan 14 follow-ups.

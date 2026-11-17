@@ -28,6 +28,7 @@ fn text(r: &CallToolResult) -> String {
 struct Setup {
     _tmp: tempfile::TempDir,
     server: Server,
+    sockets: std::path::PathBuf,
     launched: Arc<Mutex<Vec<String>>>,
 }
 
@@ -61,12 +62,13 @@ fn two_browsers() -> Setup {
                 dir: brave,
             },
         ],
-        sockets,
+        sockets.clone(),
         launch,
         opts,
     );
     Setup {
         _tmp: tmp,
+        sockets,
         server,
         launched,
     }
@@ -107,4 +109,103 @@ async fn a_bare_dir_two_browsers_share_is_refused_naming_both() {
         "{msg}"
     );
     assert!(s.launched.lock().unwrap().is_empty());
+}
+
+// Two hosts that both answer `Default`: the browser each states keeps them
+// apart (plans/15, decision 2).
+
+/// A host on `<sockets>/<n>.sock` that says hello as `dir`, stamped with
+/// `browser` (none: an older host or an unknown binary).
+fn host_in(sockets: &Path, n: u32, browser: Option<&str>, dir: &str) {
+    let listener = tokio::net::UnixListener::bind(sockets.join(format!("{n}.sock"))).unwrap();
+    let (chrome, host) = tokio::io::duplex(1 << 20);
+    let (hr, hw) = tokio::io::split(host);
+    let opts = browser_hand::native_host::HostOptions {
+        config: sockets.join("no-config.toml"),
+        roots: vec![browser_hand::profiles::Root {
+            browser: "chrome",
+            dir: sockets.join("no-chrome"),
+        }],
+        poll: std::time::Duration::from_secs(3600),
+        browser: browser.map(String::from),
+    };
+    tokio::spawn(browser_hand::native_host::run(
+        hr,
+        hw,
+        listener,
+        format!("inst-{n}"),
+        opts,
+    ));
+    let dir = dir.to_owned();
+    tokio::spawn(async move {
+        let (mut r, mut w) = tokio::io::split(chrome);
+        let hello = browser_hand::wire::Frame::Hello {
+            protocol: 1,
+            profile_dir: Some(dir),
+            extension_version: "0.1.0".into(),
+            instance: String::new(),
+            browser: None,
+        };
+        browser_hand::wire::write_frame(&mut w, &hello)
+            .await
+            .unwrap();
+        // Keep the "Chrome" end open and drain what the host sends.
+        while let Ok(Some(_)) = browser_hand::wire::read_frame(&mut r).await {}
+    });
+}
+
+async fn profile(s: &Setup, id: &str) -> Value {
+    let v: Value = serde_json::from_str(&text(&s.server.list_profiles().await.unwrap())).unwrap();
+    v["profiles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["dir"] == id)
+        .unwrap_or_else(|| panic!("no {id} in {v}"))
+        .clone()
+}
+
+#[tokio::test]
+async fn two_hosts_that_answer_default_each_count_for_their_own_browser() {
+    let s = two_browsers();
+    host_in(&s.sockets, 1, Some("chrome"), "Default");
+    host_in(&s.sockets, 2, Some("brave"), "Default");
+    for id in ["chrome:Default", "brave:Default"] {
+        let p = profile(&s, id).await;
+        assert_eq!(p["connected"], true, "{p}");
+        assert!(p.get("warning").is_none(), "{p}");
+    }
+    assert_eq!(profile(&s, "brave:Profile 1").await["connected"], false);
+}
+
+#[tokio::test]
+async fn a_host_of_one_browser_does_not_connect_the_other_browsers_profile() {
+    let s = two_browsers();
+    host_in(&s.sockets, 1, Some("chrome"), "Default");
+    assert_eq!(profile(&s, "chrome:Default").await["connected"], true);
+    assert_eq!(profile(&s, "brave:Default").await["connected"], false);
+}
+
+#[tokio::test]
+async fn a_host_that_states_no_browser_still_matches_by_dir() {
+    let s = two_browsers();
+    host_in(&s.sockets, 1, None, "Default");
+    assert_eq!(profile(&s, "chrome:Default").await["connected"], true);
+    assert_eq!(profile(&s, "brave:Default").await["connected"], true);
+}
+
+#[tokio::test]
+async fn select_profile_opens_the_browser_asked_for_not_the_one_already_up() {
+    let s = two_browsers();
+    host_in(&s.sockets, 1, Some("chrome"), "Default");
+    let args = serde_json::from_value(json!({ "profile": "brave:Default" })).unwrap();
+    let _ = s
+        .server
+        .select_profile(rmcp::handler::server::wrapper::Parameters(args))
+        .await
+        .unwrap();
+    assert_eq!(
+        s.launched.lock().unwrap().first().map(String::as_str),
+        Some("brave:Default")
+    );
 }

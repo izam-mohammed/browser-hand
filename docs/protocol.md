@@ -32,12 +32,12 @@ result   {"type":"result","id":u64,"ok":true,"content":[Content...]}
          {"type":"result","id":u64,"ok":false,"error":{"code":"<code>","message":"..."}}
 Content  {"type":"text","text":"..."}
          {"type":"image","data":"<base64>","mimeType":"image/png","imageId":"<id>"}
-hello    {"type":"hello","protocol":1,"profileDir":"<dir>"|null,"extensionVersion":"x.y.z","instance":"<uuid>"}
+hello    {"type":"hello","protocol":1,"profileDir":"<dir>"|null,"extensionVersion":"x.y.z","instance":"<uuid>","browser"?:"<key>"}
 claimed  {"type":"claimed","profileDir":"<dir>","nonce":"<n>"}
 chunk    {"type":"chunk","id":u64,"seq":u32,"last":bool,"data":"<base64>"}
 end      {"type":"end","session":"<uuid>"}
 settings        {"type":"settings","settings":{...},"revision":"<mtime ns>","path":"<abs>",
-                 "profiles":[{"dir","name"}],"warnings":["<key>: ..."]}
+                 "profiles":[{"dir","name","id","browser"}],"warnings":["<key>: ..."]}
 settings_set    {"type":"settings_set","id":u64,"settings":{...},"revision":"<base>"}
 settings_saved  {"type":"settings_saved","id":u64,"ok":bool,"path"?:"<abs>",
                  "error"?:{"field":"<key>"|null,"message":"..."}}
@@ -56,6 +56,21 @@ skipped; the stream continues.
   else `null`) when its port opens. The host answers each socket client with
   a `hello` at once, using the extension's fields and the host's own
   `instance`, and sends a fresh `hello` to every client when they change.
+  It also stamps `browser`, the key (`chrome`, `chromium`, `edge`, `brave`,
+  `vivaldi`) of the browser it runs in. The host learns it once, from its
+  parent process: the `--user-data-dir` of the process that started it,
+  compared with each installed browser's data dir, else the binary's name
+  (Linux reads `/proc`, macOS `proc_pidpath`). It is left out when the host
+  cannot tell, or when that browser's profiles are not listed. The extension
+  sends no `browser`, and one it did send would be ignored.
+- **Which browser a profile is in.** `<browser>:<dir>` ids name a profile
+  when more than one browser is installed (`host/src/profiles.rs`). A client
+  counts a host for a profile when the `profileDir` is equal and the host's
+  `browser` is absent or the profile's browser, so a `Default` in Chrome and
+  one in Brave stay apart, and an older host (no `browser`) matches by dir
+  as before. The `settings` frame's `profiles` list every installed browser's
+  profiles: `id` is what `sessions.default_profile` holds, `browser` is the
+  browser's display name.
 - **Claim.** `claim.html#dir=<dir>&nonce=<n>` opened in a profile makes the
   extension store `dir` and send `claimed`, then a new `hello`. The host
   forwards `claimed` to its clients.
@@ -126,3 +141,14 @@ them as unknown, so `protocol` stays 1: an older host never answers
 and `replay_step` carry `pace` only when the MCP server has
 `BROWSER_HAND_PACE` set; without it the extension uses the settings'
 pace.
+
+Fields added since protocol 1 shipped (`plans/15-browser-identity.md`):
+`hello.browser`, and `id` and `browser` on each `settings` profile. Every
+pairing of old and new works, none needing a version bump:
+
+| Host | Extension or MCP server | Result |
+| --- | --- | --- |
+| newer (stamps `browser`) | older extension | works: the host stamps, the extension sends none |
+| newer | older MCP server | the field is ignored; matching is by dir as before |
+| older (no `browser`) | newer MCP server | a hello without `browser` matches by dir |
+| older (no `id`, `browser` on profiles) | newer settings page | the page offers each profile by `dir` |

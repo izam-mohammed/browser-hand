@@ -209,6 +209,149 @@ fn an_unreadable_browser_is_skipped_while_another_reads() {
     assert!(profiles::read_all(&[bad]).is_err());
 }
 
+// Which browser a host runs in (plans/15, decision 1).
+
+fn roots_of(pairs: &[(&'static str, &str)]) -> Vec<Root> {
+    pairs
+        .iter()
+        .map(|(browser, dir)| Root {
+            browser,
+            dir: dir.into(),
+        })
+        .collect()
+}
+
+#[test]
+fn the_user_data_dir_decides_before_the_binary() {
+    let roots = roots_of(&[("edge", "/h/.config/edge"), ("brave", "/h/.config/brave")]);
+    // One binary, two data dirs: the dir tells them apart.
+    let exe = Some(Path::new("/opt/cft/chrome"));
+    assert_eq!(
+        profiles::identify(exe, Some(Path::new("/h/.config/brave")), &roots),
+        Some("brave")
+    );
+    assert_eq!(
+        profiles::identify(exe, Some(Path::new("/h/.config/edge/")), &roots),
+        Some("edge")
+    );
+}
+
+#[test]
+fn the_binary_name_decides_when_the_dir_is_none_or_unknown() {
+    let roots = roots_of(&[("chrome", "/h/c")]);
+    for (exe, want) in [
+        ("/opt/google/chrome/chrome", "chrome"),
+        ("/opt/brave.com/brave/brave", "brave"),
+        ("/opt/vivaldi/vivaldi-bin", "vivaldi"),
+        ("/opt/microsoft/msedge/msedge", "edge"),
+        ("/usr/lib/chromium/chromium", "chromium"),
+        (
+            "/snap/chromium/9/usr/lib/chromium-browser/chrome",
+            "chromium",
+        ),
+        ("/tmp/cft/chrome-linux64/chrome", "chrome"),
+        (
+            "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+            "brave",
+        ),
+        (
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "edge",
+        ),
+        (
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "chrome",
+        ),
+    ] {
+        assert_eq!(
+            profiles::identify(Some(Path::new(exe)), None, &roots),
+            Some(want),
+            "{exe}"
+        );
+        assert_eq!(
+            profiles::identify(Some(Path::new(exe)), Some(Path::new("/elsewhere")), &roots),
+            Some(want),
+            "{exe} with an unknown dir"
+        );
+    }
+}
+
+#[test]
+fn nothing_known_says_nothing() {
+    let roots = roots_of(&[("chrome", "/h/c")]);
+    assert_eq!(profiles::identify(None, None, &roots), None);
+    assert_eq!(
+        profiles::identify(Some(Path::new("/usr/bin/env")), None, &roots),
+        None
+    );
+}
+
+#[test]
+fn a_hostile_path_cannot_name_a_browser() {
+    let roots = roots_of(&[("chrome", "/h/c")]);
+    // Only the file name, its folder and `.app` parts count, never a home
+    // folder or an argument that happens to say brave.
+    for exe in [
+        "/home/brave/bin/runner",
+        "/tmp/x brave/run",
+        "/tmp/vivaldi/x/y/z",
+    ] {
+        assert_eq!(
+            profiles::identify(Some(Path::new(exe)), None, &roots),
+            None,
+            "{exe}"
+        );
+    }
+}
+
+#[test]
+fn the_user_data_dir_flag_is_found_in_a_command_line() {
+    let args = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    assert_eq!(
+        profiles::user_data_dir_arg(&args(&["chrome", "--user-data-dir=/a b", "x"])),
+        Some("/a b".into())
+    );
+    assert_eq!(
+        profiles::user_data_dir_arg(&args(&["chrome", "--user-data-dir", "/c", "x"])),
+        Some("/c".into())
+    );
+    assert_eq!(
+        profiles::user_data_dir_arg(&args(&["chrome", "https://u"])),
+        None
+    );
+    // Chromium rewrites its process title: one space-joined word.
+    assert_eq!(
+        profiles::user_data_dir_arg(&args(&[
+            "/o/chrome --headless=new --user-data-dir=/a b/c --profile-directory=Default x"
+        ])),
+        Some("/a b/c".into())
+    );
+    assert_eq!(
+        profiles::user_data_dir_arg(&args(&["/o/chrome --user-data-dir=/last"])),
+        Some("/last".into())
+    );
+}
+
+#[test]
+fn a_browser_whose_profiles_are_not_listed_is_not_stamped() {
+    let roots = roots_of(&[("chrome", "/h/c")]);
+    assert_eq!(profiles::in_roots(Some("chrome"), &roots), Some("chrome"));
+    assert_eq!(profiles::in_roots(Some("brave"), &roots), None);
+    assert_eq!(profiles::in_roots(None, &roots), None);
+}
+
+#[test]
+fn a_parent_that_is_gone_gives_no_identity() {
+    assert_eq!(profiles::parent_identity(u32::MAX, &[]), None);
+}
+
+#[test]
+fn the_parent_of_this_process_is_read_without_error() {
+    // The test runner's parent (cargo or a shell) is no browser.
+    let ppid = std::os::unix::process::parent_id();
+    assert_eq!(profiles::parent_identity(ppid, &[]), None);
+}
+
 #[test]
 fn browser_dirs_come_from_home_never_from_a_profile_name() {
     let home = Path::new("/home/u");
