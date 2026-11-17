@@ -109,7 +109,7 @@ async fn a_call_gets_its_result_and_a_new_hello_updates_the_info() {
 }
 
 #[tokio::test]
-async fn a_silent_host_times_out_and_a_host_that_leaves_disconnects() {
+async fn a_silent_host_times_out_and_a_host_that_hangs_up_cuts_the_call_off() {
     let dir = tempfile::tempdir().unwrap();
 
     let slow = dir.path().join("slow.sock");
