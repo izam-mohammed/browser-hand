@@ -201,14 +201,37 @@ fn settings_page() -> String {
          key in the file; the second is what the settings page calls it.\n\n",
     );
     let mut seen = Vec::new();
+    // serde_json sorts keys alphabetically, so the settings page's order
+    // comes from LABELS: sections by first appearance, keys in list order.
+    let mut order: Vec<&str> = Vec::new();
+    for (path, _) in LABELS {
+        let section = path.split('.').next().unwrap();
+        if !order.contains(&section) {
+            order.push(section);
+        }
+    }
     for (section, sref) in schema["properties"].as_object().unwrap() {
+        let is_table = resolve(&schema, sref).get("properties").is_some();
+        assert!(
+            !is_table || order.contains(&section.as_str()),
+            "add a `{section}.*` key to LABELS in host/tests/docs.rs"
+        );
+    }
+    for section in order {
+        let sref = &schema["properties"][section];
         let s = resolve(&schema, sref);
         let Some(props) = s.get("properties").and_then(Value::as_object) else {
             continue;
         };
         let _ = writeln!(out, "## `[{section}]`\n");
         out.push_str("| Key | Settings page | Type | Default | What it does |\n| --- | --- | --- | --- | --- |\n");
-        for (key, p) in props {
+        let keys = LABELS
+            .iter()
+            .filter_map(|(path, _)| path.strip_prefix(section).and_then(|k| k.strip_prefix('.')));
+        for key in keys {
+            let p = props.get(key).unwrap_or_else(|| {
+                panic!("LABELS names `{section}.{key}`, which Settings no longer has")
+            });
             let path = format!("{section}.{key}");
             let label = LABELS
                 .iter()
