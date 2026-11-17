@@ -156,9 +156,13 @@ settings' "Detach after idle").
 ## Tests
 
 ```sh
-cargo test --manifest-path host/Cargo.toml   # also regenerates extension/src/wire.gen.ts
-npm --prefix extension test
+make check   # format, lint, types, tests, release build, advisories, secrets
 ```
+
+`make lint`, `make test`, `make coverage` and `make security` run one part
+each; `docs/standards.md` lists every check and what it needs installed
+(`gitleaks`, `osv-scanner`). `cargo test` also regenerates
+`extension/src/wire.gen.ts`.
 
 Proofs that the external pieces behave as documented live in
 `scripts/prove/`; each prints `PASS` or `FAIL`. Two of them need you at

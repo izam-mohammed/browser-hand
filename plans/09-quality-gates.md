@@ -265,20 +265,31 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the rough cut: one command runs every check that exists (needs you: try it)
 
-- [ ] `make check` runs rustfmt in check mode, Clippy with `-D warnings`,
+- [x] `make check` runs rustfmt in check mode, Clippy with `-D warnings`,
   tsc, `cargo test`, `vitest run`, the release build, osv-scanner over both
   lockfiles and gitleaks over the history, stopping at the first failure
   (expected in `Makefile`), with `lint`, `test`, `coverage` and
   `security` as their own targets.
-- [ ] The shared gate is called on every PR and weekly with
+  Landed 2026-11-17: the release build is `cargo build --release` plus
+  `npm run build`, not `scripts/build.sh`, which also installs the native
+  host into Chrome. osv-scanner reads `osv-scanner.toml` (two advisories
+  accepted with reasons: rmcp's HTTP client, unused here and pinned to
+  `~3.8`; unmaintained `ttf-parser`, no fix); `.gitleaksignore` lists four
+  extension-manifest public keys read as API keys. `rustix` bumped to 1.1.6
+  in `host/Cargo.lock`.
+- [x] The shared gate is called on every PR and weekly with
   `ecosystem: node`, pinned by SHA (expected in
   `.github/workflows/security.yml`), with Dependabot for cargo, npm and
   actions (`.github/dependabot.yml`) and the baseline hooks
   (`.pre-commit-config.yaml`) copied from `repo-template`.
-- [ ] `docs/standards.md` lists every check with its command and makes
+- [x] `docs/standards.md` lists every check with its command and makes
   `make check` the one command; README's Tests section points at it.
-- [ ] Check: `make check` passes on this branch, and `make security` fails
+- [x] Check: `make check` passes on this branch, and `make security` fails
   on a fake key planted in a scratch copy (never committed).
+  Landed 2026-11-17: `make check` passed (about 2 minutes on a loaded
+  machine). The plant was an uncommitted file scanned with `gitleaks dir`
+  (found); `make security` itself scans history, so it fails only once a
+  key is committed, and the pre-commit hook catches it before that.
 - [ ] You try it: run `make check` from the repository root and say whether
   its output and run time are what you want from it. What you want changed
   goes into the phases below.

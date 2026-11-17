@@ -1,6 +1,7 @@
 # browser-hand: what every change passes
 
-Run everything: `npm --prefix extension test && cargo test --manifest-path host/Cargo.toml && sh scripts/build.sh`.
+Run everything: `make check`. It stops at the first failure; `make lint`,
+`make test`, `make coverage` and `make security` run one part each.
 A change is done when it passes locally and on its pull request, where
 `.github/workflows/ci.yml` runs the checks below (since commit `b3bbd13`).
 
@@ -12,20 +13,25 @@ A change is done when it passes locally and on its pull request, where
 | Node | 24.9.0 | not pinned |
 | npm packages | TypeScript 7.0.2, vitest 5.0.5, esbuild 0.28.2, jsdom 30.1.3 | `extension/package-lock.json`, committed |
 | Rust crates | | `host/Cargo.lock`, committed |
+| gitleaks, osv-scanner | 8.30.1, 2.7.1 | local tools for `make security`, installed by hand (`go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`) |
 | Chrome | 155 (minimum 120) | `extension/manifest.json` `minimum_chrome_version` |
 
 ## Checks
 
 | Check | Tool | Config | Command | Passing means |
 | --- | --- | --- | --- | --- |
-| Rust format | rustfmt | defaults | `cargo fmt --manifest-path host/Cargo.toml --check` | no diff (CI only today) |
-| Rust lint | Clippy | defaults | `cargo clippy --manifest-path host/Cargo.toml --all-targets --locked -- -D warnings` | no warnings (CI only today) |
+| Everything | make | `Makefile` | `make check` | lint, test, build and security all pass |
+| Rust format | rustfmt | defaults | `cargo fmt --manifest-path host/Cargo.toml --check` | no diff |
+| Rust lint | Clippy | defaults | `cargo clippy --manifest-path host/Cargo.toml --all-targets --locked -- -D warnings` | no warnings |
 | Types | tsc | `extension/tsconfig.json` | `npm --prefix extension run typecheck` | no errors |
 | Extension unit tests | vitest + jsdom | `extension/package.json` | `npm --prefix extension test` (runs tsc first) | all pass |
 | Host tests | cargo test | `host/Cargo.toml`, root `.cargo/config.toml` | `cargo test --manifest-path host/Cargo.toml` | all pass; also regenerates `extension/src/wire.gen.ts` |
 | Host coverage | cargo-llvm-cov | `.github/workflows/ci.yml` | `cargo llvm-cov --locked --summary-only --fail-under-lines 70` in `host/` | lines at or over 70 % |
 | Extension coverage | vitest, `@vitest/coverage-v8` | `extension/vitest.config.mjs` | `npm --prefix extension run coverage` | lines at or over 65 % |
 | Build | cargo, esbuild | `scripts/build.sh` | `sh scripts/build.sh` | builds and installs the native host |
+| Build | cargo, esbuild | `Makefile` | `make build` | release host and extension build, no native-host install |
+| Dependency advisories | osv-scanner | none | `osv-scanner scan source --config osv-scanner.toml -L host/Cargo.lock -L extension/package-lock.json` | no advisory (also `make security`) |
+| Secrets | gitleaks | none | `gitleaks git . --redact --verbose` | none in the history (also `make security`; hook in `.pre-commit-config.yaml`) |
 | Proofs | sh | `scripts/prove/` | `sh scripts/prove/<name>.sh` | prints `PASS` (needs Chrome and a person) |
 
 ## Tests
@@ -37,9 +43,9 @@ test: `npx --prefix extension vitest run test/page.test.ts`, or
 
 ## Constraints
 
-No TypeScript formatter or linter, dependency audit, secret scan or static
-analysis is run today, and there is no one local command for every check;
-`plans/09-quality-gates.md` plans them. Anything that needs a real Chrome
+No TypeScript formatter or linter and no static analysis of the Rust is run
+locally yet (the CI security gate runs Semgrep's node packs);
+`plans/09-quality-gates.md` plans the rest. Anything that needs a real Chrome
 is a proof script or a walk with a person, because the extension's input and debugger paths do
 not run in jsdom. `KNOWLEDGE.md` lists the traps (vitest's native binding,
 cargo config lookup, classic content scripts).
@@ -50,6 +56,12 @@ Commits: lowercase subject, `area ~ what` (see `git log`), no attribution
 lines. Plans follow the project-planner standard in `plans/`.
 
 ## CI
+
+`.github/workflows/security.yml` calls the shared gate in
+`izam-mohammed/.github` on every pull request and weekly, with
+`ecosystem: node` (it has no Rust value; its osv-scanner stage still reads
+`host/Cargo.lock`), pinned by SHA. `.github/dependabot.yml` updates cargo,
+npm and actions.
 
 `.github/workflows/ci.yml` runs on every pull request and push to `main`,
 read-only: the host job (rustfmt, Clippy, release build, tests with
