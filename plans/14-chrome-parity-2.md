@@ -102,7 +102,7 @@ directory), the Chromium `Local State` format shared by Chromium browsers.
 | Performance efficiency | 40 | 5 | 4 |
 | Fewest steps for the person | 40 | 2 | 5 |
 | Predictable profile ids | 20 | 5 | 3 |
-| **Weighted total** | **100** | **4.00** | **4.20** |
+| **Weighted total** | **100** | **3.80** | **4.20** |
 
 - Every browser 4: one `Local State` read per known browser dir, only those
   that exist; the list is read per `list_profiles` call, not per tool call.
@@ -132,7 +132,7 @@ Searched 17/11/2026: `docs/external/rmcp.md` (`#[tool(meta = ...)]`,
 | Performance efficiency | 40 | 5 | 5 |
 | Stays with the tool it describes | 40 | 5 | 2 |
 | Survives an rmcp upgrade | 20 | 4 | 3 |
-| **Weighted total** | **100** | **4.80** | **3.80** |
+| **Weighted total** | **100** | **4.80** | **3.40** |
 
 - Efficiency 5 for both: built once at start-up.
 
