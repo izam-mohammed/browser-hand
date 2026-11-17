@@ -241,14 +241,14 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: big reads stay in the conversation
 
-- [ ] Tests first: `tools/list` carries `_meta` `anthropic/maxResultSizeChars`
+- [x] Tests first: `tools/list` carries `_meta` `anthropic/maxResultSizeChars`
   60000 on `read_page`, `get_page_text`, `javascript_tool`, `browser_batch`
   and a `title` on the three tabs tools (`host/tests/`).
-- [ ] The `meta` and `title` set on those tools (expected in
+- [x] The `meta` and `title` set on those tools (expected in
   `host/src/mcp.rs`), per decision 3.
-- [ ] `UPDATE_DOCS=1 cargo test --manifest-path host/Cargo.toml --test docs`
-  run if the reference pages change.
-- [ ] Check: `make check` passes.
+- [x] `UPDATE_DOCS=1 cargo test --manifest-path host/Cargo.toml --test docs`
+  run: the reference pages did not change (meta and title are not rendered there).
+- [x] Check: `make check` passes.
 
 ### Phase 3: uploads refuse credential files
 
