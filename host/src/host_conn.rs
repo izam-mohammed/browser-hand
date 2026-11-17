@@ -57,8 +57,10 @@ pub async fn probe(path: &Path, wait: Duration) -> io::Result<HelloInfo> {
 /// Why a call produced no result frame.
 #[derive(Debug)]
 pub enum CallError {
-    /// The host went away; the connection is dead.
+    /// The host was gone before the call was sent; nothing ran.
     Disconnected,
+    /// The host went away after the call was sent; the action may have run.
+    CutOff,
     TimedOut,
 }
 
@@ -163,7 +165,7 @@ impl HostConn {
         }
         match tokio::time::timeout(wait, result).await {
             Ok(Ok(frame)) => Ok(frame),
-            Ok(Err(_)) => Err(CallError::Disconnected),
+            Ok(Err(_)) => Err(CallError::CutOff),
             Err(_) => {
                 self.pending.lock().unwrap().remove(&id);
                 Err(CallError::TimedOut)
@@ -185,6 +187,13 @@ pub fn call_error_frame(e: CallError, tool: &str, wait: Duration) -> Frame {
             0,
             ErrorCode::NotConnected,
             "The browser connection closed. Chrome or the extension may have restarted; call list_profiles and select_profile again.",
+        ),
+        CallError::CutOff => Frame::err(
+            0,
+            ErrorCode::NotConnected,
+            format!(
+                "The browser connection closed while {tool} was running, so it may have run. Look at the page (a screenshot or read_page) before repeating it; Chrome or the extension may have restarted, so call list_profiles and select_profile again if the next call fails."
+            ),
         ),
         CallError::TimedOut => Frame::err(0, ErrorCode::Timeout, format!("{tool} did not answer within {} s", wait.as_secs())),
     }
