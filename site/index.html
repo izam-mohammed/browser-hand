@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>browser-hand</title>
+<meta name="description" content="browser-hand lets claude code drive your own chrome profiles, with a hand that moves like a person's">
+<style>
+  :root {
+    --bg: #FAFAF9;
+    --surface: #FFFFFF;
+    --border: #E4E4E0;
+    --text: #1C1C1A;
+    --text2: #57574F;
+    --accent: #D97706;
+    --accent-text: #B45309;
+    --on-accent: #1C1C1A;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0F1012;
+      --surface: #17181B;
+      --border: #2C2D32;
+      --text: #ECECEA;
+      --text2: #A8A8A1;
+      --accent: #F59E0B;
+      --accent-text: #FBBF24;
+      --on-accent: #1C1C1A;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 Inter, ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+  }
+  .frame { width: min(60rem, 100% - 32px); padding: 24px 0 20px; display: flex; flex-direction: column; gap: 20px; }
+  .art { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); }
+  .art.dark { display: none; }
+  @media (prefers-color-scheme: dark) {
+    .art.light { display: none; }
+    .art.dark { display: block; }
+  }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .pitch { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .pitch p { max-width: 38rem; color: var(--text2); }
+  .pitch p.lead { color: var(--text); font-size: 20px; line-height: 1.35; font-weight: 600; }
+  .button {
+    display: inline-block; margin-top: 4px; padding: 10px 20px; border-radius: 8px;
+    background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 16px;
+  }
+  .note { font-size: 14px; }
+  .does { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .does li { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 14px; color: var(--text2); }
+  .does b { display: block; color: var(--text); font-size: 16px; margin-bottom: 2px; }
+  footer { font-size: 14px; color: var(--text2); text-align: center; }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent-text); }
+  @media (max-width: 720px) { .does { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 440px) { .does { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="frame">
+<main>
+<h1 class="sr">browser-hand</h1>
+<svg class="art light" viewBox="0 0 1280 360" role="img" aria-label="browser-hand: three chrome profiles as little browser-window people. work holds coffee and sighs not again, personal wears sunglasses with an orange browser-hand tab group, and the bank holds a read-only sign saying you can look, no touching. claude floats above, asking whoever's awake, and steers the cursor down a curved path that overshoots before it lands">
+  <title>browser-hand</title>
+  <rect fill="#FAFAF9"/>
+
+  <!-- the title -->
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="48" y="122" font-size="54" font-weight="800" fill="#1C1C1A">browser-hand</text>
+    <text x="50" y="160" font-size="19" fill="#57574F">claude drives your own chrome profiles.</text>
+    <text x="50" y="186" font-size="19" fill="#57574F">with a hand. it has hands now.</text>
+    <text x="50" y="224" font-size="19" font-style="italic" fill="#DC2626">straight mouse lines are for bots.</text>
+    <text x="50" y="288" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#8A8A82">mcp + extension ~ one native host per profile</text>
+  </g>
+
+  <!-- the scene -->
+  <g>
+    <!-- the floor -->
+    <rect x="452" y="336" width="700" height="3" rx="1.5" fill="#E4E4E0"/>
+
+    <!-- profile: work -->
+    <g transform="translate(470 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#2A2A28" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#2A2A28"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#2A2A28"/>
+      <path d="M200 92 q22 6 26 30" stroke="#2A2A28" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <rect x="216" y="118" width="22" height="24" rx="4" fill="#B45309"/>
+      <path d="M238 124 q9 2 0 12" stroke="#B45309" stroke-width="3" fill="none"/>
+      <path d="M222 114 q3 -8 0 -14 M230 114 q3 -8 0 -14" stroke="#8A8A82" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <rect width="200" height="170" rx="12" fill="#FFFFFE" stroke="#E4E4E0" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#F4F4F2"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="96" height="20" rx="6" fill="#FFFFFE"/>
+      <text x="104" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#57574F" text-anchor="middle">work · 47 tabs</text>
+      <path d="M58 82 h24 M118 82 h24" stroke="#2A2A28" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="70" cy="90" r="5" fill="#2A2A28"/><circle cx="130" cy="90" r="5" fill="#2A2A28"/>
+      <path d="M82 124 h36" stroke="#2A2A28" stroke-width="4" stroke-linecap="round"/>
+      <path d="M100 136 l-8 10 l8 22 l8 -22 z" fill="#2563EB"/>
+    </g>
+
+    <!-- profile: personal -->
+    <g transform="translate(720 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#2A2A28" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#2A2A28"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#2A2A28"/>
+      <rect width="200" height="170" rx="12" fill="#FFFFFE" stroke="#E4E4E0" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#F4F4F2"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="90" height="20" rx="6" fill="#D97706"/>
+      <text x="101" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#1C1C1A" text-anchor="middle">browser-hand</text>
+      <path d="M48 80 h104" stroke="#2A2A28" stroke-width="4"/>
+      <rect x="50" y="76" width="44" height="26" rx="10" fill="#111111" stroke="#2A2A28" stroke-width="2"/>
+      <rect x="106" y="76" width="44" height="26" rx="10" fill="#111111" stroke="#2A2A28" stroke-width="2"/>
+      <path d="M58 82 l10 0" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+      <path d="M78 122 q22 18 44 0" stroke="#2A2A28" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <text x="100" y="160" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#8A8A82" text-anchor="middle">youtube, 3 h</text>
+    </g>
+
+    <!-- profile: bank -->
+    <g transform="translate(970 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#2A2A28" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#2A2A28"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#2A2A28"/>
+      <rect width="200" height="170" rx="12" fill="#FFFFFE" stroke="#E4E4E0" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#F4F4F2"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="80" height="20" rx="6" fill="#FFFFFE"/>
+      <text x="96" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#57574F" text-anchor="middle">bank</text>
+      <circle cx="70" cy="86" r="13" fill="#ffffff" stroke="#2A2A28" stroke-width="3"/><circle cx="70" cy="86" r="4" fill="#2A2A28"/>
+      <circle cx="130" cy="86" r="13" fill="#ffffff" stroke="#2A2A28" stroke-width="3"/><circle cx="130" cy="86" r="4" fill="#2A2A28"/>
+      <path d="M54 64 l26 6 M146 64 l-26 6" stroke="#2A2A28" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="100" cy="128" rx="10" ry="12" fill="#2A2A28"/>
+      <path d="M172 56 q6 9 0 14 q-6 -5 0 -14z" fill="#60A5FA"/>
+      <path d="M200 100 q24 -2 46 -26" stroke="#2A2A28" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <rect x="248" y="22" width="4" height="58" fill="#8A8A82"/>
+      <g transform="rotate(6 250 30)">
+        <rect x="206" y="4" width="92" height="40" rx="6" fill="#DC2626"/>
+        <text x="252" y="22" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="12" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="1">READ-ONLY</text>
+        <text x="252" y="36" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">*.bank.com/*</text>
+      </g>
+    </g>
+
+    <!-- what they say -->
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="470" y="96" width="104" height="34" rx="12" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M512 129 L520 142 L528 129" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="513" y="127" width="14" height="4" fill="#ffffff"/>
+      <text x="522" y="118" fill="#1C1C1A" text-anchor="middle">not again</text>
+
+    </g>
+
+    <!-- claude, steering -->
+    <g transform="translate(616 34)">
+      <rect width="62" height="52" rx="18" fill="#D97706"/>
+      <circle cx="22" cy="22" r="7" fill="#ffffff"/><circle cx="25" cy="25" r="3.5" fill="#1C1C1A"/>
+      <circle cx="42" cy="22" r="7" fill="#ffffff"/><circle cx="45" cy="25" r="3.5" fill="#1C1C1A"/>
+      <path d="M22 38 q10 7 20 0" stroke="#1C1C1A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </g>
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="430" y="18" width="172" height="52" rx="14" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M601 38 L614 46 L601 52" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="598" y="39" width="5" height="12" fill="#ffffff"/>
+      <text x="516" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#B45309" text-anchor="middle">select_profile(</text>
+      <text x="516" y="58" fill="#1C1C1A" text-anchor="middle">whoever's awake)</text>
+    </g>
+
+    <!-- the hand's path: curved, overshoots, comes back -->
+    <path d="M684 70 C780 40 912 30 902 120 C898 150 888 172 872 170 C864 169 864 162 872 160" stroke="#D97706" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round" fill="none"/>
+    <g transform="translate(868 156)">
+      <path d="M0 0 L0 26 L7 20 L12 31 L17 29 L12 18 L21 18 Z" fill="#1C1C1A" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+    </g>
+    <text x="914" y="70" font-family="'Marker Felt', 'Chalkboard SE', 'Comic Sans MS', cursive" font-size="15" fill="#B45309">overshot. like you do</text>
+    <path d="M912 74 q-8 10 -10 26" stroke="#B45309" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+    <!-- the bank's line -->
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="1000" y="96" width="140" height="34" rx="12" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M1046 129 L1054 142 L1062 129" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="1047" y="127" width="14" height="4" fill="#ffffff"/>
+      <text x="1070" y="118" fill="#1C1C1A" text-anchor="middle">look. no touching.</text>
+    </g>
+  </g>
+</svg>
+<svg class="art dark" viewBox="0 0 1280 360" role="img" aria-label="browser-hand: three chrome profiles as little browser-window people. work holds coffee and sighs not again, personal wears sunglasses with an orange browser-hand tab group, and the bank holds a read-only sign saying you can look, no touching. claude floats above, asking whoever's awake, and steers the cursor down a curved path that overshoots before it lands">
+  <title>browser-hand</title>
+  <rect fill="#0F1012"/>
+
+  <!-- the title -->
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="48" y="122" font-size="54" font-weight="800" fill="#ECECEA">browser-hand</text>
+    <text x="50" y="160" font-size="19" fill="#A8A8A1">claude drives your own chrome profiles.</text>
+    <text x="50" y="186" font-size="19" fill="#A8A8A1">with a hand. it has hands now.</text>
+    <text x="50" y="224" font-size="19" font-style="italic" fill="#F87171">straight mouse lines are for bots.</text>
+    <text x="50" y="288" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6F6F69">mcp + extension ~ one native host per profile</text>
+  </g>
+
+  <!-- the scene -->
+  <g>
+    <!-- the floor -->
+    <rect x="452" y="336" width="700" height="3" rx="1.5" fill="#2C2D32"/>
+
+    <!-- profile: work -->
+    <g transform="translate(470 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#ECECEA" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#ECECEA"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#ECECEA"/>
+      <path d="M200 92 q22 6 26 30" stroke="#ECECEA" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <rect x="216" y="118" width="22" height="24" rx="4" fill="#B45309"/>
+      <path d="M238 124 q9 2 0 12" stroke="#B45309" stroke-width="3" fill="none"/>
+      <path d="M222 114 q3 -8 0 -14 M230 114 q3 -8 0 -14" stroke="#8A8A82" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <rect width="200" height="170" rx="12" fill="#17181B" stroke="#2C2D32" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#1F2024"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="96" height="20" rx="6" fill="#17181B"/>
+      <text x="104" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#A8A8A1" text-anchor="middle">work · 47 tabs</text>
+      <path d="M58 82 h24 M118 82 h24" stroke="#ECECEA" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="70" cy="90" r="5" fill="#ECECEA"/><circle cx="130" cy="90" r="5" fill="#ECECEA"/>
+      <path d="M82 124 h36" stroke="#ECECEA" stroke-width="4" stroke-linecap="round"/>
+      <path d="M100 136 l-8 10 l8 22 l8 -22 z" fill="#2563EB"/>
+    </g>
+
+    <!-- profile: personal -->
+    <g transform="translate(720 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#ECECEA" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#ECECEA"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#ECECEA"/>
+      <rect width="200" height="170" rx="12" fill="#17181B" stroke="#2C2D32" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#1F2024"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="90" height="20" rx="6" fill="#D97706"/>
+      <text x="101" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#1C1C1A" text-anchor="middle">browser-hand</text>
+      <path d="M48 80 h104" stroke="#ECECEA" stroke-width="4"/>
+      <rect x="50" y="76" width="44" height="26" rx="10" fill="#111111" stroke="#ECECEA" stroke-width="2"/>
+      <rect x="106" y="76" width="44" height="26" rx="10" fill="#111111" stroke="#ECECEA" stroke-width="2"/>
+      <path d="M58 82 l10 0" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+      <path d="M78 122 q22 18 44 0" stroke="#ECECEA" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <text x="100" y="160" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#8A8A82" text-anchor="middle">youtube, 3 h</text>
+    </g>
+
+    <!-- profile: bank -->
+    <g transform="translate(970 150)">
+      <path d="M70 168 v14 M130 168 v14" stroke="#ECECEA" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="64" cy="184" rx="12" ry="5" fill="#ECECEA"/><ellipse cx="136" cy="184" rx="12" ry="5" fill="#ECECEA"/>
+      <rect width="200" height="170" rx="12" fill="#17181B" stroke="#2C2D32" stroke-width="2"/>
+      <path d="M0 12a12 12 0 0 1 12-12h176a12 12 0 0 1 12 12v18H0z" fill="#1F2024"/>
+      <circle cx="16" cy="15" r="4" fill="#ff5f57"/><circle cx="29" cy="15" r="4" fill="#febc2e"/><circle cx="42" cy="15" r="4" fill="#28c840"/>
+      <rect x="56" y="6" width="80" height="20" rx="6" fill="#17181B"/>
+      <text x="96" y="20" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="11" fill="#A8A8A1" text-anchor="middle">bank</text>
+      <circle cx="70" cy="86" r="13" fill="#ffffff" stroke="#ECECEA" stroke-width="3"/><circle cx="70" cy="86" r="5" fill="#17181B"/>
+      <circle cx="130" cy="86" r="13" fill="#ffffff" stroke="#ECECEA" stroke-width="3"/><circle cx="130" cy="86" r="5" fill="#17181B"/>
+      <path d="M54 64 l26 6 M146 64 l-26 6" stroke="#ECECEA" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="100" cy="128" rx="10" ry="12" fill="#ECECEA"/>
+      <path d="M172 56 q6 9 0 14 q-6 -5 0 -14z" fill="#60A5FA"/>
+      <path d="M200 100 q24 -2 46 -26" stroke="#ECECEA" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <rect x="248" y="22" width="4" height="58" fill="#8A8A82"/>
+      <g transform="rotate(6 250 30)">
+        <rect x="206" y="4" width="92" height="40" rx="6" fill="#DC2626"/>
+        <text x="252" y="22" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="12" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="1">READ-ONLY</text>
+        <text x="252" y="36" font-family="ui-sans-serif, -apple-system, Helvetica, Arial, sans-serif" font-size="9" font-weight="700" fill="#ffffff" text-anchor="middle">*.bank.com/*</text>
+      </g>
+    </g>
+
+    <!-- what they say -->
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="470" y="96" width="104" height="34" rx="12" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M512 129 L520 142 L528 129" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="513" y="127" width="14" height="4" fill="#ffffff"/>
+      <text x="522" y="118" fill="#1C1C1A" text-anchor="middle">not again</text>
+
+    </g>
+
+    <!-- claude, steering -->
+    <g transform="translate(616 34)">
+      <rect width="62" height="52" rx="18" fill="#D97706"/>
+      <circle cx="22" cy="22" r="7" fill="#ffffff"/><circle cx="25" cy="25" r="3.5" fill="#1C1C1A"/>
+      <circle cx="42" cy="22" r="7" fill="#ffffff"/><circle cx="45" cy="25" r="3.5" fill="#1C1C1A"/>
+      <path d="M22 38 q10 7 20 0" stroke="#1C1C1A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </g>
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="430" y="18" width="172" height="52" rx="14" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M601 38 L614 46 L601 52" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="598" y="39" width="5" height="12" fill="#ffffff"/>
+      <text x="516" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#B45309" text-anchor="middle">select_profile(</text>
+      <text x="516" y="58" fill="#1C1C1A" text-anchor="middle">whoever's awake)</text>
+    </g>
+
+    <!-- the hand's path: curved, overshoots, comes back -->
+    <path d="M684 70 C780 40 912 30 902 120 C898 150 888 172 872 170 C864 169 864 162 872 160" stroke="#D97706" stroke-width="2.5" stroke-dasharray="2 7" stroke-linecap="round" fill="none"/>
+    <g transform="translate(868 156)">
+      <path d="M0 0 L0 26 L7 20 L12 31 L17 29 L12 18 L21 18 Z" fill="#1C1C1A" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+    </g>
+    <text x="914" y="70" font-family="'Marker Felt', 'Chalkboard SE', 'Comic Sans MS', cursive" font-size="15" fill="#F59E0B">overshot. like you do</text>
+    <path d="M912 74 q-8 10 -10 26" stroke="#F59E0B" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+    <!-- the bank's line -->
+    <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13">
+      <rect x="1000" y="96" width="140" height="34" rx="12" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5"/>
+      <path d="M1046 129 L1054 142 L1062 129" fill="#ffffff" stroke="#1C1C1A" stroke-width="1.5" stroke-linejoin="round"/>
+      <rect x="1047" y="127" width="14" height="4" fill="#ffffff"/>
+      <text x="1070" y="118" fill="#1C1C1A" text-anchor="middle">look. no touching.</text>
+    </g>
+  </g>
+</svg>
+<section class="pitch" style="margin-top:20px">
+  <p class="lead">claude drives your own chrome profiles, with a hand that moves like a person's.</p>
+  <p>pick a profile, open and read pages, click and type. it's a local mcp server and a chrome extension ~ nothing leaves your machine.</p>
+  <span class="button" role="note">coming to the chrome web store</span>
+  <p class="note">it's in private testing, so there's nothin' to click yet.</p>
+</section>
+<ul class="does" style="margin-top:20px">
+  <li><b>profiles</b>work, personal and bank stay separate, and claude picks one</li>
+  <li><b>reads pages</b>text and structure, the way a screen reader would</li>
+  <li><b>moves like a hand</b>curved paths that overshoot, not straight bot lines</li>
+  <li><b>records your steps</b>do it once, and claude can replay it</li>
+</ul>
+</main>
+<footer>runs on macOS with Google Chrome ~ built by one person</footer>
+</div>
+</body>
+</html>
