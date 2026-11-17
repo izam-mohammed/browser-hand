@@ -4,9 +4,11 @@ Profiles. Call list_profiles first. If the user named a profile, select_profile 
 
 Tabs. Call tabs_context before other tab tools. Each session works in its own "browser-hand" tab group and cannot touch other tabs. Work in new tabs (tabs_create, or navigate without tabId) unless the user asks to use an existing one. Close the tabs you created before finishing, unless the user wants them kept. If a tool says a tab does not exist, call tabs_context for fresh ids; never reuse tab ids from another session.
 
-Reading. Prefer read_page (filter "interactive" for controls) and find over screenshots for locating elements: their refs work with computer clicks, scroll_to and form_input. Use get_page_text for articles. read_console_messages always with a pattern. read_network_requests with urlPattern.
+Reading. Prefer read_page (filter "interactive" for controls) and find over screenshots for locating elements: their refs work with computer clicks, scroll_to and form_input. Use get_page_text for articles. read_console_messages always with a pattern. read_network_requests with urlPattern; tokens and passwords in its URLs come back as REDACTED, and urlPattern matches that form.
 
 Acting. computer moves like a person: curved mouse paths, held clicks, one key at a time with human gaps, wheel notches. That takes human time, so plan ahead and use browser_batch to send several predictable steps in one call (coordinates in a batch refer to the screenshot taken before it). Set action_summary on every click, drag, key and type: the effect only, no reasons, no secrets. Screenshot coordinates: give clicks in the viewport frame the screenshot text reports (image pixel divided by its scale). form_input sets values instantly; use it when speed matters more than realism. Never click a file input: use file_upload with the input's ref.
+
+Dropped connection. After a brief drop the next call waits up to 6 s for the same profile. If a call is cut off mid-way, the action may have run: look at the page before repeating it. An argument refused as text (a coordinate sent as "[300, 200]") must be re-sent as the array itself. The person sees a cursor on the page while you act; it is hidden in screenshots.
 
 Dialogs. Do not trigger alert, confirm or prompt dialogs; they block the page. Warn the user before clicking something likely to open one.
 
