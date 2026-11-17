@@ -15,6 +15,8 @@ A change is done when it passes locally and on its pull request, where
 | Rust crates | | `host/Cargo.lock`, committed |
 | gitleaks, osv-scanner | 8.30.1, 2.7.1 | local tools for `make security`, installed by hand (`go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`) |
 | Chrome | 155 (minimum 120) | `extension/manifest.json` `minimum_chrome_version` |
+| mdBook | 0.5.2 | this file; install `cargo install --locked mdbook --version 0.5.2` |
+| lychee | 0.24.2 | this file; install `cargo install --locked lychee --version 0.24.2` |
 
 ## Checks
 
@@ -33,6 +35,8 @@ A change is done when it passes locally and on its pull request, where
 | Build | cargo, esbuild | `Makefile` | `make build` | release host and extension build, no native-host install |
 | Dependency advisories | osv-scanner | none | `osv-scanner scan source --config osv-scanner.toml -L host/Cargo.lock -L extension/package-lock.json` | no advisory (also `make security`) |
 | Secrets | gitleaks | none | `gitleaks git . --redact --verbose` | none in the history (also `make security`; hook in `.pre-commit-config.yaml`) |
+| Docs reference | cargo test | `host/tests/docs.rs` | `cargo test --manifest-path host/Cargo.toml --test docs` (`UPDATE_DOCS=1` rewrites `docs/book/src/reference/`) | tools, settings and commands pages match the host |
+| Docs book | mdBook, lychee | `docs/book/book.toml` | `sh scripts/check-docs.sh` | builds with no warning, no broken link, nothing loaded from outside, no private detail (also `make check`) |
 | Proofs | sh | `scripts/prove/` | `sh scripts/prove/<name>.sh` | prints `PASS` (needs Chrome and a person) |
 
 ## Tests
