@@ -7,7 +7,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 crate="$here/gif-encode"
 cargo build --quiet --release --manifest-path "$crate/Cargo.toml"
 
-out=$(mktemp -t prove-gif).gif
+out=$(mktemp -t prove-gif.XXXXXX)
 trap 'rm -f "$out"' EXIT
 "$crate/target/release/prove-gif-encode" "$out"
 
