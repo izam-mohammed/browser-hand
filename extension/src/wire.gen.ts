@@ -71,7 +71,20 @@ mouse_speed: number, };
 /**
  * A Chrome profile the settings page can name as the default.
  */
-export type ProfileRef = { dir: string, name: string, };
+export type ProfileRef = { 
+/**
+ * The directory name the browser uses (`Default`).
+ */
+dir: string, name: string, 
+/**
+ * What `sessions.default_profile` holds: `dir`, or `<browser>:<dir>`
+ * when more than one browser is installed.
+ */
+id: string, 
+/**
+ * The browser's display name (`Brave`).
+ */
+browser: string, };
 
 export type SessionSettings = { 
 /**

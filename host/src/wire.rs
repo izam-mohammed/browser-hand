@@ -118,8 +118,14 @@ pub enum Frame {
 #[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct ProfileRef {
+    /// The directory name the browser uses (`Default`).
     pub dir: String,
     pub name: String,
+    /// What `sessions.default_profile` holds: `dir`, or `<browser>:<dir>`
+    /// when more than one browser is installed.
+    pub id: String,
+    /// The browser's display name (`Brave`).
+    pub browser: String,
 }
 
 /// Why a save was refused: the key at fault when there is one.

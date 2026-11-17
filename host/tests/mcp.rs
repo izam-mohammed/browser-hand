@@ -26,7 +26,10 @@ fn fake_profile(
     let (hr, hw) = tokio::io::split(host);
     let opts = native_host::HostOptions {
         config: sockets.join("no-config.toml"),
-        chrome_dir: sockets.join("no-chrome"),
+        roots: vec![browser_hand::profiles::Root {
+            browser: "chrome",
+            dir: sockets.join("no-chrome"),
+        }],
         browser: None,
         poll: std::time::Duration::from_secs(3600),
     };

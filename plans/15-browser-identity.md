@@ -236,14 +236,14 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: the settings page lists every browser's profiles
 
-- [ ] Tests first: a `settings` frame lists profiles of two browsers with
+- [x] Tests first: a `settings` frame lists profiles of two browsers with
   ids and browser names (`host/tests/relay.rs`); the page offers the ids,
   labels the browser only when ids are prefixed, and keeps a stored bare
   dir selected (`extension/test/settings.test.ts`, `options` page tests).
-- [ ] `ProfileRef.id` and `.browser`; `HostOptions` holds `roots`;
+- [x] `ProfileRef.id` and `.browser`; `HostOptions` holds `roots`;
   `Conf::read` uses `read_all` (expected in `host/src/native_host.rs`,
   `host/src/wire.rs`), per decision 3.
-- [ ] `renderSessions` in `extension/src/options/page.ts` uses `id`, falling
+- [x] `renderSessions` in `extension/src/options/page.ts` uses `id`, falling
   back to `dir` from an older host.
 - [ ] Check: `make check`.
 

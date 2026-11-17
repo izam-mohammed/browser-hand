@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use browser_hand::config::{self, Settings};
 use browser_hand::native_host::{self, HostOptions};
+use browser_hand::profiles::Root;
 use browser_hand::wire::{self, Content, Frame, Reassembler};
 use serde_json::json;
 use tokio::io::{DuplexStream, ReadHalf, WriteHalf};
@@ -42,7 +43,10 @@ impl Chrome {
 fn options(dir: &std::path::Path) -> HostOptions {
     HostOptions {
         config: dir.join("conf").join("config.toml"),
-        chrome_dir: dir.join("chrome"),
+        roots: vec![browser_hand::profiles::Root {
+            browser: "chrome",
+            dir: dir.join("chrome"),
+        }],
         poll: Duration::from_millis(100),
         browser: None,
     }
@@ -63,6 +67,15 @@ async fn start() -> Started {
 
 /// `start`, for a host whose parent process was `browser`.
 async fn start_as(browser: Option<&str>) -> Started {
+    start_host(browser, None).await
+}
+
+/// `start`, listing the profiles of these browsers on the settings page.
+async fn start_with(roots: Vec<Root>) -> Started {
+    start_host(None, Some(roots)).await
+}
+
+async fn start_host(browser: Option<&str>, roots: Option<Vec<Root>>) -> Started {
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().to_owned();
     let browser = browser.map(String::from);
@@ -78,6 +91,7 @@ async fn start_as(browser: Option<&str>) -> Started {
             "inst-1".into(),
             HostOptions {
                 browser,
+                roots: roots.unwrap_or_else(|| options(&config).roots),
                 ..options(&config)
             },
         )
@@ -398,6 +412,81 @@ fn set(id: u64, s: &Settings, revision: &str) -> Frame {
         settings: serde_json::to_value(s).unwrap(),
         revision: revision.into(),
     }
+}
+
+fn local_state(dir: &std::path::Path, profiles: &[(&str, &str)]) {
+    std::fs::create_dir_all(dir).unwrap();
+    let cache: serde_json::Map<String, serde_json::Value> = profiles
+        .iter()
+        .map(|(d, n)| ((*d).to_owned(), json!({ "name": n })))
+        .collect();
+    let state = json!({ "profile": { "last_used": "Default", "info_cache": cache } });
+    std::fs::write(dir.join("Local State"), state.to_string()).unwrap();
+}
+
+/// The `profiles` of the next `settings` frame, as (id, dir, name, browser).
+async fn listed(chrome: &mut Chrome) -> Vec<(String, String, String, String)> {
+    loop {
+        if let Frame::Settings { profiles, .. } = chrome.recv_any().await {
+            return profiles
+                .into_iter()
+                .map(|p| (p.id, p.dir, p.name, p.browser))
+                .collect();
+        }
+    }
+}
+
+#[tokio::test]
+async fn the_settings_list_every_browsers_profiles_with_ids() {
+    let dir = tempfile::tempdir().unwrap();
+    let (chrome_dir, brave_dir) = (dir.path().join("c"), dir.path().join("b"));
+    local_state(&chrome_dir, &[("Default", "Me")]);
+    local_state(&brave_dir, &[("Default", "Bee"), ("Profile 1", "Work")]);
+    let (mut chrome, _path, _tmp, _task) = start_with(vec![
+        Root {
+            browser: "chrome",
+            dir: chrome_dir,
+        },
+        Root {
+            browser: "brave",
+            dir: brave_dir,
+        },
+    ])
+    .await;
+    chrome.send(hello(None)).await;
+    let got = listed(&mut chrome).await;
+    let row = |id: &str, d: &str, n: &str, b: &str| (id.into(), d.into(), n.into(), b.into());
+    assert_eq!(
+        got,
+        [
+            row("chrome:Default", "Default", "Me", "Google Chrome"),
+            row("brave:Default", "Default", "Bee", "Brave"),
+            row("brave:Profile 1", "Profile 1", "Work", "Brave"),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn with_one_browser_the_ids_stay_bare() {
+    let dir = tempfile::tempdir().unwrap();
+    let chrome_dir = dir.path().join("c");
+    local_state(&chrome_dir, &[("Default", "Me")]);
+    let (mut chrome, _path, _tmp, _task) = start_with(vec![Root {
+        browser: "edge",
+        dir: chrome_dir,
+    }])
+    .await;
+    chrome.send(hello(None)).await;
+    let got = listed(&mut chrome).await;
+    assert_eq!(
+        got,
+        [(
+            "Default".into(),
+            "Default".into(),
+            "Me".into(),
+            "Microsoft Edge".into()
+        )]
+    );
 }
 
 #[tokio::test]

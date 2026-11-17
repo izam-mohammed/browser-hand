@@ -122,7 +122,10 @@ fn host_in(sockets: &Path, n: u32, browser: Option<&str>, dir: &str) {
     let (hr, hw) = tokio::io::split(host);
     let opts = browser_hand::native_host::HostOptions {
         config: sockets.join("no-config.toml"),
-        chrome_dir: sockets.join("no-chrome"),
+        roots: vec![browser_hand::profiles::Root {
+            browser: "chrome",
+            dir: sockets.join("no-chrome"),
+        }],
         poll: std::time::Duration::from_secs(3600),
         browser: browser.map(String::from),
     };

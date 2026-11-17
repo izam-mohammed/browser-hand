@@ -25,7 +25,7 @@ type Tx = mpsc::UnboundedSender<Frame>;
 #[derive(Debug, Clone)]
 pub struct HostOptions {
     pub config: PathBuf,
-    pub chrome_dir: PathBuf,
+    pub roots: Vec<crate::profiles::Root>,
     /// The browser this host runs in, from its parent process.
     pub browser: Option<String>,
     /// How often to look for a change to the file.
@@ -34,14 +34,13 @@ pub struct HostOptions {
 
 impl HostOptions {
     pub fn from_env() -> Self {
+        let roots = crate::profiles::roots();
+        let browser = crate::profiles::parent_identity(std::os::unix::process::parent_id(), &roots)
+            .map(String::from);
         HostOptions {
             config: crate::paths::config_path(),
-            chrome_dir: crate::profiles::chrome_dir(),
-            browser: crate::profiles::parent_identity(
-                std::os::unix::process::parent_id(),
-                &crate::profiles::roots(),
-            )
-            .map(String::from),
+            roots,
+            browser,
             poll: config::POLL,
         }
     }
@@ -82,12 +81,15 @@ impl Conf {
                 )
             }
         };
-        let profiles = crate::profiles::read_profiles(&self.opts.chrome_dir)
+        let profiles = crate::profiles::read_all(&self.opts.roots)
             .unwrap_or_default()
             .into_iter()
             .map(|p| ProfileRef {
+                browser: crate::profiles::browser(&p.browser)
+                    .map_or(p.browser.clone(), |b| b.name.to_owned()),
                 dir: p.dir,
                 name: p.name,
+                id: p.id,
             })
             .collect();
         self.sent = Some(revision.clone());
