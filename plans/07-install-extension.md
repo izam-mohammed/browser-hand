@@ -355,13 +355,18 @@ repository instructions for recording useful development findings.
 - [ ] `STORE_EXTENSION_ID` holds the dashboard's ID (expected in
   `host/src/mcp.rs`), and the host manifest allows it beside `EXTENSION_ID`
   when they differ, pinned by `host/tests/install.rs`.
+  Code landed: `STORE_EXTENSION_ID` is `None` in `host/src/mcp.rs`; set it
+  to the dashboard's ID once Phase 2's last step is done.
 - [ ] `browser-hand install` writes `External Extensions/<store id>.json`
   as Contract says and prints "quit and reopen Chrome, then click Enable in
   each profile"; `--uninstall` removes it (expected in
   `host/src/install.rs`), pinned by `host/tests/install.rs`.
-- [ ] `scripts/build.sh` and `README.md` give the store route first and Load
+  Code and tests landed (`install::run`, tested with an injected ID); stays
+  open until `STORE_EXTENSION_ID` is set, because until then the binary
+  writes no file.
+- [x] `scripts/build.sh` and `README.md` give the store route first and Load
   unpacked as the development route.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
 - [ ] You try it, once the item is approved: run `sh scripts/build.sh`, quit
   and reopen Chrome, click Enable in one profile, ask Claude to use it. Say
@@ -369,44 +374,48 @@ repository instructions for recording useful development findings.
 
 ### Phase 4: the next step for a profile without it
 
-- [ ] The claim page uses the store ID where
+- [x] The claim page uses the store ID where
   `<profile>/Extensions/<store id>/` exists, else the dev ID, trying the
   other once on a timeout (expected in `Server::claim`), pinned by
   `host/tests/mcp.rs`.
-- [ ] On a timeout `select_profile` opens
+- [x] On a timeout `select_profile` opens
   `https://chromewebstore.google.com/detail/<store id>` in that profile and
   says to ask the person to click Add to Chrome, or, when installed but
   silent, to turn it on in `chrome://extensions`; `list_profiles` returns
   the same step as `nextStep` and a `warning` for both builds in one
   profile, pinned by `host/tests/mcp.rs`.
-- [ ] `host/src/instructions.md` and `plugin/skills/browser-hand/SKILL.md`
+- [x] `host/src/instructions.md` and `plugin/skills/browser-hand/SKILL.md`
   say to relay `nextStep` and stop, pinned by `host/tests/instructions.rs`.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
 
 ### Phase 5: the development flow
 
-- [ ] `browser-hand install --no-store` writes only the host manifest, and
+- [x] `browser-hand install --no-store` writes only the host manifest, and
   with no store ID built in install writes no file and says so (expected in
   `host/src/install.rs`, `host/src/main.rs`), pinned by
   `host/tests/install.rs`.
-- [ ] `README.md` § development says to keep one build on per profile and
+- [x] `README.md` § development says to keep one build on per profile and
   that Developer mode off disables the unpacked one.
 - [ ] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes, and Load unpacked still
   connects with `ednpkicg...`.
+  Tests and `build.sh` pass (run with `BROWSER_HAND_CHROME_DIR` pointing at
+  a temp dir); still open: Load unpacked connecting in a real Chrome.
 
 ### Phase 6: the managed path, opt-in
 
-- [ ] `browser-hand install --mobileconfig <path>` writes a configuration
+- [x] (the `plutil -lint` test skips off macOS and was not run here; the
+  profile is checked by tag balance and unique UUIDs)
+  `browser-hand install --mobileconfig <path>` writes a configuration
   profile with `ExtensionInstallForcelist` =
   `<store id>;https://clients2.google.com/service/update2/crx` under
   `PayloadType` `com.google.Chrome`, fresh UUIDs, and prints how to approve
   it in System Settings (expected in `host/src/install.rs`), pinned by
   `host/tests/install.rs` with `plutil -lint`.
-- [ ] `README.md` says what it costs: an admin password, a browser shown as
+- [x] `README.md` says what it costs: an admin password, a browser shown as
   managed, no Enable click and no "started debugging" bar.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
 
 ### Phase 7: the walk (needs you at Chrome)
