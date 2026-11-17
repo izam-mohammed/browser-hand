@@ -65,6 +65,7 @@ service worker did the work; the driver only did what a person's hands do.
 | `record-capture.sh` | a toolbar button fires `onClicked` and takes a badge; capture-phase listeners see a person's click and typing, and a debugger click, with ARIA names and `isTrusted` | `PASS: the toolbar button records trusted steps with ARIA names; UserFlow in .../flow.json` | the toolbar click was simulated with `chrome.action.onClicked.dispatch(tab)` from the worker (the event object has a `dispatch` method); the person's click and typing were CDP `Input.dispatch*` from the driver. | A real toolbar click and a real OS-level person's input. The "person" source is a label the proof sets, so CDP input stands in for it. | person, for the real button |
 | `site-rules.sh` | `options_ui` with `open_in_tab` opens in a tab; a tab-scoped `declarativeNetRequest` session rule blocks link, `tabs.update` and iframe in tab A only | `PASS: options open in a tab, and a tab-scoped session rule blocks link, tabs.update and iframe in tab A only` | the Start button clicked over CDP; tab A errors were `net::ERR_BLOCKED_BY_CLIENT`, tab B loaded all three. | nothing found | no |
 | `action-popup.sh` | `setPopup("")` lets a click reach `onClicked`; the value holds across a worker stop, a tab load and a new window; `setPopup("popup.html")` brings the popup back | `PASS: a global setPopup switch holds across a worker stop, a tab load and a new window` | the popup page opened as a tab (its `windows.getCurrent()` named a window); its button clicked over CDP; `onClicked` simulated with `dispatch` only when `getPopup()` read `""`; the worker stopped by leaving it idle about 35 s with no DevTools attached, then woken with a `runtime.sendMessage`; the new window via `Target.createTarget` with `newWindow`. On wake `getPopup()` read `""`. | A real toolbar click, and that a popup opens over a window (a tab is not a popup). The script's "global popup value was lost" note fired falsely: my wake-up page counted as a popup opened at `clicks == 1`. | person, for the real click |
+| `linux-open.sh` | on Linux the host's launcher runs the browser binary with `--user-data-dir` and `--profile-directory`, the profile is created, and `select_profile` reaches the extension | `PASS: the Linux launcher started a browser on a throwaway profile and select_profile reached its extension` | `CFT_CHROME=<binary> sh scripts/prove/linux-open.sh` (needs a host build and `extension/dist`); a stand-in `BROWSER_HAND_BROWSER_BIN` adds the headless flags and keeps the `chrome-extension://` claim URL aside, and the script opens it over `Target.createTarget`. Ran 2026-11-17 on CfT 157.0.8103.78. | Launch-URL routing into a running real Chrome, packaged (snap, flatpak) browsers, and a desktop session. | person, for a real Chrome |
 | `external-extensions.sh` | one External Extensions file offers a store extension in every profile | `PASS` after two `y` answers | **not run.** It writes into the real Chrome dir, needs the Chrome Web Store, a restart and a person reading the prompt. | everything | person |
 
 ### Built extension smoke (headless)
@@ -83,8 +84,8 @@ driver kept outside the repo.
    see the same values.
 4. Run `browser-hand mcp` with the same environment and talk JSON-RPC on its
    stdio (`initialize`, `notifications/initialized`, `tools/call`).
-5. `select_profile {"profile":"Default"}` runs `open -na "Google Chrome" ...`.
-   Linux has no such `open`: put a stand-in first on `PATH` that opens the
+5. `select_profile {"profile":"Default"}` runs the launcher: `open -na ...` on macOS, the browser binary on Linux (`BROWSER_HAND_BROWSER_BIN` overrides the search; with `BROWSER_HAND_CHROME_DIR` set it also passes `--user-data-dir`). `scripts/prove/linux-open.sh` does this with a stand-in binary. To step in by hand instead,
+   put a stand-in first on `PATH` that opens the
    last argument (the claim URL) in the test Chrome with `Target.createTarget`.
 
 Results: `select_profile` returned `{"extensionVersion":"0.1.0","selected":{"dir":"Default",...}}`;
@@ -97,7 +98,7 @@ matched nothing and `urlPattern: "access_token=REDACTED"` matched it (plan 13
 decision 1).
 
 Cannot prove headless: the overlay's animation and look on a real screen,
-`select_profile` as written (macOS `open`), and a real multi-profile
+`select_profile` as written on macOS (`open`), and a real multi-profile
 Chrome.
 
 Traps found:
@@ -147,12 +148,33 @@ Testing accepts it.
   `pgrep -af browser-hand`; remove the throwaway dirs and any short socket
   dir.
 
+## Browsers the host knows
+
+`host/src/profiles.rs` holds a fixed table; `list_profiles`, `select_profile`
+and `install` use every browser whose data dir exists.
+
+| Browser | Linux data dir (under `~/.config/`) | macOS data dir (under `~/Library/Application Support/`) | Linux binaries tried, in order |
+| --- | --- | --- | --- |
+| Google Chrome (`chrome`) | `google-chrome` | `Google/Chrome` | `google-chrome-stable`, `google-chrome`, `chromium` |
+| Chromium (`chromium`) | `chromium` | `Chromium` | `chromium`, `chromium-browser` |
+| Microsoft Edge (`edge`) | `microsoft-edge` | `Microsoft Edge` | `microsoft-edge-stable`, `microsoft-edge` |
+| Brave (`brave`) | `BraveSoftware/Brave-Browser` | `BraveSoftware/Brave-Browser` | `brave-browser`, `brave-browser-stable`, `brave` |
+| Vivaldi (`vivaldi`) | `vivaldi` | `Vivaldi` | `vivaldi-stable`, `vivaldi` |
+
+`BROWSER_HAND_CHROME_DIR` narrows everything to one browser's dir (tests).
+Unit tests cover the table per OS under a fake `HOME`, the merged list and
+the `<browser>:<dir>` ids (`host/tests/profiles.rs`, `host/tests/browsers_mcp.rs`),
+the launcher per OS with stand-in binaries (`host/tests/launcher.rs`) and
+the manifest per browser (`host/tests/install_browsers.rs`). Not run
+headless: a real Brave, Edge, Chromium or Vivaldi.
+
 ## Manual checklist (a person)
 
 Only a person can check these. Tick them on a real profile before a release.
 
 - [ ] `sh scripts/build.sh` on a spare machine or with `BROWSER_HAND_CHROME_DIR` set, then Load unpacked `extension/dist` in a real profile: the toolbar button opens its popup, Alt+Shift+R records.
 - [ ] `select_profile` opens the right profile with the real `open -na "Google Chrome"` on macOS, with two profiles loaded.
+- [ ] On Linux with Chrome (and again with one other Chromium browser): `sh scripts/build.sh`, `list_profiles`, then `select_profile` opens the right profile and a page loads in it (plans/14 Phase 1 and 5).
 - [ ] The agent cursor is visible while Claude clicks and looks right (colour, glide, fades after 4 s).
 - [ ] A real toolbar click with the popup off reaches the recorder (`chrome-bridge`, `record-capture` and `action-popup` simulated it).
 - [ ] Web Store route: `scripts/prove/external-extensions.sh <store id>` with a public extension no profile has; each profile offers it after a restart. Only once a store ID is built in.

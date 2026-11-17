@@ -1,6 +1,7 @@
 # getting started
 
-Needs Rust 1.88 or newer, Node (to build the extension), Google Chrome and
+Needs Rust 1.88 or newer, Node (to build the extension), a Chromium browser
+(Google Chrome, Chromium, Edge, Brave or Vivaldi, on macOS or Linux) and
 Claude Code. About ten minutes, most of it compiling.
 
 ## 1. build and register the host
@@ -13,9 +14,18 @@ sh scripts/build.sh
 
 It builds `host/` and `extension/`, copies the binary into
 `plugin/server/`, and writes one file outside the repository: the native
-messaging manifest
-`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/dev.browserhand.host.json`.
+messaging manifest, `NativeMessagingHosts/dev.browserhand.host.json`, in the data dir
+of each installed browser (macOS Chrome: `~/Library/Application Support/Google/Chrome/`;
+Linux Chrome: `~/.config/google-chrome/`).
 `plugin/server/browser-hand install --uninstall` removes it.
+
+With more than one browser installed, profiles are listed as
+`<browser>:<dir>` (`chrome:Default`, `brave:Profile 1`), and a bare `Default`
+that two browsers share is refused until you say which. On Linux, opening a
+profile runs the browser's binary from `PATH` (`google-chrome-stable`,
+`google-chrome`, `chromium`, `brave-browser`, `microsoft-edge-stable`,
+`vivaldi-stable` and so on); set `BROWSER_HAND_BROWSER_BIN` to a path when
+yours is named otherwise.
 
 ## 2. load the extension in a profile
 
