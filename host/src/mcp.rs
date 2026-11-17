@@ -168,6 +168,14 @@ fn json_text(v: Value) -> Outcome {
     Ok(vec![text(v.to_string())])
 }
 
+/// The client hint that a big read stays in the conversation (up to 60000
+/// characters) instead of going to a file, as the live server sends it.
+fn big_read_meta() -> rmcp::model::MetaObject {
+    let mut m = serde_json::Map::new();
+    m.insert("anthropic/maxResultSizeChars".into(), json!(60000));
+    m.into()
+}
+
 /// The outcome as an MCP tool result.
 fn respond(outcome: Outcome) -> CallToolResult {
     match outcome {
@@ -1095,6 +1103,7 @@ impl Server {
     }
 
     #[tool(
+        title = "Tabs Context",
         description = "Get this session's tab group in the selected profile: every tab id, title and URL. Call this at least once before other tab tools. Each session works in its own browser-hand tab group; work in new tabs (tabs_create) unless the user asks to use an existing one.",
         annotations(read_only_hint = true)
     )]
@@ -1107,6 +1116,7 @@ impl Server {
     }
 
     #[tool(
+        title = "Tabs Create",
         description = "Create a new empty tab in this session's tab group. Tabs you create are yours to clean up: close each with tabs_close when done, unless the user wants it kept."
     )]
     pub async fn tabs_create(&self) -> Result<CallToolResult, McpError> {
@@ -1116,6 +1126,7 @@ impl Server {
     }
 
     #[tool(
+        title = "Tabs Close",
         description = "Close a tab in this session's tab group by id. Only tabs in this session's group can be closed. If the group's last tab closes, Chrome removes the group and the next tabs_context with createIfEmpty starts fresh.",
         annotations(destructive_hint = true)
     )]
@@ -1139,6 +1150,7 @@ impl Server {
     }
 
     #[tool(
+        meta = big_read_meta(),
         description = "Get the page as an accessibility-style tree: roles, names and element refs (ref_<page tag>_N) that computer clicks, scroll_to and form_input accept. Returns all elements by default, including non-visible ones; filter \"interactive\" keeps only controls. Output is capped at 50000 characters (cut at a line boundary with the full size noted); pass max_chars, a smaller depth, or ref_id to focus.",
         annotations(read_only_hint = true)
     )]
@@ -1163,6 +1175,7 @@ impl Server {
     }
 
     #[tool(
+        meta = big_read_meta(),
         description = "Get the page's text as plain text, the article first when the page has one (navigation and footers left out). Best for reading articles and text-heavy pages.",
         annotations(read_only_hint = true)
     )]
@@ -1214,6 +1227,7 @@ impl Server {
     }
 
     #[tool(
+        meta = big_read_meta(),
         description = "Run JavaScript in the page's context and return the last expression's value (REPL semantics: top-level await works; write the expression, not return). Runs under DevTools rules, so page CSP does not block it. Errors come back as page_error."
     )]
     pub async fn javascript_tool(
@@ -1256,6 +1270,7 @@ impl Server {
     }
 
     #[tool(
+        meta = big_read_meta(),
         description = "Run several browser tool calls in order in ONE round trip; stops at the first error. Each item is {name, input} with input exactly as for that tool (tabId required). Use it whenever you can predict two or more steps, e.g. click a field, type, press Enter, screenshot. Coordinates in a batch refer to the screenshot taken before the batch. Cannot be nested."
     )]
     pub async fn browser_batch(
