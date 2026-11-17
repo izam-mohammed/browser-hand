@@ -226,15 +226,15 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the rough cut, Linux end to end (needs you: try it)
 
-- [ ] Tests first: profile dir, launcher command and manifest path per OS
+- [x] Tests first: profile dir, launcher command and manifest path per OS
   under a fake `HOME`, in `host/src/profiles.rs`, `host/src/mcp.rs` and
   `host/src/install.rs` test modules, failing on Linux.
-- [ ] `chrome_dir`, the launcher and `install` work on Linux with Chrome
+- [x] `chrome_dir`, the launcher and `install` work on Linux with Chrome
   (expected in the same files), per decision 1.
-- [ ] A proof `scripts/prove/linux-open.sh` that opens a throwaway profile
+- [x] A proof `scripts/prove/linux-open.sh` that opens a throwaway profile
   through the real launcher on Chrome for Testing and prints PASS.
-- [ ] README and `docs/testing.md` name Linux as supported.
-- [ ] Check: `make check`, then `sh scripts/prove/linux-open.sh` prints PASS.
+- [x] README and `docs/testing.md` name Linux as supported.
+- [x] Check: `make check`, then `sh scripts/prove/linux-open.sh` prints PASS.
 - [ ] You try it: on a Linux box with Chrome, run `sh scripts/build.sh`, ask
   Claude to `select_profile` and open a page. Say what felt off; it goes
   into the phases below.
@@ -263,15 +263,15 @@ repository instructions for recording useful development findings.
 
 ### Phase 4: other Chromium browsers
 
-- [ ] Tests first: the browser table (Chrome, Chromium, Edge, Brave,
+- [x] Tests first: the browser table (Chrome, Chromium, Edge, Brave,
   Vivaldi) per OS, the merged profile list, the `<browser>:<dir>` naming
   only when more than one browser is found, a bare ambiguous dir refused.
-- [ ] `list_profiles`, `select_profile` and `install` use the table
+- [x] `list_profiles`, `select_profile` and `install` use the table
   (expected in `host/src/profiles.rs`, `host/src/mcp.rs`,
   `host/src/install.rs`), per decision 2; one launcher binary per browser.
-- [ ] README, `docs/book` getting started and `docs/testing.md` list the
+- [x] README, `docs/book` getting started and `docs/testing.md` list the
   browsers; the docs reference regenerated.
-- [ ] Check: `make check` passes.
+- [x] Check: `make check` passes.
 
 ### Phase 5: the walk (needs you at a Linux desktop)
 
