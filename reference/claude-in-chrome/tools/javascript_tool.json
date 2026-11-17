@@ -22,5 +22,8 @@
       "text",
       "tabId"
     ]
+  },
+  "_meta": {
+    "anthropic/maxResultSizeChars": 60000
   }
 }

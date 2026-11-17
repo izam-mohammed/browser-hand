@@ -12,10 +12,10 @@ Rules that live in the tool descriptions rather than the skill
 - `browser_batch` runs items in order, stops on the first error, cannot be
   nested, and runs each tool's own permission check per item. Coordinates in a
   batch refer to the screenshot taken before the call.
-- Clicks, drags, `key`, `type` and `form_input` take an `action_summary`: a few
-  words stating the effect only, with no reasons and no secrets. In Claude
-  Code 2.1.325 this field is behind a feature flag: a bare
-  `claude --claude-in-chrome-mcp` (14/11/2026) listed the tools without it.
+- Clicks, drags, `key`, `type` and `form_input` took an `action_summary` (17/10/2026):
+  a few words stating the effect only, with no reasons and no secrets. It is
+  behind a feature flag: a bare `claude --claude-in-chrome-mcp` (14/11/2026
+  and 17/11/2026) lists the tools without it, and `tools/*.json` now omit it.
 - `navigate` can omit `tabId` when called on its own; it then calls
   `tabs_context_mcp{createIfEmpty:true}` itself. Inside a batch `tabId` is
   required.
@@ -35,5 +35,6 @@ Rules that live in the tool descriptions rather than the skill
 - `read_network_requests` clears automatically on cross-domain navigation;
   auth values in listed URLs show as `REDACTED`, and `urlPattern` matches
   against the redacted URL.
-- `javascript_tool` results up to 60,000 characters stay in the conversation
-  instead of going to a file (Claude Code changelog).
+- `read_page`, `get_page_text`, `javascript_tool` and `browser_batch` results
+  up to 60,000 characters stay in the conversation instead of going to a file
+  (`_meta` `anthropic/maxResultSizeChars` in the tool list; changelog).
