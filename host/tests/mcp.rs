@@ -1356,3 +1356,44 @@ mod batch_dispatch {
         }
     }
 }
+
+mod tool_metadata {
+    use super::*;
+
+    fn listed() -> Vec<rmcp::model::Tool> {
+        Server::tool_router().list_all()
+    }
+
+    #[test]
+    fn big_reads_ask_the_client_to_keep_60000_chars_in_the_conversation() {
+        let tools = listed();
+        for name in [
+            "read_page",
+            "get_page_text",
+            "javascript_tool",
+            "browser_batch",
+        ] {
+            let t = tools.iter().find(|t| t.name == name).unwrap();
+            let json = serde_json::to_value(t).unwrap();
+            assert_eq!(
+                json["_meta"]["anthropic/maxResultSizeChars"], 60000,
+                "{name}"
+            );
+        }
+        let with_meta = tools.iter().filter(|t| t.meta.is_some()).count();
+        assert_eq!(with_meta, 4, "only the four big reads carry the hint");
+    }
+
+    #[test]
+    fn the_tabs_tools_carry_a_title() {
+        let tools = listed();
+        for (name, title) in [
+            ("tabs_context", "Tabs Context"),
+            ("tabs_create", "Tabs Create"),
+            ("tabs_close", "Tabs Close"),
+        ] {
+            let t = tools.iter().find(|t| t.name == name).unwrap();
+            assert_eq!(t.title.as_deref(), Some(title), "{name}");
+        }
+    }
+}
