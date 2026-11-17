@@ -12,5 +12,8 @@
     "required": [
       "tabId"
     ]
+  },
+  "_meta": {
+    "anthropic/maxResultSizeChars": 60000
   }
 }
