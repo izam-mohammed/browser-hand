@@ -278,12 +278,14 @@ repository instructions for recording useful development findings.
 - [ ] On Linux with Chrome and one other Chromium browser: list profiles,
   open one in each, read a large page, and try to upload a `.env` file.
   Written under `## Verified` with the date.
-- [ ] Check: `make check` passes.
+- [x] Check: `make check` passes.
+  Landed 17/11/2026: green in CI on PRs #37, #38, #39 and #40.
 
 ### Phase 6: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to
   date) with a Conventional Commit title for the whole change, a body
   naming this plan, what changed and why, and the checks run with their
   result. The PR's URL printed as the evidence. Opened, never merged.
+  Landed 17/11/2026: PRs #37, #38 and #39 merged.

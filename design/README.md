@@ -37,9 +37,9 @@ Themes: group `mode`, with `light` (global + mode/light) and `dark`
 | `settings--saved.png` | the toast after Save |
 | `settings--disconnected.png` | native host not running: banner, controls read-only |
 | `icon--app.png` | the extension's app icon, 128 px; 48 px is in `extension/icons/` |
-| `popup--idle.png` | the toolbar popup when not recording: Start recording, recent recordings, Settings (not exported yet) |
-| `popup--empty.png` | the same popup before the first recording (not exported yet) |
-| `popup--steps.png` | one recording's actions, Back, Delete (not exported yet) |
+| `popup--idle.png` | the toolbar popup when not recording: Start recording, recent recordings, Settings |
+| `popup--empty.png` | the same popup before the first recording |
+| `popup--steps.png` | one recording's actions, Back, Delete |
 
 `plans/08-recorder-popup.md` builds the popup boards
 (`extension/src/popup/`).
