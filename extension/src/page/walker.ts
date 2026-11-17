@@ -38,7 +38,7 @@ export function refFor(el: Element): string {
 /** The element behind a ref, or null when it is gone from the page. */
 export function resolveRef(ref: string): Element | null {
   const el = refToEl.get(ref)?.deref();
-  if (!el || !el.isConnected) return null;
+  if (!el?.isConnected) return null;
   return el;
 }
 
@@ -166,7 +166,7 @@ export function nameOf(el: Element): string {
   const tag = el.tagName.toLowerCase();
   if (tag === "input" || tag === "textarea" || tag === "select") {
     const labels = (el as HTMLInputElement).labels;
-    if (labels && labels.length) {
+    if (labels?.length) {
       const name = clean([...labels].map(textOf).join(" "));
       if (name) return name;
     }

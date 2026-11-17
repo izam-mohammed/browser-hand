@@ -1,24 +1,24 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  SettingsPage,
-  TOAST_MS,
   changeCount,
-  speedLabel,
   type PagePort,
+  SettingsPage,
+  speedLabel,
+  TOAST_MS,
 } from "../src/options/page";
 import {
   DEFAULTS,
+  type HubDeps,
   LAST_KEY,
   OLDER_AFTER_MS,
-  PORT_NAME,
-  SAVE_TIMEOUT_MS,
-  SettingsHub,
-  type HubDeps,
   type PageMsg,
   type PageState,
+  PORT_NAME,
   type PortLike,
+  SAVE_TIMEOUT_MS,
   type Settings,
+  SettingsHub,
   type WorkerMsg,
 } from "../src/settings";
 import { NOT_A_PATTERN } from "../src/sites";

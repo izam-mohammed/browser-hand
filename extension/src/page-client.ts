@@ -2,7 +2,7 @@
 // tab's top frame, injecting the script first into tabs opened before the
 // extension loaded.
 import type { PageOp, PageReply } from "./page/content";
-import { ToolError, type ErrorCode } from "./wire";
+import { type ErrorCode, ToolError } from "./wire";
 
 const NOT_THERE = /Receiving end does not exist|Could not establish connection/;
 

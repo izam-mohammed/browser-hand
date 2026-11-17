@@ -1,7 +1,7 @@
 // The isolated world's buffer of what the MAIN-world hooks saw. A new
 // document starts a new buffer, which is what "current domain only" means
 // for a page that navigated.
-import { HOOK_TAG, MAX_ENTRY_CHARS, type ConsoleEntry } from "./hooks";
+import { type ConsoleEntry, HOOK_TAG, MAX_ENTRY_CHARS } from "./hooks";
 
 export const MAX_ENTRIES = 1000;
 

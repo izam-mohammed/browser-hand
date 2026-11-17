@@ -76,6 +76,7 @@ export class DebuggerManager {
   }
 
   /** Sends one CDP command, attaching first if needed. */
+  // biome-ignore lint/suspicious/noExplicitAny: the reply type is the caller's claim about the CDP method.
   async send<T = any>(
     tabId: number,
     method: string,

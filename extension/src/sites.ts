@@ -14,6 +14,7 @@ export const NOT_A_PATTERN = "Not a pattern. Use host/path, for example docs.goo
 
 /** Whether `p` follows the grammar; the host has a dot, or is `localhost` or `*`. */
 export function isPattern(p: string): boolean {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this refuses.
   if (!p || p.trim() !== p || /[\s?#\\]/.test(p) || /[\u0000-\u001f\u007f]/.test(p)) return false;
   const slash = p.indexOf("/");
   if (slash <= 0) return false;
@@ -32,7 +33,7 @@ export function patternProblem(p: string, list: readonly string[]): string | nul
   return null;
 }
 
-const escape = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+const escapeRe = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 
 /** The pattern as two regex pieces: its host (no `*` crosses a `/`) and its path. */
 function pieces(p: string): { host: string; path: string } {
@@ -44,8 +45,8 @@ function pieces(p: string): { host: string; path: string } {
     host = host.slice(2);
   }
   return {
-    host: prefix + host.split("*").map(escape).join("[^/]*"),
-    path: p.slice(slash).split("*").map(escape).join(".*"),
+    host: prefix + host.split("*").map(escapeRe).join("[^/]*"),
+    path: p.slice(slash).split("*").map(escapeRe).join(".*"),
   };
 }
 

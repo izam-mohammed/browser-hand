@@ -1,6 +1,6 @@
 // Durations for moves, clicks and keys (plans/03-humane-input.md).
 import { PARAMS, type Params } from "./params";
-import { clamp, lognormal, normal, uniform, type Rng } from "./random";
+import { clamp, lognormal, normal, type Rng, uniform } from "./random";
 
 /** Fitts's law movement time in ms for a move of `distance` px to a target
  * `width` px wide. */

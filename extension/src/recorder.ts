@@ -632,14 +632,14 @@ export class Recorder {
   tabUpdated(tabId: number, windowId: number): Promise<void> {
     return this.run(async () => {
       const a = await this.load();
-      if (a && a.windowIds.includes(windowId)) await this.badgeTab(tabId, "rec");
+      if (a?.windowIds.includes(windowId)) await this.badgeTab(tabId, "rec");
     });
   }
 
   windowRemoved(windowId: number): Promise<void> {
     return this.run(async () => {
       const a = await this.load();
-      if (!a || !a.windowIds.includes(windowId)) return;
+      if (!a?.windowIds.includes(windowId)) return;
       if (windowId === a.homeWindowId) {
         await this.stopNow("its window closed");
         return;

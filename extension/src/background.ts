@@ -5,46 +5,46 @@
 // applies the settings the native host sends, serving the settings page
 // (`settings.ts`, plans/06-settings.md).
 import { DebuggerManager } from "./debugger";
-import { scaledParams, type Params } from "./humane/params";
+import { type Params, scaledParams } from "./humane/params";
 import { seeded } from "./humane/random";
-import { Input, type ComputerArgs, type Pace, type Rect } from "./input";
+import { type ComputerArgs, Input, type Pace, type Rect } from "./input";
 import { NetworkLog } from "./network";
-import { toPage } from "./page-client";
 import type { RecMsg } from "./page/content";
 import type { Step } from "./page/record";
+import { toPage } from "./page-client";
 import {
-  POPUP,
-  Recorder,
   fromPopup,
-  popupOp,
+  POPUP,
   type PopupMsg,
   type PopupReply,
+  popupOp,
+  Recorder,
   type RecorderDeps,
   type TabLike,
 } from "./recorder";
-import { replayStep, type ReplayDeps, type Resolved } from "./replay";
+import { type ReplayDeps, type Resolved, replayStep } from "./replay";
 import {
   capture,
   captureVisible,
-  shotPrefs,
   DEFAULT_SHOT,
   type Shot,
   type ShotPrefs,
+  shotPrefs,
 } from "./screenshot";
-import { SettingsHub, type PortLike } from "./settings";
+import { type PortLike, SettingsHub } from "./settings";
 import { SiteRuleSync } from "./site-rules";
 import { SiteRules, useFor } from "./sites";
-import { GROUP_TITLE, TabTools, type GroupStore } from "./tabs";
+import { GROUP_TITLE, type GroupStore, TabTools } from "./tabs";
 import {
+  type CallFrame,
+  type Content,
+  err,
+  type Frame,
+  ok,
   PROTOCOL,
   Reassembler,
   ToolError,
-  err,
-  ok,
   text,
-  type CallFrame,
-  type Content,
-  type Frame,
 } from "./wire";
 
 const HOST = "dev.browserhand.host";
@@ -210,6 +210,7 @@ function replayDeps(session: string, pace: Pace): ReplayDeps {
 }
 
 /** A tool answers with content blocks; a plain value becomes one text block. */
+// biome-ignore lint/suspicious/noExplicitAny: each tool checks its own args at runtime.
 type Tool = (session: string, args: any) => Promise<unknown>;
 
 const shotContent = (s: Shot): Content[] => [

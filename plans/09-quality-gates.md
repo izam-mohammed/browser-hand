@@ -296,18 +296,18 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: the TypeScript is formatted and linted
 
-- [ ] `@biomejs/biome`'s pinned version has no high or critical advisory on
+- [x] `@biomejs/biome`'s pinned version has no high or critical advisory on
   OSV.dev, recorded in `docs/standards.md` § Decided; one found reopens
   decision 3 before anything else in this phase.
-- [ ] Biome formats and lints `extension/src` and `extension/test`
+- [x] Biome formats and lints `extension/src` and `extension/test`
   (expected in `extension/biome.json`, `extension/package.json` scripts
   `lint` and `format`), generated `wire.gen.ts` ignored, and its run time on
   `extension/` recorded in `docs/standards.md` against decision 3.
-- [ ] The first `npm --prefix extension run format` lands as a commit of its
+- [x] The first `npm --prefix extension run format` lands as a commit of its
   own with no other change.
-- [ ] `make lint` runs Biome after rustfmt and Clippy, and
+- [x] `make lint` runs Biome after rustfmt and Clippy, and
   `docs/standards.md` gains the row.
-- [ ] Check: `make check` passes, and `npx --prefix extension biome ci`
+- [x] Check: `make check` passes, and `npx --prefix extension biome ci`
   reports no diff and no diagnostics.
 
 ### Phase 3: the host reaches 90 % lines

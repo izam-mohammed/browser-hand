@@ -2,14 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   Capture,
+  framePath,
   MASKED,
   Outbox,
-  SCROLL_SETTLE_MS,
-  framePath,
   resolveSelectors,
-  selectorsFor,
+  SCROLL_SETTLE_MS,
   type Step,
   type StepMsg,
+  selectorsFor,
 } from "../src/page/record";
 import { resetRefs } from "../src/page/walker";
 import {
@@ -18,19 +18,19 @@ import {
   BUDGET_BYTES,
   BUSY_TAIL_MS,
   FLUSH_MS,
+  fromPopup,
   IDLE_MS,
   INDEX_KEY,
   MAX_RECORDINGS,
   MAX_STEPS,
   POPUP,
-  Recorder,
-  fromPopup,
   popupOp,
-  type Recording,
+  Recorder,
   type RecorderDeps,
+  type Recording,
   type Summary,
 } from "../src/recorder";
-import { RESOLVE_WAIT_MS, replayStep, type ReplayDeps } from "../src/replay";
+import { RESOLVE_WAIT_MS, type ReplayDeps, replayStep } from "../src/replay";
 
 // The page side: capture-phase listeners, selectors, masking.
 

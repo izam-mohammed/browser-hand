@@ -10,13 +10,15 @@ help:  ## List the targets
 
 check: lint test build security  ## Every check, stopping at the first failure
 
-lint:  ## rustfmt, Clippy, tsc
+lint:  ## rustfmt, Clippy, Biome, tsc
 	cargo fmt $(HOST) --check
 	cargo clippy $(HOST) --all-targets --locked -- -D warnings
+	$(EXT) run lint
 	$(EXT) run typecheck
 
 format:  ## Rewrite files to the format
 	cargo fmt $(HOST)
+	$(EXT) run format
 
 test:  ## Host and extension tests
 	cargo test $(HOST) --locked

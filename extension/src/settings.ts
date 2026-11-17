@@ -69,6 +69,7 @@ export interface PortLike {
   name: string;
   sender?: { id?: string; url?: string };
   postMessage(msg: unknown): void;
+  // biome-ignore lint/suspicious/noExplicitAny: the port carries whatever the native host sends.
   onMessage: { addListener(cb: (msg: any) => void): void };
   onDisconnect: { addListener(cb: () => void): void };
 }

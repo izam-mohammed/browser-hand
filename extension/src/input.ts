@@ -1,6 +1,18 @@
 // The `computer` tool's acting half: each action becomes a timed run of CDP
 // Input events shaped like a hand on a mouse and keyboard
 // (plans/03-humane-input.md). Screenshots are `screenshot.ts`.
+
+import {
+  type Combo,
+  charKey,
+  isZoomShortcut,
+  type KeyDef,
+  MOD,
+  macCommands,
+  modifierKey,
+  modifiersBits,
+  parseCombo,
+} from "./humane/keys";
 import { PARAMS, type Params } from "./humane/params";
 import { aimPoint, movePath, type Pt } from "./humane/path";
 import type { Rng } from "./humane/random";
@@ -12,17 +24,6 @@ import {
   multiClickGapMs,
   wheelGapMs,
 } from "./humane/timing";
-import {
-  charKey,
-  isZoomShortcut,
-  macCommands,
-  modifierKey,
-  modifiersBits,
-  parseCombo,
-  type Combo,
-  type KeyDef,
-  MOD,
-} from "./humane/keys";
 import { ToolError } from "./wire";
 
 export type Pace = "human" | "fast";

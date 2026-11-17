@@ -2,8 +2,8 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Step } from "../src/page/record";
-import { PopupPage, stateText, when, type PopupApi } from "../src/popup/page";
 import { clip, stepLine } from "../src/popup/lines";
+import { type PopupApi, PopupPage, stateText, when } from "../src/popup/page";
 import type { Meta, PopupMsg, Recording, Summary } from "../src/recorder";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");

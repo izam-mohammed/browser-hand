@@ -315,9 +315,9 @@ export class PopupPage {
       stateText(summary, this.recording),
     ].join(" · ");
     const lines = this.doc.createDocumentFragment();
-    steps.forEach((step, i) =>
-      lines.append(this.el("li", {}, stepLine(i + 1, step, rec.meta?.[i]))),
-    );
+    steps.forEach((step, i) => {
+      lines.append(this.el("li", {}, stepLine(i + 1, step, rec.meta?.[i])));
+    });
     this.get("steps").replaceChildren(lines);
   }
 

@@ -3,8 +3,9 @@
 // function per section. It edits a draft of the settings the service worker
 // sent, counts what changed, and asks the worker to save; the worker, the
 // native host and `config.toml` do the rest (`settings.ts`).
-import { patternProblem } from "../sites";
+
 import type { PageMsg, PageState, Settings, WorkerMsg } from "../settings";
+import { patternProblem } from "../sites";
 
 export interface PagePort {
   postMessage(msg: PageMsg): void;

@@ -5,11 +5,11 @@
 // loaded.
 import { ConsoleBuffer } from "./console";
 import { find, formatFind } from "./find";
-import { PageError, dropFiles, element, formInput, setFiles } from "./forms";
+import { dropFiles, element, formInput, PageError, setFiles } from "./forms";
 import {
   Capture,
-  Outbox,
   fieldKind,
+  Outbox,
   resolveSelectors,
   type Selector,
   type StepMsg,

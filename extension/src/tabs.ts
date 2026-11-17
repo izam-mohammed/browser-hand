@@ -1,7 +1,7 @@
 // The tab tools. Every session owns one tab group titled "browser-hand" in
 // this profile and may only touch tabs inside it, and never a site the
 // settings block, nor act on one they make read-only (plans/06-settings.md).
-import { SiteRules, gate, type Use } from "./sites";
+import { gate, SiteRules, type Use } from "./sites";
 import { ToolError } from "./wire";
 
 export const GROUP_TITLE = "browser-hand";

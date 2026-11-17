@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { SiteRuleSync, sessionRules, type Rule } from "../src/site-rules";
+import { type Rule, SiteRuleSync, sessionRules } from "../src/site-rules";
 import {
-  NOT_A_PATTERN,
-  SiteRules,
   dnrRegex,
   gate,
   gateRegex,
   isPattern,
+  NOT_A_PATTERN,
   patternProblem,
+  SiteRules,
   useFor,
 } from "../src/sites";
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { SiteRules } from "../src/sites";
-import { GROUP_TITLE, TabTools, normaliseUrl, type GroupStore, type TabOptions } from "../src/tabs";
+import { GROUP_TITLE, type GroupStore, normaliseUrl, type TabOptions, TabTools } from "../src/tabs";
 import { ToolError } from "../src/wire";
 
 type FakeTab = {

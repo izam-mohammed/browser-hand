@@ -3,7 +3,7 @@
 // overshoot and correction on long moves (plans/03-humane-input.md,
 // decision 3).
 import { PARAMS, type Params } from "./params";
-import { clamp, uniform, type Rng } from "./random";
+import { clamp, type Rng, uniform } from "./random";
 import { fittsMs } from "./timing";
 
 export interface Pt {

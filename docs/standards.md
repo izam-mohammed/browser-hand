@@ -11,7 +11,7 @@ A change is done when it passes locally and on its pull request, where
 | --- | --- | --- |
 | Rust | 1.98.0 (stable) | not pinned (`docs/research/runtime-baseline.md` records it) |
 | Node | 24.9.0 | not pinned |
-| npm packages | TypeScript 7.0.2, vitest 5.0.5, esbuild 0.28.2, jsdom 30.1.3 | `extension/package-lock.json`, committed |
+| npm packages | TypeScript 7.0.2, Biome 2.6.8, vitest 5.0.5, esbuild 0.28.2, jsdom 30.1.3 | `extension/package-lock.json`, committed |
 | Rust crates | | `host/Cargo.lock`, committed |
 | gitleaks, osv-scanner | 8.30.1, 2.7.1 | local tools for `make security`, installed by hand (`go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`) |
 | Chrome | 155 (minimum 120) | `extension/manifest.json` `minimum_chrome_version` |
@@ -23,6 +23,7 @@ A change is done when it passes locally and on its pull request, where
 | Everything | make | `Makefile` | `make check` | lint, test, build and security all pass |
 | Rust format | rustfmt | defaults | `cargo fmt --manifest-path host/Cargo.toml --check` | no diff |
 | Rust lint | Clippy | defaults | `cargo clippy --manifest-path host/Cargo.toml --all-targets --locked -- -D warnings` | no warnings |
+| TypeScript format and lint | Biome 2.6.8 | `extension/biome.jsonc` | `npm --prefix extension run lint` (check), `run format` (fix) | no diff, no diagnostic; `wire.gen.ts` and `theme.gen.css` (generated) ignored |
 | Types | tsc | `extension/tsconfig.json` | `npm --prefix extension run typecheck` | no errors |
 | Extension unit tests | vitest + jsdom | `extension/package.json` | `npm --prefix extension test` (runs tsc first) | all pass |
 | Host tests | cargo test | `host/Cargo.toml`, root `.cargo/config.toml` | `cargo test --manifest-path host/Cargo.toml` | all pass; also regenerates `extension/src/wire.gen.ts` |
@@ -43,7 +44,7 @@ test: `npx --prefix extension vitest run test/page.test.ts`, or
 
 ## Constraints
 
-No TypeScript formatter or linter and no static analysis of the Rust is run
+No static analysis of the Rust is run
 locally yet (the CI security gate runs Semgrep's node packs);
 `plans/09-quality-gates.md` plans the rest. Anything that needs a real Chrome
 is a proof script or a walk with a person, because the extension's input and debugger paths do
@@ -69,6 +70,17 @@ coverage) and the extension job (tsc, build, vitest with coverage). Actions
 are pinned by tag, not commit SHA.
 
 ## Decided
+
+Biome formats and lints the TypeScript (`plans/09-quality-gates.md`
+decision 3). Checked 2026-11-17: OSV.dev lists no advisory for
+`@biomejs/biome` (query by package name returns none), so decision 3 stands.
+`biome ci .` over `extension/` takes 0.3 s wall clock (55 ms checking 47
+files); ESLint plus Prettier was not run for comparison.
+Rules switched off, each with its reason in `biome.jsonc`:
+`noNonNullAssertion` (tsc is strict and DOM code asserts what the page
+guarantees), `useDomNodeTextContent` (the code means `innerText`), and in
+`test/` `noExplicitAny`, `noAssignInExpressions` and
+`useIterableCallbackReturn` (fakes of Chrome and the DOM).
 
 The runtime choices (Rust host, TypeScript extension) are in
 `plans/01-bridge.md`.
