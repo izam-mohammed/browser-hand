@@ -252,14 +252,14 @@ repository instructions for recording useful development findings.
 
 ### Phase 3: uploads refuse credential files
 
-- [ ] Tests first: refusals for `.env`, `.pem`, `.key`, a path under
+- [x] Tests first: refusals for `.env`, `.pem`, `.key`, a path under
   `.ssh`, a symlink to one, a hard-linked file; `config.env.example`
   allowed (in `host/src/tools/files.rs`).
-- [ ] The refusals land beside the size check, each error naming the rule
+- [x] The refusals land beside the size check, each error naming the rule
   and telling Claude to ask the person for another file.
-- [ ] `host/src/instructions.md` and `plugin/skills/browser-hand/SKILL.md`
+- [x] `host/src/instructions.md` and `plugin/skills/browser-hand/SKILL.md`
   say so in a line, pinned by `host/tests/instructions.rs`.
-- [ ] Check: `make check` passes.
+- [x] Check: `make check` passes.
 
 ### Phase 4: other Chromium browsers
 
