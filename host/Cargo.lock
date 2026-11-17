@@ -95,6 +95,7 @@ dependencies = [
  "toml",
  "ts-rs",
  "uuid",
+ "windows-sys",
 ]
 
 [[package]]

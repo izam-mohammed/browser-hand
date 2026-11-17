@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // A native host told to stop has to exit, even while Chrome still holds
 // its stdin open; otherwise the extension never sees the port close.
 

@@ -77,17 +77,36 @@ fn check_not_credential(p: &str, path: &Path, meta: &std::fs::Metadata) -> Resul
             }
         }
     }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        if meta.nlink() > 1 {
-            return Err(format!(
-                "refused: {p} is a hard link (the same file has another name), so its real name cannot be checked. {ASK}"
-            ));
-        }
+    if cfg!(windows) && crate::winos::has_stream(&path.to_string_lossy()) {
+        return Err(format!(
+            "refused: {p} names an NTFS data stream, so its real name cannot be checked. {ASK}"
+        ));
     }
-    let _ = meta;
+    let links = link_count(path, meta);
+    if cfg!(windows) && links.is_none() {
+        return Err(format!(
+            "refused: {p} could not be opened to count its names, so it cannot be checked. {ASK}"
+        ));
+    }
+    if links.is_some_and(|n| n > 1) {
+        return Err(format!(
+            "refused: {p} is a hard link (the same file has another name), so its real name cannot be checked. {ASK}"
+        ));
+    }
     Ok(())
+}
+
+/// How many names the file has: the link count on Unix, and on Windows the
+/// NTFS one from the open file.
+#[cfg(unix)]
+fn link_count(_path: &Path, meta: &std::fs::Metadata) -> Option<u64> {
+    use std::os::unix::fs::MetadataExt;
+    Some(meta.nlink())
+}
+
+#[cfg(windows)]
+fn link_count(path: &Path, _meta: &std::fs::Metadata) -> Option<u64> {
+    crate::winsys::link_count(path).map(u64::from)
 }
 
 /// The files as `{name, mimeType, data}` for the extension, or why not.

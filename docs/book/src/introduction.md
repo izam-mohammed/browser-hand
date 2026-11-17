@@ -2,7 +2,7 @@
 
 browser-hand lets Claude Code drive your own Chrome profiles. It picks a
 profile, opens and reads pages, and clicks, types and scrolls the way a
-person does, with your logins already in place. It runs on macOS and Linux with
+person does, with your logins already in place. It runs on macOS, Linux and Windows with
 Google Chrome, Chromium, Edge, Brave or Vivaldi.
 
 It comes in three parts, and you need all three:
@@ -14,7 +14,7 @@ It comes in three parts, and you need all three:
 | Plugin | Brings the server and a skill that tells Claude how to use it. | `plugin/`, started with `claude --plugin-dir` |
 
 ```text
-Claude Code --stdio--> browser-hand mcp --unix socket--> browser-hand (native host) --native port--> extension
+Claude Code --stdio--> browser-hand mcp --unix socket (a named pipe on Windows)--> browser-hand (native host) --native port--> extension
 ```
 
 Chrome starts one native host per profile that has the extension. The MCP

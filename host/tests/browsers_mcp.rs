@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // list_profiles and select_profile over two browsers (plans/14, decision 2).
 
 use std::path::Path;

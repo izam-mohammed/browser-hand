@@ -196,7 +196,7 @@ fn settings_page() -> String {
     );
     out.push_str(
         "The settings page writes these keys to `~/.config/browser-hand/config.toml` \
-         (`$XDG_CONFIG_HOME/browser-hand/config.toml` when set). A missing file or \
+         (`$XDG_CONFIG_HOME/browser-hand/config.toml` when set; `%LOCALAPPDATA%\\browser-hand\\config.toml` on Windows). A missing file or \
          key is the default, and an unknown key is dropped. The first column is the \
          key in the file; the second is what the settings page calls it.\n\n",
     );

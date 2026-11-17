@@ -37,7 +37,8 @@ Please give us a reasonable chance to fix it before you share details.
 ## Scope
 
 In scope: the native host and MCP server in `host/` (the `browser-hand`
-binary, its Unix sockets and the native messaging manifest it installs),
+binary, its Unix sockets or Windows named pipes and the native messaging
+manifest and registry key it installs),
 the Chrome extension in `extension/`, including blocked and read-only site
 enforcement and recordings, the Claude Code plugin in `plugin/`, the
 settings file it writes (`~/.config/browser-hand/config.toml`), the build

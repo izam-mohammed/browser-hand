@@ -22,7 +22,10 @@ Chrome starts a native host per profile when the extension connects. If
 
 - Check the manifest exists:
   `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/dev.browserhand.host.json`.
-  If not, run `plugin/server/browser-hand install`.
+  If not, run `plugin/server/browser-hand install`. On Windows the check is
+  the registry: `reg query "HKCU\Software\Google\Chrome\NativeMessagingHosts\dev.browserhand.host"`
+  (Edge: `Microsoft\Edge`, Brave: `BraveSoftware\Brave-Browser`) must show a
+  default value that names an existing manifest file.
 - Check `plugin/server/browser-hand` exists: `sh scripts/build.sh` builds it.
 - Reload the extension (`reload` above) so Chrome starts the host again.
 

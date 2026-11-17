@@ -125,6 +125,7 @@ fn upload_refuses_anything_inside_a_ssh_folder() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn upload_refuses_a_symlink_to_a_protected_file_under_a_harmless_name() {
     let dir = tempfile::tempdir().unwrap();
@@ -151,6 +152,7 @@ fn upload_refuses_a_hard_link_and_says_why() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn upload_still_takes_normal_files_and_lookalike_names() {
     let dir = tempfile::tempdir().unwrap();
