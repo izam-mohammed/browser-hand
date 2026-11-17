@@ -33,6 +33,13 @@ fn clip(s: &str, max: usize) -> String {
 }
 
 /// `ms` since the epoch as local "YYYY-MM-DD HH:MM".
+#[cfg(windows)]
+pub fn local_time(ms: i64) -> String {
+    crate::winsys::local_time(ms).unwrap_or_else(|| format!("{ms} ms"))
+}
+
+/// `ms` since the epoch as local "YYYY-MM-DD HH:MM".
+#[cfg(not(windows))]
 pub fn local_time(ms: i64) -> String {
     let secs = (ms / 1000) as libc::time_t;
     // SAFETY: localtime_r only writes the `tm` it is given.

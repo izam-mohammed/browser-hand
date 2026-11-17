@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // The launchers run `pgrep` and `open` (macOS) or a browser binary (Linux);
 // stand-ins on PATH show what they pass and how they read exit status. One
 // test, because it sets PATH, HOME and BROWSER_HAND_* for the whole process.

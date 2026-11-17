@@ -24,6 +24,20 @@ ab_glyph = "0.2.32"
 # config.toml (plans/06-settings.md, Decision 5; docs/external/toml.md).
 toml = "1.1.8"
 
+# Windows only: named pipe security, the parent process, link counts, local
+# time (plans/16-windows.md). Already in Cargo.lock through tokio.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Pipes",
+  "Win32_System_Threading",
+  "Win32_System_Time",
+] }
+
 [dev-dependencies]
 tokio = { version = "1.53", features = ["test-util"] }
 tempfile = "3.27"

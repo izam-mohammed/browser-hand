@@ -1,3 +1,4 @@
+#![cfg(unix)]
 // The client end of a host socket, against hand-made listeners that say
 // what a real host would, or something it never should.
 

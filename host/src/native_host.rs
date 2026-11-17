@@ -12,10 +12,10 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::mpsc;
 
 use crate::config::{self, Settings};
+use crate::ipc::Accept;
 use crate::wire::{self, ErrorCode, Frame, ProfileRef, SettingsError, PROTOCOL};
 
 type Tx = mpsc::UnboundedSender<Frame>;
@@ -35,7 +35,7 @@ pub struct HostOptions {
 impl HostOptions {
     pub fn from_env() -> Self {
         let roots = crate::profiles::roots();
-        let browser = crate::profiles::parent_identity(std::os::unix::process::parent_id(), &roots)
+        let browser = crate::profiles::parent_identity(crate::profiles::parent_pid(), &roots)
             .map(String::from);
         HostOptions {
             config: crate::paths::config_path(),
@@ -191,16 +191,17 @@ impl State {
 }
 
 /// Relays until Chrome closes the port (`from_chrome` ends).
-pub async fn run<R, W>(
+pub async fn run<R, W, L>(
     mut from_chrome: R,
     mut to_chrome: W,
-    listener: UnixListener,
+    listener: L,
     instance: String,
     opts: HostOptions,
 ) -> io::Result<()>
 where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin + Send + 'static,
+    L: Accept + Send + 'static,
 {
     let state = Arc::new(Mutex::new(State {
         instance,
@@ -327,10 +328,14 @@ fn frame_type(frame: &Frame) -> &'static str {
     }
 }
 
-async fn accept_loop(listener: UnixListener, state: Arc<Mutex<State>>, chrome: Tx) {
+async fn accept_loop<L: Accept + Send + 'static>(
+    mut listener: L,
+    state: Arc<Mutex<State>>,
+    chrome: Tx,
+) {
     loop {
         match listener.accept().await {
-            Ok((stream, _)) => {
+            Ok(stream) => {
                 tokio::spawn(serve_client(stream, state.clone(), chrome.clone()));
             }
             Err(e) => {
@@ -341,8 +346,12 @@ async fn accept_loop(listener: UnixListener, state: Arc<Mutex<State>>, chrome: T
     }
 }
 
-async fn serve_client(stream: UnixStream, state: Arc<Mutex<State>>, chrome: Tx) {
-    let (mut read, mut write) = stream.into_split();
+async fn serve_client<S: AsyncRead + AsyncWrite + Send + Unpin + 'static>(
+    stream: S,
+    state: Arc<Mutex<State>>,
+    chrome: Tx,
+) {
+    let (mut read, mut write) = tokio::io::split(stream);
     let (tx, mut rx) = mpsc::unbounded_channel::<Frame>();
     let client = {
         let st = &mut *state.lock().unwrap();
@@ -433,23 +442,34 @@ impl Drop for SocketGuard {
 /// Binds this process's socket and relays stdin/stdout until Chrome closes
 /// the port or the process is told to stop.
 pub async fn main() -> anyhow::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    use tokio::signal::unix::{signal, SignalKind};
-
     crate::paths::ensure_socket_dir()?;
     let path = crate::paths::socket_path(std::process::id());
-    let _ = std::fs::remove_file(&path);
-    let listener = UnixListener::bind(&path)?;
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    let listener = crate::ipc::bind(&path)?;
     let _guard = SocketGuard(path);
 
     let instance = uuid::Uuid::new_v4().to_string();
+    tokio::select! {
+        r = run(tokio::io::stdin(), tokio::io::stdout(), listener, instance, HostOptions::from_env()) => r?,
+        r = stop_signal() => r?,
+    }
+    Ok(())
+}
+
+/// Ends when the process is told to stop: SIGTERM or SIGINT, on Windows
+/// Ctrl-C (Chrome ends a host by closing its stdin, which ends `run`).
+#[cfg(unix)]
+async fn stop_signal() -> io::Result<()> {
+    use tokio::signal::unix::{signal, SignalKind};
     let mut term = signal(SignalKind::terminate())?;
     let mut int = signal(SignalKind::interrupt())?;
     tokio::select! {
-        r = run(tokio::io::stdin(), tokio::io::stdout(), listener, instance, HostOptions::from_env()) => r?,
         _ = term.recv() => {}
         _ = int.recv() => {}
     }
     Ok(())
+}
+
+#[cfg(windows)]
+async fn stop_signal() -> io::Result<()> {
+    tokio::signal::ctrl_c().await
 }
