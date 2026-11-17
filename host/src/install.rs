@@ -11,6 +11,7 @@ use anyhow::Context;
 use serde_json::json;
 
 use crate::mcp::{EXTENSION_ID, STORE_EXTENSION_ID};
+use crate::profiles::Root;
 
 pub const HOST_NAME: &str = "dev.browserhand.host";
 
@@ -246,9 +247,28 @@ pub fn run(
     Ok(())
 }
 
+/// `run` for each browser dir; with more than one, each section starts with
+/// the browser's name.
+pub fn run_all(
+    roots: &[Root],
+    exe: &Path,
+    opts: &Options,
+    store_id: Option<&str>,
+    out: &mut dyn Write,
+) -> anyhow::Result<()> {
+    for r in roots {
+        if roots.len() > 1 {
+            let name = crate::profiles::browser(r.browser).map_or(r.browser, |b| b.name);
+            writeln!(out, "{name}:")?;
+        }
+        run(&r.dir, exe, opts, store_id, out)?;
+    }
+    Ok(())
+}
+
 pub fn main(args: &[String]) -> anyhow::Result<()> {
     let opts = Options::parse(args)?;
-    let chrome_dir = crate::profiles::chrome_dir();
+    let roots = crate::profiles::roots();
     let exe = std::env::current_exe()?.canonicalize()?;
     // `--no-store` is for development: no file, and the manifest allows
     // only the dev ID.
@@ -257,5 +277,5 @@ pub fn main(args: &[String]) -> anyhow::Result<()> {
     } else {
         STORE_EXTENSION_ID
     };
-    run(&chrome_dir, &exe, &opts, store_id, &mut std::io::stdout())
+    run_all(&roots, &exe, &opts, store_id, &mut std::io::stdout())
 }
