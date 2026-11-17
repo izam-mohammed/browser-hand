@@ -194,7 +194,7 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the rough cut: the page opens and says it (needs you: try it)
 
-- [ ] `site/index.html` shows the inlined banner art, the name, a one-line
+- [x] `site/index.html` shows the inlined banner art, the name, a one-line
   pitch in the README's voice, the main button per decision 3, a short
   "what it does" row (profiles, reads pages, moves like a hand, records
   your steps) and a footer, in one self-contained file with no script.
@@ -207,7 +207,7 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: it holds in both themes, at phone width, and by rule
 
-- [ ] The page follows `prefers-color-scheme` with tokens on `:root`, keeps
+- [x] The page follows `prefers-color-scheme` with tokens on `:root`, keeps
   a 16 px gutter at 390 px wide with no horizontal scroll, and passes
   4.5:1 text contrast (in `site/index.html`).
 - [ ] `scripts/check-site.sh` fails on a `<script`, an external URL outside

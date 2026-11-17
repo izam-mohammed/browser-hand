@@ -37,6 +37,7 @@ A change is done when it passes locally and on its pull request, where
 | Secrets | gitleaks | none | `gitleaks git . --redact --verbose` | none in the history (also `make security`; hook in `.pre-commit-config.yaml`) |
 | Docs reference | cargo test | `host/tests/docs.rs` | `cargo test --manifest-path host/Cargo.toml --test docs` (`UPDATE_DOCS=1` rewrites `docs/book/src/reference/`) | tools, settings and commands pages match the host |
 | Docs book | mdBook, lychee | `docs/book/book.toml` | `sh scripts/check-docs.sh` | builds with no warning, no broken link, nothing loaded from outside, no private detail (also `make check`) |
+| Site | sh, grep | `scripts/check-site.sh` | `sh scripts/check-site.sh` | prints `PASS`: no script, no external URL, no link into the private repository, no local path (also `make check`) |
 | Proofs | sh | `scripts/prove/` | `sh scripts/prove/<name>.sh` | prints `PASS` (needs Chrome and a person) |
 
 ## Tests
