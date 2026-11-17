@@ -8,7 +8,7 @@ EXT = npm --prefix extension
 help:  ## List the targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-10s %s\n",$$1,$$2}'
 
-check: lint test build security  ## Every check, stopping at the first failure
+check: lint coverage build security  ## Every check, stopping at the first failure (tests run inside coverage)
 
 lint:  ## rustfmt, Clippy, Biome, tsc
 	cargo fmt $(HOST) --check
