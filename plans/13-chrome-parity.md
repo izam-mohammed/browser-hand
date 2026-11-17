@@ -283,8 +283,19 @@ repository instructions for recording useful development findings.
   `REDACTED`, and `urlPattern` matches the redacted URL (expected in
   `extension/src/network.ts`), pinned by redaction cases in
   `network.test.ts`.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Headless on Chrome for Testing, 17/11/2026: the smoke passed on a release build with `extension/dist`,
+  with `cargo build --release` and `npm run build` in place of
+  `scripts/build.sh` (which installs into the real Chrome dir) and the host
+  manifest from `install --no-store` in a throwaway dir. `select_profile`,
+  `navigate`, `read_page` and `computer` click, type and screenshot worked;
+  the page held one closed shadow root (the cursor overlay) that the
+  screenshot did not show; `read_network_requests` listed
+  `access_token=REDACTED` and `urlPattern` matched the redacted form only.
+  Not shown: the overlay's look and glide on a real screen, `select_profile`
+  as written (macOS `open`; a stand-in `open` was used), and a real
+  multi-profile Chrome.
 - [ ] You try it: run `sh scripts/build.sh`, ask Claude to open a page and
   click through a form, and watch the cursor glide; then open a URL with
   `?access_token=abc` and ask for the network read. Say how the cursor
