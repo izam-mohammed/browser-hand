@@ -34,12 +34,15 @@ pub struct Profile {
 pub enum Os {
     Mac,
     Linux,
+    Windows,
 }
 
 impl Os {
     pub fn current() -> Os {
         if cfg!(target_os = "macos") {
             Os::Mac
+        } else if cfg!(windows) {
+            Os::Windows
         } else {
             Os::Linux
         }
@@ -54,6 +57,12 @@ pub struct Browser {
     pub mac_dir: &'static str,
     /// Under `~/.config/`.
     pub linux_dir: &'static str,
+    /// Under `%LOCALAPPDATA%`, `/`-separated, ending in `User Data`.
+    pub win_dir: &'static str,
+    /// Under `HKCU\Software\`: the vendor key holding `NativeMessagingHosts`.
+    pub win_reg: &'static str,
+    /// Under `%ProgramFiles%` and the like, `\`-separated.
+    pub win_exe: &'static str,
     /// The app name `open -na` takes.
     pub mac_app: &'static str,
     /// Binary names looked up on `PATH`, in order.
@@ -70,6 +79,9 @@ pub const BROWSERS: &[Browser] = &[
         name: "Google Chrome",
         mac_dir: "Google/Chrome",
         linux_dir: "google-chrome",
+        win_dir: "Google/Chrome/User Data",
+        win_reg: r"Google\Chrome",
+        win_exe: r"Google\Chrome\Application\chrome.exe",
         mac_app: "Google Chrome",
         linux_bins: &["google-chrome-stable", "google-chrome", "chromium"],
         exe_names: &[
@@ -84,6 +96,9 @@ pub const BROWSERS: &[Browser] = &[
         name: "Chromium",
         mac_dir: "Chromium",
         linux_dir: "chromium",
+        win_dir: "Chromium/User Data",
+        win_reg: "Chromium",
+        win_exe: r"Chromium\Application\chrome.exe",
         mac_app: "Chromium",
         linux_bins: &["chromium", "chromium-browser"],
         exe_names: &["chromium", "chromium-browser", "chromium.app"],
@@ -93,6 +108,9 @@ pub const BROWSERS: &[Browser] = &[
         name: "Microsoft Edge",
         mac_dir: "Microsoft Edge",
         linux_dir: "microsoft-edge",
+        win_dir: "Microsoft/Edge/User Data",
+        win_reg: r"Microsoft\Edge",
+        win_exe: r"Microsoft\Edge\Application\msedge.exe",
         mac_app: "Microsoft Edge",
         linux_bins: &["microsoft-edge-stable", "microsoft-edge"],
         exe_names: &[
@@ -108,6 +126,9 @@ pub const BROWSERS: &[Browser] = &[
         name: "Brave",
         mac_dir: "BraveSoftware/Brave-Browser",
         linux_dir: "BraveSoftware/Brave-Browser",
+        win_dir: "BraveSoftware/Brave-Browser/User Data",
+        win_reg: r"BraveSoftware\Brave-Browser",
+        win_exe: r"BraveSoftware\Brave-Browser\Application\brave.exe",
         mac_app: "Brave Browser",
         linux_bins: &["brave-browser", "brave-browser-stable", "brave"],
         exe_names: &[
@@ -123,6 +144,9 @@ pub const BROWSERS: &[Browser] = &[
         name: "Vivaldi",
         mac_dir: "Vivaldi",
         linux_dir: "vivaldi",
+        win_dir: "Vivaldi/User Data",
+        win_reg: "Vivaldi",
+        win_exe: r"Vivaldi\Application\vivaldi.exe",
         mac_app: "Vivaldi",
         linux_bins: &["vivaldi-stable", "vivaldi"],
         exe_names: &["vivaldi", "vivaldi-bin", "vivaldi-stable", "vivaldi.app"],
@@ -133,16 +157,27 @@ pub fn browser(key: &str) -> Option<&'static Browser> {
     BROWSERS.iter().find(|b| b.key == key)
 }
 
-/// `b`'s user data dir under `home`.
+/// `b`'s user data dir under `home`; on Windows `home` is `%LOCALAPPDATA%`
+/// (`base_dir`).
 pub fn data_dir(os: Os, home: &Path, b: &Browser) -> PathBuf {
     match os {
         Os::Mac => home.join("Library/Application Support").join(b.mac_dir),
         Os::Linux => home.join(".config").join(b.linux_dir),
+        Os::Windows => b
+            .win_dir
+            .split('/')
+            .fold(home.to_path_buf(), |p, c| p.join(c)),
     }
 }
 
-fn home() -> PathBuf {
-    PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+/// What `data_dir` takes as `home` here: `%LOCALAPPDATA%` on Windows (empty
+/// when unset, so no dir is found), `$HOME` elsewhere.
+pub fn base_dir() -> PathBuf {
+    if Os::current() == Os::Windows {
+        PathBuf::from(std::env::var_os("LOCALAPPDATA").unwrap_or_default())
+    } else {
+        crate::paths::home_dir()
+    }
 }
 
 /// Chrome's user data dir. `BROWSER_HAND_CHROME_DIR` overrides it (tests).
@@ -150,7 +185,7 @@ pub fn chrome_dir() -> PathBuf {
     if let Some(dir) = std::env::var_os("BROWSER_HAND_CHROME_DIR") {
         return PathBuf::from(dir);
     }
-    data_dir(Os::current(), &home(), &BROWSERS[0])
+    data_dir(Os::current(), &base_dir(), &BROWSERS[0])
 }
 
 /// One browser's user data dir.
@@ -178,7 +213,7 @@ pub fn roots() -> Vec<Root> {
     let found = if std::env::var_os("BROWSER_HAND_CHROME_DIR").is_some() {
         vec![]
     } else {
-        installed_roots(Os::current(), &home())
+        installed_roots(Os::current(), &base_dir())
     };
     if found.is_empty() {
         vec![Root {
@@ -203,30 +238,41 @@ pub fn identify(exe: Option<&Path>, udd: Option<&Path>, roots: &[Root]) -> Optio
         let same = |a: &Path, b: &Path| {
             a == b || matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
         };
-        let udd = Path::new(udd.to_str()?.trim_end_matches('/'));
+        let udd = Path::new(udd.to_str()?.trim_end_matches(['/', '\\']));
         if let Some(r) = roots.iter().find(|r| same(&r.dir, udd)) {
             return Some(r.browser);
         }
     }
-    let exe = exe?;
+    // Windows paths read the same on every system: `\` is a separator here.
+    let exe = exe?.to_string_lossy().replace('\\', "/");
+    let exe = Path::new(&exe);
+    let name_of = |p: Option<&Path>| {
+        p.and_then(Path::file_name)
+            .map(|n| n.to_string_lossy().to_ascii_lowercase())
+    };
     let mut parts: Vec<String> = exe
         .components()
         .filter_map(|c| c.as_os_str().to_str())
         .filter(|c| c.to_ascii_lowercase().ends_with(".app"))
         .map(str::to_ascii_lowercase)
         .collect();
-    parts.extend(
-        [exe.file_name(), exe.parent().and_then(Path::file_name)]
-            .into_iter()
-            .flatten()
-            .filter_map(|c| c.to_str())
-            .map(str::to_ascii_lowercase),
-    );
+    let file = name_of(Some(exe)).map(|n| n.strip_suffix(".exe").map_or(n.clone(), String::from));
+    let folder = name_of(exe.parent());
+    parts.extend(file.iter().chain(&folder).cloned());
     let table = BROWSERS[1..].iter().chain(&BROWSERS[..1]);
-    table
+    let found = table
         .filter(|b| parts.iter().any(|p| b.exe_names.contains(&p.as_str())))
         .map(|b| b.key)
-        .next()
+        .next();
+    // Chromium's Windows exe is `...\Chromium\Application\chrome.exe`: the
+    // folder two up tells it from Chrome, and only in that shape.
+    if found == Some("chrome") && folder.as_deref() == Some("application") {
+        let grand = name_of(exe.parent().and_then(Path::parent));
+        if grand.is_some_and(|g| BROWSERS[1].exe_names.contains(&g.as_str())) {
+            return Some(BROWSERS[1].key);
+        }
+    }
+    found
 }
 
 /// The value of `--user-data-dir` in a command line, `=` or a separate word.
@@ -299,9 +345,26 @@ fn exe_of(pid: u32) -> Option<PathBuf> {
     Some(PathBuf::from(std::ffi::OsString::from_vec(buf)))
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+#[cfg(windows)]
+fn exe_of(pid: u32) -> Option<PathBuf> {
+    crate::winsys::image_path(pid)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
 fn exe_of(_pid: u32) -> Option<PathBuf> {
     None
+}
+
+/// This process's parent: the browser, for a native host. `0` when unknown.
+#[cfg(unix)]
+pub fn parent_pid() -> u32 {
+    std::os::unix::process::parent_id()
+}
+
+/// This process's parent (ToolHelp snapshot); `0` when unknown.
+#[cfg(windows)]
+pub fn parent_pid() -> u32 {
+    crate::winsys::parent_pid().unwrap_or(0)
 }
 
 /// Profiles of every root, in table order. With more than one root each
@@ -387,22 +450,11 @@ pub struct LiveHost {
 /// Every host socket in `dir` that answers within `wait`. Sockets nobody is
 /// listening on are left over from killed hosts and are removed.
 pub async fn discover(dir: &Path, wait: Duration) -> Vec<LiveHost> {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return vec![];
-    };
-    let paths: Vec<PathBuf> = entries
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|x| x == "sock"))
-        .collect();
-
-    let probes = paths.into_iter().map(|path| async move {
+    let probes = crate::ipc::list(dir).into_iter().map(|path| async move {
         match host_conn::probe(&path, wait).await {
             Ok(hello) => Some(LiveHost { path, hello }),
             Err(e) => {
-                if e.kind() == std::io::ErrorKind::ConnectionRefused {
-                    let _ = std::fs::remove_file(&path);
-                }
+                crate::ipc::forget_stale(&path, &e);
                 None
             }
         }

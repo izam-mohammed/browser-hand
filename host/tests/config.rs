@@ -80,6 +80,7 @@ fn a_saved_file_reads_back_the_same() {
         .starts_with("# Written by the browser-hand settings page."));
 }
 
+#[cfg(unix)]
 #[test]
 fn the_file_is_written_mode_0600_and_leaves_no_temporary_file() {
     use std::os::unix::fs::PermissionsExt;

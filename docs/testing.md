@@ -154,13 +154,13 @@ Testing accepts it.
 `host/src/profiles.rs` holds a fixed table; `list_profiles`, `select_profile`
 and `install` use every browser whose data dir exists.
 
-| Browser | Linux data dir (under `~/.config/`) | macOS data dir (under `~/Library/Application Support/`) | Linux binaries tried, in order |
-| --- | --- | --- | --- |
-| Google Chrome (`chrome`) | `google-chrome` | `Google/Chrome` | `google-chrome-stable`, `google-chrome`, `chromium` |
-| Chromium (`chromium`) | `chromium` | `Chromium` | `chromium`, `chromium-browser` |
-| Microsoft Edge (`edge`) | `microsoft-edge` | `Microsoft Edge` | `microsoft-edge-stable`, `microsoft-edge` |
-| Brave (`brave`) | `BraveSoftware/Brave-Browser` | `BraveSoftware/Brave-Browser` | `brave-browser`, `brave-browser-stable`, `brave` |
-| Vivaldi (`vivaldi`) | `vivaldi` | `Vivaldi` | `vivaldi-stable`, `vivaldi` |
+| Browser | Linux data dir (under `~/.config/`) | macOS data dir (under `~/Library/Application Support/`) | Windows data dir (under `%LOCALAPPDATA%\`) and registry key (under `HKCU\Software\`) | Linux binaries tried, in order |
+| --- | --- | --- | --- | --- |
+| Google Chrome (`chrome`) | `google-chrome` | `Google/Chrome` | `Google\Chrome\User Data`, `Google\Chrome` | `google-chrome-stable`, `google-chrome`, `chromium` |
+| Chromium (`chromium`) | `chromium` | `Chromium` | `Chromium\User Data`, `Chromium` (by pattern) | `chromium`, `chromium-browser` |
+| Microsoft Edge (`edge`) | `microsoft-edge` | `Microsoft Edge` | `Microsoft\Edge\User Data`, `Microsoft\Edge` | `microsoft-edge-stable`, `microsoft-edge` |
+| Brave (`brave`) | `BraveSoftware/Brave-Browser` | `BraveSoftware/Brave-Browser` | `BraveSoftware\Brave-Browser\User Data`, `BraveSoftware\Brave-Browser` | `brave-browser`, `brave-browser-stable`, `brave` |
+| Vivaldi (`vivaldi`) | `vivaldi` | `Vivaldi` | `Vivaldi\User Data`, `Vivaldi` (third-party source) | `vivaldi-stable`, `vivaldi` |
 
 Each host also says which browser it runs in (`hello.browser`): the
 `--user-data-dir` of its parent process compared with each installed
@@ -188,3 +188,29 @@ Only a person can check these. Tick them on a real profile before a release.
 - [ ] Web Store route: `scripts/prove/external-extensions.sh <store id>` with a public extension no profile has; each profile offers it after a restart. Only once a store ID is built in.
 - [ ] The docs book (`sh scripts/check-docs.sh`, then open `docs/book/out/`) and the site (`sh scripts/check-site.sh`, then open `site/`) read right and look right in light and dark.
 - [ ] Settings page in a real profile: change a setting, see it in a second profile.
+
+## Windows (a person at a Windows 10 or 11 PC; plans/16)
+
+Nothing below has run: the host was only compiled for
+`x86_64-pc-windows-gnu` (`make windows`: Clippy, `-D warnings`, all targets,
+2026-11-17). What Linux does hold: the registry key names and `reg` command
+lines, pipe names and scopes, install folders, `\\?\` stripping, the SDDL
+string, Windows config and GIF folder paths, `.exe` identity
+(`host/tests/winos.rs`, `install_windows.rs`, `paths_windows.rs`,
+`launcher_windows.rs`), and the `ipc` module on Unix (`ipc.rs`). Run from a
+checkout in PowerShell with `cargo test --manifest-path host\Cargo.toml`
+(`pipe_windows.rs` runs only there; the Unix test files are `cfg(unix)`).
+
+- [ ] `cargo test --manifest-path host\Cargo.toml` passes, `pipe_windows.rs` included.
+- [ ] `host\target\release\browser-hand.exe install --no-store` prints `Registered HKCU\Software\...` for each installed browser, and `reg query "HKCU\Software\Google\Chrome\NativeMessagingHosts\dev.browserhand.host"` shows a default value that names an existing manifest whose `path` has no `\\?\` prefix.
+- [ ] The same for Edge and Brave, and for Chromium and Vivaldi if installed: confirm or correct the two keys written by pattern (Chromium `HKCU\Software\Chromium`, Vivaldi `HKCU\Software\Vivaldi`) in `docs/external/windows.md` and `docs/standards.md`.
+- [ ] With the extension loaded unpacked, Chrome starts the host: a `\\.\pipe\browser-hand-bh-<pid>` appears (`Get-ChildItem \\.\pipe\ | Where Name -like 'browser-hand*'`) and `list_profiles` shows the profile connected.
+- [ ] A second Windows user (or `runas`) cannot open that pipe: `[IO.Pipes.NamedPipeClientStream]::new('.', 'browser-hand-bh-<pid>').Connect(1000)` as the other user is refused (access denied).
+- [ ] `select_profile` starts a closed browser and hands off to a running one (the lockfile test says which); a profile named `Profile 1` and a URL with `&` arrive intact; `BROWSER_HAND_BROWSER_BIN` overrides the exe.
+- [ ] Chrome and Edge both running with a `Default` profile each: `list_profiles` counts each once (the parent exe's identity, `chrome.exe` / `msedge.exe`).
+- [ ] `navigate`, `read_page`, a click, typing, a screenshot, `gif_creator` export into `%USERPROFILE%\Downloads\browser-hand`, and a recording's list show a correct local time.
+- [ ] `file_upload` refuses `.env`, `KEY.PEM`, a file under `.ssh`, a hard link (`fsutil hardlink create`) and `a.txt:s` (a data stream), and takes an ordinary file.
+- [ ] The settings page saves; `%LOCALAPPDATA%\browser-hand\config.toml` appears and a second profile follows within 2 s; a GIF folder of `C:\Users\<you>\Videos` and `~\gifs` are accepted.
+- [ ] `browser-hand.exe install --uninstall` removes the manifest and each key; running it again says `Nothing to remove`.
+- [ ] Killing a host with Task Manager leaves no pipe behind and the MCP server's `list_profiles` stops showing it.
+- [ ] With two Claude Code sessions, both reach the same host through its pipe and `reload` reaches every profile.

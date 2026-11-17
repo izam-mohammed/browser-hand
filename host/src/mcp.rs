@@ -81,7 +81,18 @@ fn app_running(app: &str) -> bool {
         .is_ok_and(|s| s.success())
 }
 
+/// Whether a Windows browser holds `<data>\lockfile`: Chromium opens it for
+/// writing and sharing only reads (`process_singleton_win.cc`), so a write
+/// open fails with a sharing violation (error 32) while it runs.
+pub fn lockfile_held(data: &std::path::Path) -> bool {
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(data.join("lockfile"))
+        .is_err_and(|e| e.raw_os_error() == Some(32))
+}
+
 /// The first of `names` that is an executable file on `PATH`.
+#[cfg(unix)]
 fn find_on_path(names: &[&str]) -> Option<PathBuf> {
     use std::os::unix::fs::PermissionsExt;
     let path = std::env::var_os("PATH")?;
@@ -91,6 +102,12 @@ fn find_on_path(names: &[&str]) -> Option<PathBuf> {
             p.metadata()
                 .is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
         })
+}
+
+/// Windows launches from install folders, never `PATH` (`launcher_for`).
+#[cfg(not(unix))]
+fn find_on_path(_names: &[&str]) -> Option<PathBuf> {
+    None
 }
 
 /// A launcher id is `<browser>:<dir>` or a bare `<dir>`; a bare dir means the
@@ -122,7 +139,12 @@ fn split_id(id: &str) -> (&'static profiles::Browser, &str) {
 ///   `PATH`, or `BROWSER_HAND_BROWSER_BIN`) with the same flag and URL; a
 ///   second launch hands them to the running browser.
 ///
-/// With `BROWSER_HAND_CHROME_DIR` set the Linux launch also passes
+/// - Windows: runs the browser's exe from the first of its install folders
+///   that has it (`BROWSER_HAND_BROWSER_BIN` overrides), directly and never
+///   through `cmd`, with the same flag and URL. "Started" is the browser's
+///   `lockfile` not being held.
+///
+/// With `BROWSER_HAND_CHROME_DIR` set the Linux and Windows launch also passes
 /// `--user-data-dir`, so a test never opens the real profile.
 pub fn launcher_for(os: profiles::Os) -> Launcher {
     Arc::new(move |id: &str, url: &str| {
@@ -142,9 +164,25 @@ pub fn launcher_for(os: profiles::Os) -> Launcher {
                     Err(std::io::Error::other(format!("open exited with {status}")))
                 }
             }
-            profiles::Os::Linux => {
+            profiles::Os::Linux | profiles::Os::Windows => {
+                let windows = os == profiles::Os::Windows;
                 let bin = match std::env::var_os("BROWSER_HAND_BROWSER_BIN") {
                     Some(b) => PathBuf::from(b),
+                    None if windows => {
+                        // `PATH` is not searched: the install folders only.
+                        let tried = crate::winos::exe_candidates(&crate::winos::WinEnv::from_env(), browser);
+                        tried.iter().find(|p| p.is_file()).cloned().ok_or_else(|| {
+                            std::io::Error::other(format!(
+                                "no {} found (tried {}); set BROWSER_HAND_BROWSER_BIN to the browser's path",
+                                browser.name,
+                                tried
+                                    .iter()
+                                    .map(|p| p.display().to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            ))
+                        })?
+                    }
                     None => find_on_path(browser.linux_bins).ok_or_else(|| {
                         std::io::Error::other(format!(
                             "no {} binary on PATH (tried {}); set BROWSER_HAND_BROWSER_BIN to the browser's path",
@@ -154,13 +192,17 @@ pub fn launcher_for(os: profiles::Os) -> Launcher {
                     })?,
                 };
                 let override_dir = std::env::var_os("BROWSER_HAND_CHROME_DIR").map(PathBuf::from);
-                let data = override_dir.clone().unwrap_or_else(|| {
-                    let home = std::env::var_os("HOME").unwrap_or_default();
-                    profiles::data_dir(os, std::path::Path::new(&home), browser)
-                });
+                let data = override_dir
+                    .clone()
+                    .unwrap_or_else(|| profiles::data_dir(os, &profiles::base_dir(), browser));
                 // A running browser holds `SingletonLock` (a symlink, dangling
-                // by design) in its data dir.
-                let started = std::fs::symlink_metadata(data.join("SingletonLock")).is_err();
+                // by design) in its data dir; on Windows it holds `lockfile`
+                // open for writing.
+                let started = if windows {
+                    !lockfile_held(&data)
+                } else {
+                    std::fs::symlink_metadata(data.join("SingletonLock")).is_err()
+                };
                 let mut cmd = std::process::Command::new(&bin);
                 if let Some(d) = &override_dir {
                     cmd.arg(format!("--user-data-dir={}", d.display()));

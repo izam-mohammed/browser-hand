@@ -86,3 +86,9 @@ and a TypeScript extension, with the tools Claude in Chrome has
 - [ ] `plans/15-browser-identity.md` - the native host says which browser it
   runs in, matching and the default-profile list use `<browser>:<dir>`,
   from the plan 14 follow-ups.
+
+### Phase 16: Windows
+
+- [ ] `plans/16-windows.md` - the host installs through the registry, talks
+  over named pipes and launches Chrome, Edge, Brave, Chromium and Vivaldi on
+  Windows, the one parity gap left from plan 14.

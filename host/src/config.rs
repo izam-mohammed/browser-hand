@@ -215,16 +215,37 @@ fn list_problem(field: &'static str, list: &[String]) -> Option<Problem> {
 /// Why a GIF folder is refused, if it is: it must be absolute once `~` is
 /// expanded, and may not climb out with `..`.
 fn folder_problem(folder: &str) -> Option<String> {
+    folder_problem_in(folder, cfg!(windows))
+}
+
+/// `folder_problem` for a system: on Windows `~\`, `C:\` and `C:/` start a
+/// folder too, and `\` separates parts.
+pub fn folder_problem_in(folder: &str, windows: bool) -> Option<String> {
+    let b = folder.as_bytes();
+    let drive = windows && b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':';
+    let drive = drive && (b[2] == b'/' || b[2] == b'\\');
+    let rooted = folder == "~"
+        || folder.starts_with("~/")
+        || folder.starts_with('/')
+        || (windows && (folder.starts_with("~\\") || folder.starts_with("\\\\")))
+        || drive;
     if folder.is_empty() {
         return Some("needs a folder".into());
     }
     if folder.chars().count() > 1024 || folder.chars().any(char::is_control) {
         return Some("is not a usable path".into());
     }
-    if !(folder == "~" || folder.starts_with("~/") || folder.starts_with('/')) {
-        return Some("must start with ~/ or /".into());
+    if !rooted {
+        return Some(if windows {
+            "must start with ~/, / or a drive like C:\\".into()
+        } else {
+            "must start with ~/ or /".into()
+        });
     }
-    if folder.split('/').any(|part| part == "..") {
+    if folder
+        .split(|c| c == '/' || (windows && c == '\\'))
+        .any(|part| part == "..")
+    {
         return Some("may not contain ..".into());
     }
     None
@@ -483,17 +504,17 @@ pub fn to_text(s: &Settings) -> String {
 /// `0600`, creating the folder. Returns the new revision.
 pub fn save(path: &Path, s: &Settings) -> std::io::Result<String> {
     use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
     let dir = path.parent().unwrap_or(Path::new("."));
     std::fs::create_dir_all(dir)?;
     let tmp = dir.join(format!(".config.toml.{}.tmp", std::process::id()));
     let result = (|| {
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(&tmp)?;
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+        // Windows files take the folder's ACL, which under the user's
+        // profile is the user's own.
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut opts, 0o600);
+        let mut f = opts.open(&tmp)?;
         f.write_all(to_text(s).as_bytes())?;
         f.sync_all()?;
         std::fs::rename(&tmp, path)
@@ -505,12 +526,18 @@ pub fn save(path: &Path, s: &Settings) -> std::io::Result<String> {
     Ok(revision(path))
 }
 
-/// `~` and `~/...` under `$HOME`; other paths as they are.
+/// `~` and `~/...` under the home (`$HOME`, on Windows also `%USERPROFILE%`);
+/// on Windows `~\...` too. Other paths as they are.
 pub fn expand(folder: &str) -> PathBuf {
-    let home = || PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
-    match folder.strip_prefix("~") {
-        Some("") => home(),
-        Some(rest) if rest.starts_with('/') => home().join(&rest[1..]),
+    expand_in(folder, &crate::paths::home_dir(), cfg!(windows))
+}
+
+/// `expand` with the home and the system given.
+pub fn expand_in(folder: &str, home: &Path, windows: bool) -> PathBuf {
+    let sep = |c: char| c == '/' || (windows && c == '\\');
+    match folder.strip_prefix('~') {
+        Some("") => home.to_path_buf(),
+        Some(rest) if rest.starts_with(sep) => home.join(&rest[1..]),
         _ => PathBuf::from(folder),
     }
 }

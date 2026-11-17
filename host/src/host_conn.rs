@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::Value;
-use tokio::net::UnixStream;
+use tokio::io::AsyncRead;
 use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::wire::{self, ErrorCode, Frame, PROTOCOL};
@@ -43,7 +43,10 @@ fn hello_info(frame: Frame) -> Option<HelloInfo> {
     }
 }
 
-async fn first_hello(stream: &mut UnixStream, wait: Duration) -> io::Result<HelloInfo> {
+async fn first_hello<S: AsyncRead + Unpin>(
+    stream: &mut S,
+    wait: Duration,
+) -> io::Result<HelloInfo> {
     let frame = tokio::time::timeout(wait, wire::read_frame(stream))
         .await
         .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "no hello from host"))??
@@ -54,7 +57,7 @@ async fn first_hello(stream: &mut UnixStream, wait: Duration) -> io::Result<Hell
 
 /// Connects, reads the host's hello, and hangs up.
 pub async fn probe(path: &Path, wait: Duration) -> io::Result<HelloInfo> {
-    let mut stream = UnixStream::connect(path).await?;
+    let mut stream = crate::ipc::connect(path).await?;
     first_hello(&mut stream, wait).await
 }
 
@@ -81,7 +84,7 @@ pub struct HostConn {
 
 impl HostConn {
     pub async fn connect(path: &Path) -> io::Result<HostConn> {
-        let mut stream = UnixStream::connect(path).await?;
+        let mut stream = crate::ipc::connect(path).await?;
         let hello = first_hello(&mut stream, Duration::from_secs(2)).await?;
         if hello.protocol != PROTOCOL {
             return Err(io::Error::new(
@@ -92,7 +95,7 @@ impl HostConn {
                 ),
             ));
         }
-        let (mut read, mut write) = stream.into_split();
+        let (mut read, mut write) = tokio::io::split(stream);
         let (tx, mut rx) = mpsc::unbounded_channel::<Frame>();
         tokio::spawn(async move {
             while let Some(frame) = rx.recv().await {

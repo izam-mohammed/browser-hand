@@ -13,7 +13,10 @@ Claude Code --stdio MCP--> browser-hand mcp --unix socket--> browser-hand (nativ
 ```
 
 - Chrome starts one native host per profile's extension connection. The
-  host listens on `<per-user temp dir>/bh/<pid>.sock` (directory `0700`).
+  host listens on `<per-user temp dir>/bh/<pid>.sock` (directory `0700`). On
+  Windows it is the named pipe `\\.\pipe\browser-hand-bh-<pid>`, created for
+  the user's SID only, with remote clients refused; the MCP server refuses a
+  pipe whose server process runs as another user. The frames are the same.
 - An MCP server connects to as many host sockets as it needs; several MCP
   servers may share one host.
 

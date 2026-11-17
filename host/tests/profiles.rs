@@ -67,6 +67,7 @@ fn resolves_by_dir_then_name_in_any_case() {
     assert!(profiles::resolve(&all, "nope").is_none());
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn discovery_removes_stale_sockets_and_ignores_other_files() {
     let dir = tempfile::tempdir().unwrap();
@@ -348,7 +349,7 @@ fn a_parent_that_is_gone_gives_no_identity() {
 #[test]
 fn the_parent_of_this_process_is_read_without_error() {
     // The test runner's parent (cargo or a shell) is no browser.
-    let ppid = std::os::unix::process::parent_id();
+    let ppid = profiles::parent_pid();
     assert_eq!(profiles::parent_identity(ppid, &[]), None);
 }
 

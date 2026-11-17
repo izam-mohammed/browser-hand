@@ -8,8 +8,6 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use tokio::net::UnixStream;
-
 use crate::profiles::{self, LiveHost};
 use crate::wire::{self, Frame};
 
@@ -18,7 +16,7 @@ const BACK_WITHIN: Duration = Duration::from_secs(15);
 
 /// Sends `reload` to one host.
 pub async fn ask(path: &Path) -> std::io::Result<()> {
-    let mut stream = UnixStream::connect(path).await?;
+    let mut stream = crate::ipc::connect(path).await?;
     wire::write_frame(&mut stream, &Frame::Reload {}).await
 }
 
