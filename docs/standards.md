@@ -27,7 +27,7 @@ A change is done when it passes locally and on its pull request, where
 | Types | tsc | `extension/tsconfig.json` | `npm --prefix extension run typecheck` | no errors |
 | Extension unit tests | vitest + jsdom | `extension/package.json` | `npm --prefix extension test` (runs tsc first) | all pass |
 | Host tests | cargo test | `host/Cargo.toml`, root `.cargo/config.toml` | `cargo test --manifest-path host/Cargo.toml` | all pass; also regenerates `extension/src/wire.gen.ts` |
-| Host coverage | cargo-llvm-cov | `.github/workflows/ci.yml` | `cargo llvm-cov --locked --summary-only --fail-under-lines 70` in `host/` | lines at or over 70 % |
+| Host coverage | cargo-llvm-cov | `Makefile` | `make coverage` (`cargo llvm-cov --locked --summary-only --fail-under-lines 90` in `host/`) | host lines at or over 90 % (91.7 % on 2026-11-17); CI still checks 70 % until Phase 5 |
 | Extension coverage | vitest, `@vitest/coverage-v8` | `extension/vitest.config.mjs` | `npm --prefix extension run coverage` | lines at or over 65 % |
 | Build | cargo, esbuild | `scripts/build.sh` | `sh scripts/build.sh` | builds and installs the native host |
 | Build | cargo, esbuild | `Makefile` | `make build` | release host and extension build, no native-host install |

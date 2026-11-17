@@ -64,16 +64,26 @@ pub async fn main() -> anyhow::Result<()> {
         println!("No Chrome profile has browser-hand connected; nothing to reload.");
         return Ok(());
     }
-    for dir in &asked {
-        if back.contains(dir) {
-            println!("{dir}: reloaded");
-        } else {
-            println!(
-                "{dir}: asked to reload, not back within {} s; an extension built before this \
-                 command ignores it, so reload it once on chrome://extensions",
-                BACK_WITHIN.as_secs()
-            );
-        }
+    for line in report(&asked, &back, BACK_WITHIN) {
+        println!("{line}");
     }
     Ok(())
+}
+
+/// One line per profile asked: reloaded, or not back in time.
+pub fn report(asked: &[String], back: &HashSet<String>, back_within: Duration) -> Vec<String> {
+    asked
+        .iter()
+        .map(|dir| {
+            if back.contains(dir) {
+                format!("{dir}: reloaded")
+            } else {
+                format!(
+                    "{dir}: asked to reload, not back within {} s; an extension built before \
+                     this command ignores it, so reload it once on chrome://extensions",
+                    back_within.as_secs()
+                )
+            }
+        })
+        .collect()
 }

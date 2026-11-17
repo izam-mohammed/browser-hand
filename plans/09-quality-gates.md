@@ -312,12 +312,12 @@ repository instructions for recording useful development findings.
 
 ### Phase 3: the host reaches 90 % lines
 
-- [ ] Tests for the least covered host modules, lowest first
+- [x] Tests for the least covered host modules, lowest first
   (`install.rs`, `reload.rs`, `tools/images.rs`, `tools/files.rs`,
   `main.rs`, `mcp.rs`), driven through a temporary home directory and fake
   sockets (expected in `host/tests/install.rs`, `host/tests/reload.rs`,
   `host/tests/mcp.rs`).
-- [ ] `make coverage` fails under 90 % host lines (`cargo llvm-cov
+- [x] `make coverage` fails under 90 % host lines (`cargo llvm-cov
   --fail-under-lines 90`), and `docs/standards.md` records the floor.
 - [ ] Check: `make check` passes, and `make coverage` prints host lines at
   or over 90 %.

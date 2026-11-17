@@ -1042,3 +1042,120 @@ mod more {
         );
     }
 }
+
+/// Every tool browser_batch can run reaches the browser as the same call it
+/// would be on its own, and the ones it cannot run say why.
+mod batch_dispatch {
+    use super::*;
+    use browser_hand::tools::args::{BatchArgs, BatchItem};
+    use serde_json::json;
+
+    fn item(name: &str, input: Value) -> BatchItem {
+        BatchItem {
+            name: name.into(),
+            input,
+        }
+    }
+
+    async fn batch(items: Vec<BatchItem>) -> CallToolResult {
+        let s = Setup::new();
+        fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
+        let server = s.server(false);
+        server
+            .browser_batch(Parameters(BatchArgs { actions: items }))
+            .await
+            .unwrap()
+    }
+
+    fn all(r: &CallToolResult) -> String {
+        let v = serde_json::to_value(r).unwrap();
+        v["content"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|c| c["text"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[tokio::test]
+    async fn each_forwarded_tool_runs_in_a_batch() {
+        let names = [
+            "tabs_context",
+            "tabs_create",
+            "tabs_close",
+            "navigate",
+            "read_page",
+            "find",
+            "get_page_text",
+            "read_console_messages",
+            "read_network_requests",
+            "form_input",
+            "javascript_tool",
+            "resize_window",
+            "recording_delete",
+        ];
+        let inputs = [
+            json!({}),
+            json!({}),
+            json!({ "tabId": 1 }),
+            json!({ "url": "https://example.com", "tabId": 1 }),
+            json!({ "tabId": 1 }),
+            json!({ "query": "go", "tabId": 1 }),
+            json!({ "tabId": 1 }),
+            json!({ "tabId": 1 }),
+            json!({ "tabId": 1 }),
+            json!({ "ref": "ref_1", "value": "x", "tabId": 1 }),
+            json!({ "action": "javascript_exec", "text": "1", "tabId": 1 }),
+            json!({ "width": 800, "height": 600, "tabId": 1 }),
+            json!({ "id": "rec_1" }),
+        ];
+        let items = names
+            .iter()
+            .zip(inputs)
+            .map(|(n, i)| item(n, i))
+            .collect::<Vec<_>>();
+        let r = batch(items).await;
+        let t = all(&r);
+        assert!(!is_error(&r), "{t}");
+        for (i, name) in names.iter().enumerate() {
+            assert!(t.contains(&format!("[{}/13] {name}: ok", i + 1)), "{t}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_server_side_tools_run_in_a_batch_too() {
+        let r = batch(vec![
+            item("list_profiles", json!({})),
+            item("select_profile", json!({ "profile": "Work" })),
+            item("recording_list", json!({})),
+            item("recording_get", json!({})),
+        ])
+        .await;
+        let t = all(&r);
+        assert!(!is_error(&r), "{t}");
+        assert!(t.contains("[4/4] recording_get: ok"), "{t}");
+    }
+
+    #[tokio::test]
+    async fn what_a_batch_cannot_run_is_refused_by_name() {
+        for (name, input, expect) in [
+            (
+                "navigate",
+                json!({ "url": "https://example.com" }),
+                "needs tabId",
+            ),
+            (
+                "recording_replay",
+                json!({}),
+                "cannot run inside browser_batch",
+            ),
+            ("find", json!({ "wrong": 1 }), "bad_args: find"),
+            ("nonsense", json!({}), "unknown tool"),
+        ] {
+            let r = batch(vec![item(name, input)]).await;
+            assert!(is_error(&r), "{name}");
+            assert!(all(&r).contains(expect), "{name}: {}", all(&r));
+        }
+    }
+}

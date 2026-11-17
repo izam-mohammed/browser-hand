@@ -25,7 +25,7 @@ test:  ## Host and extension tests
 	$(EXT) exec vitest run
 
 coverage:  ## Tests with the coverage floors
-	cd host && cargo llvm-cov --locked --summary-only --fail-under-lines 70
+	cd host && cargo llvm-cov --locked --summary-only --fail-under-lines 90
 	$(EXT) run coverage
 
 build:  ## Release build of the host and the extension (no install)
