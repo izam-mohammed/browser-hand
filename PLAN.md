@@ -74,3 +74,9 @@ and a TypeScript extension, with the tools Claude in Chrome has
 - [ ] `plans/13-chrome-parity.md` - a cursor the person can see, tokens
   hidden in network reads, a steady reconnect and plain-spoken argument
   errors, from the 14/11/2026 reference refresh.
+
+### Phase 14: keeping up with Claude in Chrome, again
+
+- [ ] `plans/14-chrome-parity-2.md` - Linux and other Chromium browsers,
+  big reads kept in the conversation, and uploads that refuse credential
+  files, from the 17/11/2026 reference refresh.

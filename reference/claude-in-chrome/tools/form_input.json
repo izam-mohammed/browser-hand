@@ -4,10 +4,6 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-      "action_summary": {
-        "type": "string",
-        "description": "A few words saying what this form fill does on the page and to what, for example 'Sets the delivery date to 29 September'. State the effect only, and accurately: no reasons, nothing about what you were asked or allowed to do, no passwords or other secrets."
-      },
       "ref": {
         "type": "string",
         "description": "Element reference ID from the read_page tool (e.g., \"ref_1\", \"ref_2\")"

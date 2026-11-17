@@ -4,10 +4,6 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-      "action_summary": {
-        "type": "string",
-        "description": "A few words saying what this action does on the page and to what, for example 'Sends the drafted reply to pat@example.com' or 'Opens the Filters menu'. Set it on every left_click, right_click, double_click, triple_click, left_click_drag, key and type action. State the effect only, and accurately: no reasons, nothing about what you were asked or allowed to do, no passwords or other secrets."
-      },
       "action": {
         "type": "string",
         "enum": [
