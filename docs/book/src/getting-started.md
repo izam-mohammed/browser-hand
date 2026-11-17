@@ -1,7 +1,7 @@
 # getting started
 
 Needs Rust 1.88 or newer, Node (to build the extension), a Chromium browser
-(Google Chrome, Chromium, Edge, Brave or Vivaldi, on macOS or Linux) and
+(Google Chrome, Chromium, Edge, Brave or Vivaldi, on macOS, Linux or Windows) and
 Claude Code. About ten minutes, most of it compiling.
 
 ## 1. build and register the host
@@ -19,6 +19,17 @@ of each installed browser (macOS Chrome: `~/Library/Application Support/Google/C
 Linux Chrome: `~/.config/google-chrome/`).
 `plugin/server/browser-hand install --uninstall` removes it.
 
+**Windows.** `scripts/build.sh` does not run there. Build with
+`cargo build --release --manifest-path host\Cargo.toml` and
+`npm --prefix extension run build`, then run
+`host\target\release\browser-hand.exe install --no-store`. It writes the same
+manifest in each browser's `%LOCALAPPDATA%\<vendor>\User Data\` folder and
+points the browser's `HKCU\Software\<vendor>\NativeMessagingHosts\dev.browserhand.host`
+registry key at it. Add the server with
+`claude mcp add --scope user browser-hand -- <path>\browser-hand.exe mcp`.
+Settings live in `%LOCALAPPDATA%\browser-hand\config.toml`. Windows has been
+compiled but not run on a Windows machine yet.
+
 With more than one browser installed, profiles are listed as
 `<browser>:<dir>` (`chrome:Default`, `brave:Profile 1`), and a bare `Default`
 that two browsers share is refused until you say which. Each browser's
@@ -28,7 +39,8 @@ profile lists every browser's profiles. On Linux, opening a
 profile runs the browser's binary from `PATH` (`google-chrome-stable`,
 `google-chrome`, `chromium`, `brave-browser`, `microsoft-edge-stable`,
 `vivaldi-stable` and so on); set `BROWSER_HAND_BROWSER_BIN` to a path when
-yours is named otherwise.
+yours is named otherwise. On Windows the browser is started from its install folder under
+`%ProgramFiles%`, `%ProgramFiles(x86)%` or `%LOCALAPPDATA%`, and the same variable overrides it.
 
 ## 2. load the extension in a profile
 

@@ -12,14 +12,19 @@ server and a Chrome extension. The extension's only UI is a toolbar popup to
 record your own steps, which Claude can then read and replay, and a settings
 page.
 Modelled on Claude in Chrome (`reference/claude-in-chrome/`), with profiles in
-place of a connected-browser list. Runs on macOS and Linux, with Google Chrome,
-Chromium, Edge, Brave or Vivaldi (Windows is not supported).
+place of a connected-browser list. Runs on macOS, Linux and Windows, with
+Google Chrome, Chromium, Edge, Brave or Vivaldi (Windows is built and checked
+for compiling only; no Windows machine has run it yet, see
+`docs/testing.md`).
 
 ## How it fits together
 
 ```text
 Claude Code --stdio--> browser-hand mcp --unix socket--> browser-hand (native host) --native port--> extension
 ```
+
+(On Windows the socket is a named pipe, `\\.\pipe\browser-hand-bh-<pid>`,
+open to your user only.)
 
 Chrome starts one native host per profile that has the extension. Each
 listens on its own socket; the MCP server finds them and talks to the one for
@@ -29,7 +34,8 @@ is not open. The wire format is `docs/protocol.md`.
 ## Install
 
 Needs Rust (1.88+), Node (to build the extension) and a Chromium browser:
-Google Chrome, Chromium, Edge, Brave or Vivaldi, on macOS or Linux.
+Google Chrome, Chromium, Edge, Brave or Vivaldi, on macOS, Linux or Windows
+(Windows: see [Install on Windows](#install-on-windows)).
 
 1. Build everything and register the native host:
 
@@ -66,6 +72,39 @@ Google Chrome, Chromium, Edge, Brave or Vivaldi, on macOS or Linux.
    ```sh
    claude mcp add --scope user browser-hand -- "$PWD/plugin/server/browser-hand" mcp
    ```
+
+### Install on Windows
+
+`scripts/build.sh` is a shell script and writes no registry key, so on
+Windows run the steps by hand in PowerShell, from the repository (Rust
+1.88+ and Node installed):
+
+```powershell
+cargo build --release --manifest-path host\Cargo.toml
+npm --prefix extension ci
+npm --prefix extension run build
+host\target\release\browser-hand.exe install --no-store
+claude mcp add --scope user browser-hand -- "$PWD\host\target\release\browser-hand.exe" mcp
+```
+
+`install` writes the host manifest in each installed browser's data dir
+(`%LOCALAPPDATA%\Google\Chrome\User Data\`, `...\Microsoft\Edge\User Data\`,
+`...\BraveSoftware\Brave-Browser\User Data\`, `...\Chromium\User Data\`,
+`...\Vivaldi\User Data\`) and, because Chrome reads no manifest folder on
+Windows, sets the default value of
+`HKCU\Software\<vendor>\NativeMessagingHosts\dev.browserhand.host` to it
+(Chrome: `Google\Chrome`, Edge: `Microsoft\Edge`, Brave:
+`BraveSoftware\Brave-Browser`, Chromium: `Chromium`, Vivaldi: `Vivaldi`),
+through `reg.exe`. `browser-hand.exe install --uninstall` removes both. Then
+load `extension\dist` unpacked in each profile, as in
+[Development](#development). The settings file is
+`%LOCALAPPDATA%\browser-hand\config.toml`, GIFs go to
+`%USERPROFILE%\Downloads\browser-hand`, and the browser is started from
+`%ProgramFiles%`, `%ProgramFiles(x86)%` or `%LOCALAPPDATA%` (set
+`BROWSER_HAND_BROWSER_BIN` to its path when it lives elsewhere). The Claude
+Code plugin's `.mcp.json` names `server/browser-hand` with no `.exe`, so on
+Windows add the server with `claude mcp add` as above. The Chromium and
+Vivaldi registry keys are by pattern, not confirmed by those vendors.
 
 ### Development
 
@@ -104,7 +143,8 @@ at the end, blocked and read-only sites, screenshot size and quality, the
 GIF folder and frame delay, and how soon the debugger detaches.
 
 The native host saves them to `~/.config/browser-hand/config.toml`
-(`$XDG_CONFIG_HOME/browser-hand/` when set), mode `0600`, and every open
+(`$XDG_CONFIG_HOME/browser-hand/` when set; `%LOCALAPPDATA%\browser-hand\`
+on Windows), mode `0600` (on Windows the folder's own permissions), and every open
 profile picks a change up within 2 seconds. The page needs the host: with
 it not running, the page shows the last values read-only. Deleting the file
 brings the defaults back.

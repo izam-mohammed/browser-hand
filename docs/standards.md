@@ -25,6 +25,7 @@ A change is done when it passes locally and on its pull request, where
 | Everything | make | `Makefile` | `make check` | lint, test, build and security all pass |
 | Rust format | rustfmt | defaults | `cargo fmt --manifest-path host/Cargo.toml --check` | no diff |
 | Rust lint | Clippy | defaults | `cargo clippy --manifest-path host/Cargo.toml --all-targets --locked -- -D warnings` | no warnings |
+| Windows compile | Clippy, rustup target `x86_64-pc-windows-gnu` | `Makefile` | `make windows` (also the last step of `make lint`; prints `skipped` when the target is missing: `rustup target add x86_64-pc-windows-gnu`) | no warning for the Windows build, tests included; compiles only, no Windows machine runs it (`docs/testing.md` § Windows) |
 | TypeScript format and lint | Biome 2.6.8 | `extension/biome.jsonc` | `npm --prefix extension run lint` (check), `run format` (fix) | no diff, no diagnostic; `wire.gen.ts` and `theme.gen.css` (generated) ignored |
 | Types | tsc | `extension/tsconfig.json` | `npm --prefix extension run typecheck` | no errors |
 | Extension unit tests | vitest + jsdom | `extension/package.json` | `npm --prefix extension test` (runs tsc first) | all pass |
