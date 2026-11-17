@@ -359,7 +359,7 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: prove the button and capture (needs you at Chrome)
 
-- [ ] `scripts/prove/record-capture.sh` loads a proof extension kept in
+- [x] `scripts/prove/record-capture.sh` loads a proof extension kept in
   `scripts/prove/record-capture/` (no project code) with an `action` button
   and a capture-phase content script, per `docs/external/chrome-extension-apis.md`
   § chrome.action; the person clicks the button and a test page's button
@@ -367,7 +367,13 @@ repository instructions for recording useful development findings.
   prints `PASS` when `onClicked` fired, the badge was set, and all three
   events arrived with their ARIA names and `isTrusted` true; it writes them
   as `UserFlow` steps per `docs/external/puppeteer-replay.md`.
-- [ ] Check: the script exits 0 and prints `PASS`; a debugger click arriving
+  Headless on Chrome for Testing, 17/11/2026: `onClicked`, the badge, and the click and typing events
+  arrived with ARIA names and `isTrusted` true, and the debugger click was
+  trusted. Not shown: a real toolbar click (simulated with
+  `chrome.action.onClicked.dispatch(tab)`) and a real person's input (CDP
+  `Input.dispatch*` stood in, the "person" source being a label the proof
+  sets).
+- [x] Check: the script exits 0 and prints `PASS`; a debugger click arriving
   untrusted reopens Decision 6.
 
 Written 20/10/2026; not run yet, needs the person at Chrome. The proof

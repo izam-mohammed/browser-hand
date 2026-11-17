@@ -300,7 +300,7 @@ repository instructions for recording useful development findings.
   `main.rs`, no project code), pipes an initialize and `tools/list` into it
   over stdio and prints `PASS` when one tool with an image result comes back,
   per `docs/external/rmcp.md` § stdio transport.
-- [ ] `scripts/prove/chrome-bridge.sh` builds the echo host and installs its
+- [x] `scripts/prove/chrome-bridge.sh` builds the echo host and installs its
   manifest from `scripts/prove/chrome-bridge/` (an echo extension with a
   pinned `key` and a one-file Rust echo host, both kept in the repo), then,
   once you have loaded that extension unpacked into two profiles, launches
@@ -309,6 +309,13 @@ repository instructions for recording useful development findings.
   `docs/external/chrome-native-messaging.md` and
   `docs/external/chrome-profiles-and-launch.md`. It removes its manifest after,
   and `.gitignore` keeps the proof crates' `target/` out.
+  Headless on Chrome for Testing, 17/11/2026: the native port reached the echo host and two profiles
+  (`Default`, `Profile 3`) each got their own claim, with the right `dir` and
+  nonce, from the claim page opened over DevTools `Target.createTarget`. Not
+  shown: a claim URL on the command line (Chrome opened
+  `chrome-error://chromewebdata/`, and a second launch on one user data dir
+  aborts on `SingletonLock`), so launch-URL routing still needs a person
+  (`docs/testing.md`).
 - [ ] Check: both scripts exit 0 and print `PASS`; if the claim fails,
   decision 5 is reopened before Phase 2.
 

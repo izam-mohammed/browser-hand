@@ -421,20 +421,24 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: prove site rules and the parser (needs you at Chrome)
 
-- [ ] `scripts/prove/site-rules.sh` loads a proof extension in
+- [x] `scripts/prove/site-rules.sh` loads a proof extension in
   `scripts/prove/site-rules/` (no project code) with `options_ui` in a tab
   and `declarativeNetRequestWithHostAccess`, per
   `docs/external/chrome-extension-apis.md` § Options page and
   § chrome.declarativeNetRequest; `openOptionsPage` opens it, a rule with
   tab A's id blocks a link click, a `tabs.update` and an iframe in tab A
   but not tab B, and it prints `PASS` with each result.
+  Headless on Chrome for Testing, 17/11/2026: options opened in a tab (Start button clicked over CDP); tab
+  A's link, `tabs.update` and iframe all failed with
+  `net::ERR_BLOCKED_BY_CLIENT`, and tab B loaded all three. Not shown:
+  nothing found.
 - [x] `scripts/prove/config-toml.sh` builds `scripts/prove/config-toml/`
   against `toml` 1.1.8, round-trips the Contract's file and prints a parse
   error's line and column, per `docs/external/toml.md`, then `PASS`.
   Landed 20/10/2026: prints `PASS`; the default features hold `from_str`
   and `to_string_pretty`, and an error reads "TOML parse error at line 3,
   column 14" with the line quoted (`docs/external/toml.md` § Errors).
-- [ ] Check: both print `PASS`; a rule that misses `tabs.update` is noted in
+- [x] Check: both print `PASS`; a rule that misses `tabs.update` is noted in
   `docs/research/06-settings.md` and the gate covers it.
 
 Written 20/10/2026; not run yet, needs the person at Chrome. The site-rules
