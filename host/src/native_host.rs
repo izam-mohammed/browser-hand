@@ -442,6 +442,9 @@ impl Drop for SocketGuard {
 /// Binds this process's socket and relays stdin/stdout until Chrome closes
 /// the port or the process is told to stop.
 pub async fn main() -> anyhow::Result<()> {
+    // Handlers first: a stop that arrives as the socket appears must not
+    // kill the process outright and leave the socket file behind.
+    let stop = stop_signal()?;
     crate::paths::ensure_socket_dir()?;
     let path = crate::paths::socket_path(std::process::id());
     let listener = crate::ipc::bind(&path)?;
@@ -450,26 +453,29 @@ pub async fn main() -> anyhow::Result<()> {
     let instance = uuid::Uuid::new_v4().to_string();
     tokio::select! {
         r = run(tokio::io::stdin(), tokio::io::stdout(), listener, instance, HostOptions::from_env()) => r?,
-        r = stop_signal() => r?,
+        r = stop => r?,
     }
     Ok(())
 }
 
-/// Ends when the process is told to stop: SIGTERM or SIGINT, on Windows
-/// Ctrl-C (Chrome ends a host by closing its stdin, which ends `run`).
+/// Registers for the stop signals now and returns what waits on them:
+/// SIGTERM or SIGINT, on Windows Ctrl-C (Chrome ends a host by closing its
+/// stdin, which ends `run`).
 #[cfg(unix)]
-async fn stop_signal() -> io::Result<()> {
+fn stop_signal() -> io::Result<impl std::future::Future<Output = io::Result<()>>> {
     use tokio::signal::unix::{signal, SignalKind};
     let mut term = signal(SignalKind::terminate())?;
     let mut int = signal(SignalKind::interrupt())?;
-    tokio::select! {
-        _ = term.recv() => {}
-        _ = int.recv() => {}
-    }
-    Ok(())
+    Ok(async move {
+        tokio::select! {
+            _ = term.recv() => {}
+            _ = int.recv() => {}
+        }
+        Ok(())
+    })
 }
 
 #[cfg(windows)]
-async fn stop_signal() -> io::Result<()> {
-    tokio::signal::ctrl_c().await
+fn stop_signal() -> io::Result<impl std::future::Future<Output = io::Result<()>>> {
+    Ok(tokio::signal::ctrl_c())
 }

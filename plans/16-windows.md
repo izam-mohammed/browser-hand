@@ -334,22 +334,25 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the rough cut, the host runs and installs on Windows (needs you: try it)
 
-- [ ] Tests first, failing: the `winos` cases named above and `ipc` on Unix
+- [x] Tests first, failing: the `winos` cases named above and `ipc` on Unix
   (`host/tests/winos.rs`, `host/tests/ipc.rs`), plus `Os::Windows` rows in
   `host/tests/profiles.rs`.
-- [ ] `windows-sys` as a target dependency; `Os::Windows` and the data dirs
+- [x] `windows-sys` as a target dependency; `Os::Windows` and the data dirs
   in `profiles.rs`; the pure module `host/src/winos.rs`.
-- [ ] `ipc`: `Listener`, `connect`, `Accept`, endpoint listing; `native_host`,
+- [x] `ipc`: `Listener`, `connect`, `Accept`, endpoint listing; `native_host`,
   `host_conn` and `reload` use it; Unix behaviour unchanged (decision 1).
-- [ ] The pipe on Windows: owner-only DACL, first instance, busy retry,
+- [x] The pipe on Windows: owner-only DACL, first instance, busy retry,
   server-owner check on connect (decisions 2 and 2b, expected in
   `host/src/winsys.rs`).
-- [ ] `install`: the registry step and its uninstall, `\\?\` stripped,
+- [x] `install`: the registry step and its uninstall, `\\?\` stripped,
   `--mobileconfig` refused on Windows (decision 3).
-- [ ] The Windows launcher and `find_on_path` (decision 5); the `unix`
+- [x] The Windows launcher and `find_on_path` (decision 5); the `unix`
   permission calls and test files gated so the crate compiles for
   `x86_64-pc-windows-gnu`.
-- [ ] Check: `make check`, then `make windows` shows no error or warning.
+  Landed 2026-11-17: also `host/tests/install_windows.rs`,
+  `launcher_windows.rs` and `paths_windows.rs`; the Windows launcher runs a
+  stand-in exe on Linux in `launcher_windows.rs`.
+- [x] Check: `make check`, then `make windows` shows no error or warning.
 - [ ] You try it, on Windows 10 or 11 with Chrome: build with
   `cargo build --release`, run `browser-hand install --no-store`, load
   `extension/dist` unpacked, then `claude mcp add` the exe with `mcp` and ask
@@ -358,35 +361,40 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: the rest of the host's behaviour
 
-- [ ] Tests first: `local_time` from a fixed millisecond value (pure), the
+- [x] Tests first: `local_time` from a fixed millisecond value (pure), the
   Windows `config_path`, `~\` expansion, `.ENV` and `x.pem:s` refusals.
-- [ ] `home_dir` (`HOME`, else `USERPROFILE`) used by `profiles`, `config` and
+- [x] `home_dir` (`HOME`, else `USERPROFILE`) used by `profiles`, `config` and
   `mcp`; `config::save` without the Unix mode on Windows; the Windows config
   path.
-- [ ] `local_time` on Windows through the time zone API; hard link count and
+- [x] `local_time` on Windows through the time zone API; hard link count and
   stream refusal in `tools/files.rs`.
-- [ ] The parent browser: ToolHelp pid, image path, `.exe` and backslashes in
+- [x] The parent browser: ToolHelp pid, image path, `.exe` and backslashes in
   `identify` (decision 4), replacing `std::os::unix::process::parent_id`.
-- [ ] Check: `make check`, then `make windows`.
+- [x] Check: `make check`, then `make windows`.
 
 ### Phase 3: guard the pipe, and a way to keep it checked
 
-- [ ] A `windows` job in `docs/standards.md` and the `Makefile`'s `make windows`
+- [x] A `windows` job in `docs/standards.md` and the `Makefile`'s `make windows`
   (`cargo check` and `clippy -D warnings` for `x86_64-pc-windows-gnu`),
   skipped with a message when the target is missing.
-- [ ] The pipe test for Windows (`host/tests/pipe_windows.rs`, `cfg(windows)`):
+  Landed 2026-11-17: no CI job, only the local target (CI runs on a Linux
+  self-hosted runner); `make windows` is also the last step of `make lint`.
+- [x] The pipe test for Windows (`host/tests/pipe_windows.rs`, `cfg(windows)`):
   the round trip and the owner check (a second user's refusal is a walk).
-- [ ] Check: `make check`, then `make windows`.
+- [x] Check: `make check`, then `make windows`.
 
 ### Phase 4: docs, and the Windows checklist
 
-- [ ] `README.md`, `docs/book/src/` and `docs/standards.md` say Windows is
-  supported, how to install there, where the config and GIFs go; the
-  `instructions.md` text names the config path per system.
-- [ ] `docs/testing.md`: a Windows manual checklist, every box unticked, with
+- [x] `README.md`, `docs/book/src/` and `docs/standards.md` say Windows is
+  supported, how to install there, where the config and GIFs go.
+  Landed 2026-11-17: `host/src/instructions.md` is unchanged (it is at the
+  size limit `host/tests/instructions.rs` holds and still names
+  `~/.config/browser-hand/config.toml`); the reference page's settings
+  line, `SECURITY.md` and the book's three pages carry the Windows path.
+- [x] `docs/testing.md`: a Windows manual checklist, every box unticked, with
   the commands (registry query for each browser, the DACL, two browsers, the
   walk of every tool group); `docs/protocol.md` the pipe name.
-- [ ] Check: `make check`.
+- [x] Check: `make check`.
 
 ### Phase 5: the walk (needs you at a Windows PC)
 

@@ -46,3 +46,17 @@ fn windows_folders_start_at_a_drive_a_share_or_the_home() {
     assert!(folder_problem_in(r"C:\Users\u", false).is_some());
     assert_eq!(folder_problem_in("/tmp/x", false), None);
 }
+
+#[test]
+fn upload_names_are_checked_without_regard_to_case() {
+    // NTFS is case-insensitive: `.ENV`, `KEY.PEM` and `.SSH` are the same files.
+    let dir = tempfile::tempdir().unwrap();
+    for rel in [".ENV", "KEY.PEM", "x/.SSH/id", "ID.KEY"] {
+        let p = dir.path().join(rel);
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(&p, "x").unwrap();
+        let e = browser_hand::tools::files::read_for_upload(&[p.to_string_lossy().into_owned()])
+            .unwrap_err();
+        assert!(e.starts_with("refused:"), "{rel}: {e}");
+    }
+}
