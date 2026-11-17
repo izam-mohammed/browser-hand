@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use browser_hand::config::{self, Settings};
 use browser_hand::native_host::{self, HostOptions};
+use browser_hand::profiles::Root;
 use browser_hand::wire::{self, Content, Frame, Reassembler};
 use serde_json::json;
 use tokio::io::{DuplexStream, ReadHalf, WriteHalf};
@@ -42,21 +43,42 @@ impl Chrome {
 fn options(dir: &std::path::Path) -> HostOptions {
     HostOptions {
         config: dir.join("conf").join("config.toml"),
-        chrome_dir: dir.join("chrome"),
+        roots: vec![browser_hand::profiles::Root {
+            browser: "chrome",
+            dir: dir.join("chrome"),
+        }],
         poll: Duration::from_millis(100),
+        browser: None,
     }
 }
 
-/// Starts a host on a temp socket with an in-memory "Chrome" end. Its
-/// settings file is `options(dir).config`.
-async fn start() -> (
+type Started = (
     Chrome,
     std::path::PathBuf,
     tempfile::TempDir,
     tokio::task::JoinHandle<()>,
-) {
+);
+
+/// Starts a host on a temp socket with an in-memory "Chrome" end. Its
+/// settings file is `options(dir).config`.
+async fn start() -> Started {
+    start_as(None).await
+}
+
+/// `start`, for a host whose parent process was `browser`.
+async fn start_as(browser: Option<&str>) -> Started {
+    start_host(browser, None).await
+}
+
+/// `start`, listing the profiles of these browsers on the settings page.
+async fn start_with(roots: Vec<Root>) -> Started {
+    start_host(None, Some(roots)).await
+}
+
+async fn start_host(browser: Option<&str>, roots: Option<Vec<Root>>) -> Started {
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().to_owned();
+    let browser = browser.map(String::from);
     let path = dir.path().join("h.sock");
     let listener = UnixListener::bind(&path).unwrap();
     let (chrome_end, host_end) = tokio::io::duplex(1 << 22);
@@ -67,7 +89,11 @@ async fn start() -> (
             host_write,
             listener,
             "inst-1".into(),
-            options(&config),
+            HostOptions {
+                browser,
+                roots: roots.unwrap_or_else(|| options(&config).roots),
+                ..options(&config)
+            },
         )
         .await
         .unwrap();
@@ -130,6 +156,48 @@ async fn a_client_gets_hello_at_once_even_before_the_extension_speaks() {
 }
 
 #[tokio::test]
+async fn the_host_stamps_the_browser_it_runs_in_on_every_hello() {
+    let (mut chrome, path, _dir, _task) = start_as(Some("brave")).await;
+    let mut a = client(&path).await;
+    let Frame::Hello { browser, .. } = recv(&mut a).await else {
+        panic!("not a hello")
+    };
+    assert_eq!(browser.as_deref(), Some("brave"));
+    // The extension's own hello says no browser; the host's stamp stays, and
+    // so does a browser the extension claims to be (it is not trusted).
+    chrome
+        .send(Frame::Hello {
+            protocol: 1,
+            profile_dir: Some("Default".into()),
+            extension_version: "0.1.0".into(),
+            instance: String::new(),
+            browser: Some("edge".into()),
+        })
+        .await;
+    loop {
+        if let Frame::Hello {
+            profile_dir: Some(_),
+            browser,
+            ..
+        } = recv(&mut a).await
+        {
+            assert_eq!(browser.as_deref(), Some("brave"));
+            break;
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_host_that_cannot_tell_its_browser_says_none() {
+    let (_chrome, path, _dir, _task) = start().await;
+    let mut a = client(&path).await;
+    let Frame::Hello { browser, .. } = recv(&mut a).await else {
+        panic!("not a hello")
+    };
+    assert_eq!(browser, None);
+}
+
+#[tokio::test]
 async fn results_go_back_to_the_client_that_called_under_its_own_id() {
     let (mut chrome, path, _dir, _task) = start().await;
     chrome
@@ -138,6 +206,7 @@ async fn results_go_back_to_the_client_that_called_under_its_own_id() {
             profile_dir: Some("Profile 3".into()),
             extension_version: "0.1.0".into(),
             instance: String::new(),
+            browser: None,
         })
         .await;
     let mut a = client(&path).await;
@@ -263,6 +332,7 @@ async fn the_extensions_protocol_reaches_clients_in_hello() {
             profile_dir: Some("Default".into()),
             extension_version: "9".into(),
             instance: String::new(),
+            browser: None,
         })
         .await;
     loop {
@@ -316,6 +386,7 @@ fn hello(dir: Option<&str>) -> Frame {
         protocol: 1,
         profile_dir: dir.map(String::from),
         extension_version: "0.1.0".into(),
+        browser: None,
         instance: String::new(),
     }
 }
@@ -341,6 +412,81 @@ fn set(id: u64, s: &Settings, revision: &str) -> Frame {
         settings: serde_json::to_value(s).unwrap(),
         revision: revision.into(),
     }
+}
+
+fn local_state(dir: &std::path::Path, profiles: &[(&str, &str)]) {
+    std::fs::create_dir_all(dir).unwrap();
+    let cache: serde_json::Map<String, serde_json::Value> = profiles
+        .iter()
+        .map(|(d, n)| ((*d).to_owned(), json!({ "name": n })))
+        .collect();
+    let state = json!({ "profile": { "last_used": "Default", "info_cache": cache } });
+    std::fs::write(dir.join("Local State"), state.to_string()).unwrap();
+}
+
+/// The `profiles` of the next `settings` frame, as (id, dir, name, browser).
+async fn listed(chrome: &mut Chrome) -> Vec<(String, String, String, String)> {
+    loop {
+        if let Frame::Settings { profiles, .. } = chrome.recv_any().await {
+            return profiles
+                .into_iter()
+                .map(|p| (p.id, p.dir, p.name, p.browser))
+                .collect();
+        }
+    }
+}
+
+#[tokio::test]
+async fn the_settings_list_every_browsers_profiles_with_ids() {
+    let dir = tempfile::tempdir().unwrap();
+    let (chrome_dir, brave_dir) = (dir.path().join("c"), dir.path().join("b"));
+    local_state(&chrome_dir, &[("Default", "Me")]);
+    local_state(&brave_dir, &[("Default", "Bee"), ("Profile 1", "Work")]);
+    let (mut chrome, _path, _tmp, _task) = start_with(vec![
+        Root {
+            browser: "chrome",
+            dir: chrome_dir,
+        },
+        Root {
+            browser: "brave",
+            dir: brave_dir,
+        },
+    ])
+    .await;
+    chrome.send(hello(None)).await;
+    let got = listed(&mut chrome).await;
+    let row = |id: &str, d: &str, n: &str, b: &str| (id.into(), d.into(), n.into(), b.into());
+    assert_eq!(
+        got,
+        [
+            row("chrome:Default", "Default", "Me", "Google Chrome"),
+            row("brave:Default", "Default", "Bee", "Brave"),
+            row("brave:Profile 1", "Profile 1", "Work", "Brave"),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn with_one_browser_the_ids_stay_bare() {
+    let dir = tempfile::tempdir().unwrap();
+    let chrome_dir = dir.path().join("c");
+    local_state(&chrome_dir, &[("Default", "Me")]);
+    let (mut chrome, _path, _tmp, _task) = start_with(vec![Root {
+        browser: "edge",
+        dir: chrome_dir,
+    }])
+    .await;
+    chrome.send(hello(None)).await;
+    let got = listed(&mut chrome).await;
+    assert_eq!(
+        got,
+        [(
+            "Default".into(),
+            "Default".into(),
+            "Me".into(),
+            "Microsoft Edge".into()
+        )]
+    );
 }
 
 #[tokio::test]
@@ -495,6 +641,7 @@ async fn reload_reaches_the_extension_of_every_connected_profile() {
             profile_dir: Some("Profile 3".into()),
             extension_version: "0.1.0".into(),
             instance: String::new(),
+            browser: None,
         })
         .await;
     let (asked, back) =

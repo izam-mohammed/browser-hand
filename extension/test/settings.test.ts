@@ -37,8 +37,8 @@ const frame = (settings: Settings, revision = "100"): Frame => ({
   revision,
   path: "/Users/someone/.config/browser-hand/config.toml",
   profiles: [
-    { dir: "Default", name: "Personal" },
-    { dir: "Profile 3", name: "Work" },
+    { dir: "Default", name: "Personal", id: "Default", browser: "Google Chrome" },
+    { dir: "Profile 3", name: "Work", id: "Profile 3", browser: "Google Chrome" },
   ],
   warnings: [],
 });
@@ -222,8 +222,8 @@ function mount() {
     revision: "100",
     path: "/Users/someone/.config/browser-hand/config.toml",
     profiles: [
-      { dir: "Default", name: "Personal" },
-      { dir: "Profile 3", name: "Work" },
+      { dir: "Default", name: "Personal", id: "Default", browser: "Google Chrome" },
+      { dir: "Profile 3", name: "Work", id: "Profile 3", browser: "Google Chrome" },
     ],
     warnings: [],
     version: "0.1.0",
@@ -457,6 +457,54 @@ describe("the settings page", () => {
     expect(p.$("warnings").hidden).toBe(false);
     expect(p.$("warnings").textContent).toContain("input.mouse_speed");
     expect(p.$("warnings").textContent).not.toContain("config.toml");
+  });
+
+  describe("with profiles from more than one browser", () => {
+    const two = (want: string) => {
+      const p = mount();
+      const s = p.state({
+        profiles: [
+          { dir: "Default", name: "Me", id: "chrome:Default", browser: "Google Chrome" },
+          { dir: "Default", name: "Bee", id: "brave:Default", browser: "Brave" },
+        ],
+      });
+      s.settings.sessions.default_profile = want;
+      p.send({ type: "state", state: s });
+      const select = p.$<HTMLSelectElement>("default-profile");
+      return { select, labels: [...select.options].map((o) => o.text) };
+    };
+
+    it("offers each id and names the browser", () => {
+      const { select, labels } = two("brave:Default");
+      expect(labels).toEqual(["Ask each time", "Me (Google Chrome)", "Bee (Brave)"]);
+      expect([...select.options].map((o) => o.value)).toEqual([
+        "",
+        "chrome:Default",
+        "brave:Default",
+      ]);
+      expect(select.value).toBe("brave:Default");
+    });
+
+    it("shows a stored bare dir as the first browser's profile with that dir", () => {
+      expect(two("Default").select.value).toBe("chrome:Default");
+    });
+
+    it("keeps a stored id the browsers no longer have as not found", () => {
+      expect(two("edge:Default").labels.at(-1)).toBe("edge:Default (not found)");
+    });
+  });
+
+  it("an older host's profiles, with no id, are offered by dir", () => {
+    const p = mount();
+    const s = p.state({
+      profiles: [{ dir: "Default", name: "Personal" } as never],
+    });
+    s.settings.sessions.default_profile = "Default";
+    p.send({ type: "state", state: s });
+    const select = p.$<HTMLSelectElement>("default-profile");
+    expect([...select.options].map((o) => o.value)).toEqual(["", "Default"]);
+    expect(select.value).toBe("Default");
+    expect(select.selectedOptions[0]!.text).toBe("Personal");
   });
 
   it("a default profile Chrome no longer has stays visible as not found", () => {

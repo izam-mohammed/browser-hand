@@ -29,7 +29,14 @@ detach_after_idle_s: number, };
 
 export type ErrorCode = "not_connected" | "no_tab" | "debugger_refused" | "timeout" | "bad_args" | "page_error" | "blocked";
 
-export type Frame = { "type": "call", id: number, session: string, tool: string, args: JsonValue, } | { "type": "result", id: number, ok: boolean, content?: Array<Content> | null, error?: WireError | null, } | { "type": "hello", protocol: number, profileDir: string | null, extensionVersion: string, instance: string, } | { "type": "claimed", profileDir: string, nonce: string, } | { "type": "chunk", id: number, seq: number, last: boolean, data: string, } | { "type": "end", session: string, } | { "type": "settings", settings: Settings, 
+export type Frame = { "type": "call", id: number, session: string, tool: string, args: JsonValue, } | { "type": "result", id: number, ok: boolean, content?: Array<Content> | null, error?: WireError | null, } | { "type": "hello", protocol: number, profileDir: string | null, extensionVersion: string, instance: string, 
+/**
+ * The browser the host runs in (a key of `BROWSERS`), stamped by
+ * the native host on the hellos it sends its clients; the
+ * extension sends none. Absent from an older host or when the
+ * host could not tell (`plans/15-browser-identity.md`).
+ */
+browser?: string, } | { "type": "claimed", profileDir: string, nonce: string, } | { "type": "chunk", id: number, seq: number, last: boolean, data: string, } | { "type": "end", session: string, } | { "type": "settings", settings: Settings, 
 /**
  * The file's modification time in ns, "0" with no file.
  */
@@ -64,7 +71,20 @@ mouse_speed: number, };
 /**
  * A Chrome profile the settings page can name as the default.
  */
-export type ProfileRef = { dir: string, name: string, };
+export type ProfileRef = { 
+/**
+ * The directory name the browser uses (`Default`).
+ */
+dir: string, name: string, 
+/**
+ * What `sessions.default_profile` holds: `dir`, or `<browser>:<dir>`
+ * when more than one browser is installed.
+ */
+id: string, 
+/**
+ * The browser's display name (`Brave`).
+ */
+browser: string, };
 
 export type SessionSettings = { 
 /**

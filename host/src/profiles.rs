@@ -58,6 +58,9 @@ pub struct Browser {
     pub mac_app: &'static str,
     /// Binary names looked up on `PATH`, in order.
     pub linux_bins: &'static [&'static str],
+    /// Lowercase names the browser's binary, its folder or its `.app` go
+    /// by (`identify`).
+    pub exe_names: &'static [&'static str],
 }
 
 /// The fixed table of browsers. Dirs are built from `$HOME` only.
@@ -69,6 +72,12 @@ pub const BROWSERS: &[Browser] = &[
         linux_dir: "google-chrome",
         mac_app: "Google Chrome",
         linux_bins: &["google-chrome-stable", "google-chrome", "chromium"],
+        exe_names: &[
+            "chrome",
+            "google-chrome",
+            "google chrome",
+            "google chrome.app",
+        ],
     },
     Browser {
         key: "chromium",
@@ -77,6 +86,7 @@ pub const BROWSERS: &[Browser] = &[
         linux_dir: "chromium",
         mac_app: "Chromium",
         linux_bins: &["chromium", "chromium-browser"],
+        exe_names: &["chromium", "chromium-browser", "chromium.app"],
     },
     Browser {
         key: "edge",
@@ -85,6 +95,13 @@ pub const BROWSERS: &[Browser] = &[
         linux_dir: "microsoft-edge",
         mac_app: "Microsoft Edge",
         linux_bins: &["microsoft-edge-stable", "microsoft-edge"],
+        exe_names: &[
+            "msedge",
+            "microsoft-edge",
+            "microsoft-edge-stable",
+            "microsoft edge",
+            "microsoft edge.app",
+        ],
     },
     Browser {
         key: "brave",
@@ -93,6 +110,13 @@ pub const BROWSERS: &[Browser] = &[
         linux_dir: "BraveSoftware/Brave-Browser",
         mac_app: "Brave Browser",
         linux_bins: &["brave-browser", "brave-browser-stable", "brave"],
+        exe_names: &[
+            "brave",
+            "brave-browser",
+            "brave-browser-stable",
+            "brave browser",
+            "brave browser.app",
+        ],
     },
     Browser {
         key: "vivaldi",
@@ -101,6 +125,7 @@ pub const BROWSERS: &[Browser] = &[
         linux_dir: "vivaldi",
         mac_app: "Vivaldi",
         linux_bins: &["vivaldi-stable", "vivaldi"],
+        exe_names: &["vivaldi", "vivaldi-bin", "vivaldi-stable", "vivaldi.app"],
     },
 ];
 
@@ -163,6 +188,120 @@ pub fn roots() -> Vec<Root> {
     } else {
         found
     }
+}
+
+/// Which table browser a process is, from its `--user-data-dir` and its
+/// binary (`plans/15-browser-identity.md`, decision 1). A user data dir equal
+/// to a root's decides first, so two builds of one binary on two dirs stay
+/// apart; else the binary's file name, its folder name or an `.app` part
+/// is compared, whole and lowercased, with the table's `exe_names`
+/// (Chrome's last, so Chromium's `chrome` inside `chromium-browser` is
+/// Chromium). A home folder or an argument never counts. Only table keys come
+/// out; nothing known gives `None`.
+pub fn identify(exe: Option<&Path>, udd: Option<&Path>, roots: &[Root]) -> Option<&'static str> {
+    if let Some(udd) = udd {
+        let same = |a: &Path, b: &Path| {
+            a == b || matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
+        };
+        let udd = Path::new(udd.to_str()?.trim_end_matches('/'));
+        if let Some(r) = roots.iter().find(|r| same(&r.dir, udd)) {
+            return Some(r.browser);
+        }
+    }
+    let exe = exe?;
+    let mut parts: Vec<String> = exe
+        .components()
+        .filter_map(|c| c.as_os_str().to_str())
+        .filter(|c| c.to_ascii_lowercase().ends_with(".app"))
+        .map(str::to_ascii_lowercase)
+        .collect();
+    parts.extend(
+        [exe.file_name(), exe.parent().and_then(Path::file_name)]
+            .into_iter()
+            .flatten()
+            .filter_map(|c| c.to_str())
+            .map(str::to_ascii_lowercase),
+    );
+    let table = BROWSERS[1..].iter().chain(&BROWSERS[..1]);
+    table
+        .filter(|b| parts.iter().any(|p| b.exe_names.contains(&p.as_str())))
+        .map(|b| b.key)
+        .next()
+}
+
+/// The value of `--user-data-dir` in a command line, `=` or a separate word.
+/// Chromium rewrites its own process title on Linux, so `/proc/<pid>/cmdline`
+/// of a browser is often one space-joined string, not NUL-separated words
+/// (measured on Chrome for Testing 157, 2026-11-17): the flag is then found
+/// inside a word and its value runs to the next ` --` or the end.
+pub fn user_data_dir_arg(args: &[String]) -> Option<PathBuf> {
+    const FLAG: &str = "--user-data-dir=";
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        let at = if a.starts_with(FLAG) {
+            Some(0)
+        } else {
+            a.find(&format!(" {FLAG}")).map(|i| i + 1)
+        };
+        if let Some(at) = at {
+            let rest = &a[at + FLAG.len()..];
+            let end = rest.find(" --").unwrap_or(rest.len());
+            return Some(rest[..end].into());
+        }
+        if a == "--user-data-dir" {
+            return it.next().map(PathBuf::from);
+        }
+    }
+    None
+}
+
+/// `identify` for process `pid`: its binary and, on Linux, its command line
+/// from `/proc`; on macOS the binary from `proc_pidpath`. Any read that fails
+/// leaves that part out. Only `--user-data-dir`'s value is read from the
+/// command line, and nothing is logged.
+pub fn parent_identity(pid: u32, roots: &[Root]) -> Option<&'static str> {
+    let exe = exe_of(pid);
+    let args = std::fs::read(format!("/proc/{pid}/cmdline"))
+        .map(|b| {
+            b.split(|c| *c == 0)
+                .map(|a| String::from_utf8_lossy(a).into_owned())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    in_roots(
+        identify(exe.as_deref(), user_data_dir_arg(&args).as_deref(), roots),
+        roots,
+    )
+}
+
+/// `key` only when one of `roots` is that browser's. A host named for a
+/// browser whose profiles are not listed could never match one of them, so
+/// it states nothing and falls back to matching by dir.
+pub fn in_roots(key: Option<&'static str>, roots: &[Root]) -> Option<&'static str> {
+    key.filter(|k| roots.iter().any(|r| r.browser == *k))
+}
+
+#[cfg(target_os = "linux")]
+fn exe_of(pid: u32) -> Option<PathBuf> {
+    std::fs::read_link(format!("/proc/{pid}/exe")).ok()
+}
+
+#[cfg(target_os = "macos")]
+fn exe_of(pid: u32) -> Option<PathBuf> {
+    use std::os::unix::ffi::OsStringExt;
+    let mut buf = vec![0u8; 4096];
+    // SAFETY: `buf` is writable for the length given.
+    let n = unsafe { libc::proc_pidpath(pid as i32, buf.as_mut_ptr().cast(), buf.len() as u32) };
+    if n <= 0 {
+        return None;
+    }
+    buf.truncate(n as usize);
+    Some(PathBuf::from(std::ffi::OsString::from_vec(buf)))
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn exe_of(_pid: u32) -> Option<PathBuf> {
+    None
 }
 
 /// Profiles of every root, in table order. With more than one root each

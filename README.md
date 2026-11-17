@@ -98,7 +98,8 @@ Click the extension's toolbar button and choose **Settings** in its popup
 (or right-click the button, **Options**; or `chrome://extensions`, Details,
 Extension options). The page sets, for
 every Chrome profile at once: pace (Human or Fast), typing and mouse speed,
-a default profile, whether a session opens a new window and closes its tabs
+a default profile (from every installed browser's profiles, as
+`<browser>:<dir>` when there is more than one), whether a session opens a new window and closes its tabs
 at the end, blocked and read-only sites, screenshot size and quality, the
 GIF folder and frame delay, and how soon the debugger detaches.
 

@@ -95,6 +95,12 @@ fn find_on_path(names: &[&str]) -> Option<PathBuf> {
 
 /// A launcher id is `<browser>:<dir>` or a bare `<dir>`; a bare dir means the
 /// only browser in use.
+/// Whether `host` is the one for `dir` in `browser` (`host_for`).
+fn answers(host: &LiveHost, dir: &str, browser: &str) -> bool {
+    host.hello.profile_dir.as_deref() == Some(dir)
+        && host.hello.browser.as_deref().is_none_or(|b| b == browser)
+}
+
 fn split_id(id: &str) -> (&'static profiles::Browser, &str) {
     if let Some((key, dir)) = id.split_once(':') {
         if let Some(b) = profiles::browser(key) {
@@ -395,10 +401,11 @@ impl Server {
         profiles::discover(&self.inner.socket_dir, PROBE_WAIT).await
     }
 
-    fn host_for<'a>(hosts: &'a [LiveHost], dir: &str) -> Option<&'a LiveHost> {
-        hosts
-            .iter()
-            .find(|h| h.hello.profile_dir.as_deref() == Some(dir))
+    /// The host answering for `dir` in `browser`: a host that states another
+    /// browser never counts; one that states none matches by dir alone (an
+    /// older host, or a binary the host could not name).
+    fn host_for<'a>(hosts: &'a [LiveHost], dir: &str, browser: &str) -> Option<&'a LiveHost> {
+        hosts.iter().find(|h| answers(h, dir, browser))
     }
 
     async fn bind(&self, profile: Profile, host: &LiveHost) -> Result<(), String> {
@@ -407,7 +414,7 @@ impl Server {
         // Dropping it would make the host send `end` for this session, and
         // the extension would forget the session's tab group.
         if let Some(b) = bound.as_mut() {
-            if b.profile.dir == profile.dir && b.conn.is_alive() && b.conn.path == host.path {
+            if b.profile.id == profile.id && b.conn.is_alive() && b.conn.path == host.path {
                 b.profile = profile;
                 return Ok(());
             }
@@ -478,7 +485,7 @@ impl Server {
         let wait = if started { CLAIM_WAIT_COLD } else { CLAIM_WAIT };
         let deadline = tokio::time::Instant::now() + wait;
         loop {
-            if let Some(h) = Self::host_for(&self.hosts().await, &profile.dir) {
+            if let Some(h) = Self::host_for(&self.hosts().await, &profile.dir, &profile.browser) {
                 return Ok(Ok(h.clone()));
             }
             if tokio::time::Instant::now() >= deadline {
@@ -544,7 +551,7 @@ impl Server {
         let Some(profile) = profiles.into_iter().find(|p| p.id == want || p.dir == want) else {
             return Ok(()); // gone from Chrome: as if none were set
         };
-        let host = match Self::host_for(&self.hosts().await, &profile.dir) {
+        let host = match Self::host_for(&self.hosts().await, &profile.dir, &profile.browser) {
             Some(h) => h.clone(),
             None => self.claim(&profile).await?,
         };
@@ -572,13 +579,14 @@ impl Server {
             }
             let dir = claimed[0].hello.profile_dir.clone().unwrap_or_default();
             let profiles = profiles::read_all(&self.inner.roots).unwrap_or_default();
+            let stated = claimed[0].hello.browser.clone();
             let profile = profiles
                 .into_iter()
-                .find(|p| p.dir == dir)
+                .find(|p| answers(claimed[0], &p.dir, &p.browser))
                 .unwrap_or(Profile {
                     name: dir.clone(),
                     id: dir.clone(),
-                    browser: "chrome".into(),
+                    browser: stated.unwrap_or_else(|| "chrome".into()),
                     root: PathBuf::new(),
                     dir,
                     last_used: false,
@@ -594,10 +602,10 @@ impl Server {
             // Chrome restarts the extension's worker now and then and the
             // host's socket goes for a moment: wait for the same profile,
             // never another one (plans/13-chrome-parity.md, decision 2).
-            let dir = b.profile.dir.clone();
+            let (dir, browser) = (b.profile.dir.clone(), b.profile.browser.clone());
             let found = wait_for(RECONNECT_WAIT, RECONNECT_POLL, || async {
                 let hosts = self.hosts().await;
-                Self::host_for(&hosts, &dir).cloned()
+                Self::host_for(&hosts, &dir, &browser).cloned()
             })
             .await;
             let Some(h) = found else {
@@ -712,7 +720,7 @@ impl Server {
             .map(|p| {
                 let answering = hosts
                     .iter()
-                    .filter(|h| h.hello.profile_dir.as_deref() == Some(p.dir.as_str()))
+                    .filter(|h| answers(h, &p.dir, &p.browser))
                     .count();
                 let mut v = json!({
                     "dir": p.id,
@@ -764,7 +772,7 @@ impl Server {
             ));
         };
         let hosts = self.hosts().await;
-        let host = match Self::host_for(&hosts, &profile.dir) {
+        let host = match Self::host_for(&hosts, &profile.dir, &profile.browser) {
             Some(h) => h.clone(),
             None => self.claim(&profile).await?,
         };
