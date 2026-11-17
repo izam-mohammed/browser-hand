@@ -57,6 +57,13 @@ pub enum Frame {
         profile_dir: Option<String>,
         extension_version: String,
         instance: String,
+        /// The browser the host runs in (a key of `BROWSERS`), stamped by
+        /// the native host on the hellos it sends its clients; the
+        /// extension sends none. Absent from an older host or when the
+        /// host could not tell (`plans/15-browser-identity.md`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        browser: Option<String>,
     },
     Claimed {
         profile_dir: String,

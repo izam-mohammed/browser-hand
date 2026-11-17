@@ -20,6 +20,8 @@ pub struct HelloInfo {
     pub profile_dir: Option<String>,
     pub extension_version: String,
     pub instance: String,
+    /// The browser the host runs in, when it said.
+    pub browser: Option<String>,
 }
 
 fn hello_info(frame: Frame) -> Option<HelloInfo> {
@@ -29,11 +31,13 @@ fn hello_info(frame: Frame) -> Option<HelloInfo> {
             profile_dir,
             extension_version,
             instance,
+            browser,
         } => Some(HelloInfo {
             protocol,
             profile_dir,
             extension_version,
             instance,
+            browser,
         }),
         _ => None,
     }

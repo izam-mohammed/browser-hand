@@ -17,6 +17,7 @@ fn hello(protocol: u32, instance: &str) -> Frame {
         profile_dir: Some("Default".into()),
         extension_version: "0.1.0".into(),
         instance: instance.into(),
+        browser: None,
     }
 }
 

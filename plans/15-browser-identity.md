@@ -212,18 +212,19 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the rough cut, matching by browser (needs you: try it)
 
-- [ ] Tests first: `identify` cases in `host/src/profiles.rs`, a
+- [x] Tests first: `identify` cases in `host/src/profiles.rs`, a
   hello-with-and-without-`browser` case in `host/tests/fixtures/frames.json`
   and `host/tests/wire.rs`, the native host stamping `browser`
   (`host/tests/relay.rs`), and `host_for` with two same-dir hosts
   (`host/tests/browsers_mcp.rs`), all failing.
-- [ ] `Hello.browser` and `HelloInfo.browser`; `cargo test` regenerates
+  Landed 2026-11-17: the `identify` tests are in `host/tests/profiles.rs`.
+- [x] `Hello.browser` and `HelloInfo.browser`; `cargo test` regenerates
   `extension/src/wire.gen.ts`; `hello()` in `extension/src/background.ts`
   still typechecks.
-- [ ] `identify` and the parent reader (expected in `host/src/profiles.rs`),
+- [x] `identify` and the parent reader (expected in `host/src/profiles.rs`),
   `HostOptions.browser` filled from them in `from_env`, stamped on every
   hello the host sends (decision 1).
-- [ ] `host_for`, `bind`, the reconnect wait, `call`'s single-host fallback
+- [x] `host_for`, `bind`, the reconnect wait, `call`'s single-host fallback
   and `do_list_profiles` match by dir and browser (expected in
   `host/src/mcp.rs`), per decision 2.
 - [ ] Check: `make check`.

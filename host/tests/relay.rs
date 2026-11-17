@@ -44,19 +44,28 @@ fn options(dir: &std::path::Path) -> HostOptions {
         config: dir.join("conf").join("config.toml"),
         chrome_dir: dir.join("chrome"),
         poll: Duration::from_millis(100),
+        browser: None,
     }
 }
 
-/// Starts a host on a temp socket with an in-memory "Chrome" end. Its
-/// settings file is `options(dir).config`.
-async fn start() -> (
+type Started = (
     Chrome,
     std::path::PathBuf,
     tempfile::TempDir,
     tokio::task::JoinHandle<()>,
-) {
+);
+
+/// Starts a host on a temp socket with an in-memory "Chrome" end. Its
+/// settings file is `options(dir).config`.
+async fn start() -> Started {
+    start_as(None).await
+}
+
+/// `start`, for a host whose parent process was `browser`.
+async fn start_as(browser: Option<&str>) -> Started {
     let dir = tempfile::tempdir().unwrap();
     let config = dir.path().to_owned();
+    let browser = browser.map(String::from);
     let path = dir.path().join("h.sock");
     let listener = UnixListener::bind(&path).unwrap();
     let (chrome_end, host_end) = tokio::io::duplex(1 << 22);
@@ -67,7 +76,10 @@ async fn start() -> (
             host_write,
             listener,
             "inst-1".into(),
-            options(&config),
+            HostOptions {
+                browser,
+                ..options(&config)
+            },
         )
         .await
         .unwrap();
@@ -130,6 +142,48 @@ async fn a_client_gets_hello_at_once_even_before_the_extension_speaks() {
 }
 
 #[tokio::test]
+async fn the_host_stamps_the_browser_it_runs_in_on_every_hello() {
+    let (mut chrome, path, _dir, _task) = start_as(Some("brave")).await;
+    let mut a = client(&path).await;
+    let Frame::Hello { browser, .. } = recv(&mut a).await else {
+        panic!("not a hello")
+    };
+    assert_eq!(browser.as_deref(), Some("brave"));
+    // The extension's own hello says no browser; the host's stamp stays, and
+    // so does a browser the extension claims to be (it is not trusted).
+    chrome
+        .send(Frame::Hello {
+            protocol: 1,
+            profile_dir: Some("Default".into()),
+            extension_version: "0.1.0".into(),
+            instance: String::new(),
+            browser: Some("edge".into()),
+        })
+        .await;
+    loop {
+        if let Frame::Hello {
+            profile_dir: Some(_),
+            browser,
+            ..
+        } = recv(&mut a).await
+        {
+            assert_eq!(browser.as_deref(), Some("brave"));
+            break;
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_host_that_cannot_tell_its_browser_says_none() {
+    let (_chrome, path, _dir, _task) = start().await;
+    let mut a = client(&path).await;
+    let Frame::Hello { browser, .. } = recv(&mut a).await else {
+        panic!("not a hello")
+    };
+    assert_eq!(browser, None);
+}
+
+#[tokio::test]
 async fn results_go_back_to_the_client_that_called_under_its_own_id() {
     let (mut chrome, path, _dir, _task) = start().await;
     chrome
@@ -138,6 +192,7 @@ async fn results_go_back_to_the_client_that_called_under_its_own_id() {
             profile_dir: Some("Profile 3".into()),
             extension_version: "0.1.0".into(),
             instance: String::new(),
+            browser: None,
         })
         .await;
     let mut a = client(&path).await;
@@ -263,6 +318,7 @@ async fn the_extensions_protocol_reaches_clients_in_hello() {
             profile_dir: Some("Default".into()),
             extension_version: "9".into(),
             instance: String::new(),
+            browser: None,
         })
         .await;
     loop {
@@ -316,6 +372,7 @@ fn hello(dir: Option<&str>) -> Frame {
         protocol: 1,
         profile_dir: dir.map(String::from),
         extension_version: "0.1.0".into(),
+        browser: None,
         instance: String::new(),
     }
 }
@@ -495,6 +552,7 @@ async fn reload_reaches_the_extension_of_every_connected_profile() {
             profile_dir: Some("Profile 3".into()),
             extension_version: "0.1.0".into(),
             instance: String::new(),
+            browser: None,
         })
         .await;
     let (asked, back) =
