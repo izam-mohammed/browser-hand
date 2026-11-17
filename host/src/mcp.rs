@@ -73,32 +73,116 @@ const GIF_FRAME_SCALE: f64 = 0.6;
 /// Chrome) when needed. Returns whether Chrome had to be started.
 pub type Launcher = Arc<dyn Fn(&str, &str) -> std::io::Result<bool> + Send + Sync>;
 
-fn chrome_running() -> bool {
+fn app_running(app: &str) -> bool {
     std::process::Command::new("pgrep")
-        .args(["-x", "Google Chrome"])
+        .args(["-x", app])
         .stdout(std::process::Stdio::null())
         .status()
         .is_ok_and(|s| s.success())
 }
 
-/// `open -na "Google Chrome" --args --profile-directory=<dir> <url>`: a
-/// running Chrome routes it to that profile, loading the profile if it is not
-/// open; with Chrome closed it starts Chrome in that profile
-/// (`docs/external/chrome-profiles-and-launch.md`).
-pub fn open_in_chrome() -> Launcher {
-    Arc::new(|dir: &str, url: &str| {
-        let started = !chrome_running();
-        let status = std::process::Command::new("open")
-            .args(["-na", "Google Chrome", "--args"])
-            .arg(format!("--profile-directory={dir}"))
-            .arg(url)
-            .status()?;
-        if status.success() {
-            Ok(started)
-        } else {
-            Err(std::io::Error::other(format!("open exited with {status}")))
+/// The first of `names` that is an executable file on `PATH`.
+fn find_on_path(names: &[&str]) -> Option<PathBuf> {
+    use std::os::unix::fs::PermissionsExt;
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .flat_map(|dir| names.iter().map(move |n| dir.join(n)))
+        .find(|p| {
+            p.metadata()
+                .is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+        })
+}
+
+/// A launcher id is `<browser>:<dir>` or a bare `<dir>`; a bare dir means the
+/// only browser in use.
+fn split_id(id: &str) -> (&'static profiles::Browser, &str) {
+    if let Some((key, dir)) = id.split_once(':') {
+        if let Some(b) = profiles::browser(key) {
+            return (b, dir);
+        }
+    }
+    let only = profiles::roots()
+        .first()
+        .and_then(|r| profiles::browser(r.browser))
+        .unwrap_or(&profiles::BROWSERS[0]);
+    (only, id)
+}
+
+/// Opens a profile in the browser its id names, opening the profile (and
+/// starting the browser) when needed (`docs/external/chrome-profiles-and-launch.md`).
+///
+/// - macOS: `open -na "<app>" --args --profile-directory=<dir> <url>`.
+/// - Linux: runs the browser binary (the first of the browser's names on
+///   `PATH`, or `BROWSER_HAND_BROWSER_BIN`) with the same flag and URL; a
+///   second launch hands them to the running browser.
+///
+/// With `BROWSER_HAND_CHROME_DIR` set the Linux launch also passes
+/// `--user-data-dir`, so a test never opens the real profile.
+pub fn launcher_for(os: profiles::Os) -> Launcher {
+    Arc::new(move |id: &str, url: &str| {
+        let (browser, dir) = split_id(id);
+        let flag = format!("--profile-directory={dir}");
+        match os {
+            profiles::Os::Mac => {
+                let started = !app_running(browser.mac_app);
+                let status = std::process::Command::new("open")
+                    .args(["-na", browser.mac_app, "--args"])
+                    .arg(flag)
+                    .arg(url)
+                    .status()?;
+                if status.success() {
+                    Ok(started)
+                } else {
+                    Err(std::io::Error::other(format!("open exited with {status}")))
+                }
+            }
+            profiles::Os::Linux => {
+                let bin = match std::env::var_os("BROWSER_HAND_BROWSER_BIN") {
+                    Some(b) => PathBuf::from(b),
+                    None => find_on_path(browser.linux_bins).ok_or_else(|| {
+                        std::io::Error::other(format!(
+                            "no {} binary on PATH (tried {}); set BROWSER_HAND_BROWSER_BIN to the browser's path",
+                            browser.name,
+                            browser.linux_bins.join(", ")
+                        ))
+                    })?,
+                };
+                let override_dir = std::env::var_os("BROWSER_HAND_CHROME_DIR").map(PathBuf::from);
+                let data = override_dir.clone().unwrap_or_else(|| {
+                    let home = std::env::var_os("HOME").unwrap_or_default();
+                    profiles::data_dir(os, std::path::Path::new(&home), browser)
+                });
+                // A running browser holds `SingletonLock` (a symlink, dangling
+                // by design) in its data dir.
+                let started = std::fs::symlink_metadata(data.join("SingletonLock")).is_err();
+                let mut cmd = std::process::Command::new(&bin);
+                if let Some(d) = &override_dir {
+                    cmd.arg(format!("--user-data-dir={}", d.display()));
+                }
+                let mut child = cmd
+                    .arg(flag)
+                    .arg(url)
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .spawn()
+                    .map_err(|e| {
+                        std::io::Error::other(format!("could not run {}: {e}", bin.display()))
+                    })?;
+                // A fresh start keeps running; a hand-off exits at once.
+                // Either way the child is reaped off this thread.
+                std::thread::spawn(move || {
+                    let _ = child.wait();
+                });
+                Ok(started)
+            }
         }
     })
+}
+
+/// The launcher for the system this runs on.
+pub fn open_in_chrome() -> Launcher {
+    launcher_for(profiles::Os::current())
 }
 
 /// `BROWSER_HAND_PACE` when set: `fast`, or `human` for any other value.
@@ -141,7 +225,7 @@ struct Bound {
 
 pub struct Inner {
     session: String,
-    chrome_dir: PathBuf,
+    roots: Vec<profiles::Root>,
     socket_dir: PathBuf,
     launch: Launcher,
     pace: Option<String>,
@@ -264,10 +348,24 @@ impl Server {
         launch: Launcher,
         opts: ServerOptions,
     ) -> Self {
+        let roots = vec![profiles::Root {
+            browser: "chrome",
+            dir: chrome_dir,
+        }];
+        Self::with_roots(roots, socket_dir, launch, opts)
+    }
+
+    /// A server over several browsers' data dirs (`profiles::roots`).
+    pub fn with_roots(
+        roots: Vec<profiles::Root>,
+        socket_dir: PathBuf,
+        launch: Launcher,
+        opts: ServerOptions,
+    ) -> Self {
         Server {
             inner: Arc::new(Inner {
                 session: uuid::Uuid::new_v4().to_string(),
-                chrome_dir,
+                roots,
                 socket_dir,
                 launch,
                 pace: opts.pace,
@@ -325,8 +423,8 @@ impl Server {
     /// (`<profile>/Extensions/<store id>/`; unpacked builds leave no folder).
     fn store_build_in(&self, profile: &Profile) -> bool {
         self.inner.store_id.as_deref().is_some_and(|id| {
-            self.inner
-                .chrome_dir
+            profile
+                .root
                 .join(&profile.dir)
                 .join("Extensions")
                 .join(id)
@@ -375,7 +473,7 @@ impl Server {
             "chrome-extension://{id}/claim.html#dir={}&nonce={nonce}",
             encode_component(&profile.dir)
         );
-        let started = (self.inner.launch)(&profile.dir, &url)
+        let started = (self.inner.launch)(&profile.id, &url)
             .map_err(|e| format!("could not open Chrome: {e}"))?;
         let wait = if started { CLAIM_WAIT_COLD } else { CLAIM_WAIT };
         let deadline = tokio::time::Instant::now() + wait;
@@ -418,7 +516,7 @@ impl Server {
         );
         if let Some(url) = self.store_url() {
             // Best effort: the error already says what to do.
-            let _ = (self.inner.launch)(&profile.dir, &url);
+            let _ = (self.inner.launch)(&profile.id, &url);
             message.push_str(&format!(
                 "Opened its Chrome Web Store page in that profile. {}",
                 self.next_step(profile)
@@ -442,8 +540,8 @@ impl Server {
         if want.is_empty() {
             return Ok(());
         }
-        let profiles = profiles::read_profiles(&self.inner.chrome_dir).unwrap_or_default();
-        let Some(profile) = profiles.into_iter().find(|p| p.dir == want) else {
+        let profiles = profiles::read_all(&self.inner.roots).unwrap_or_default();
+        let Some(profile) = profiles.into_iter().find(|p| p.id == want || p.dir == want) else {
             return Ok(()); // gone from Chrome: as if none were set
         };
         let host = match Self::host_for(&self.hosts().await, &profile.dir) {
@@ -473,12 +571,15 @@ impl Server {
                 );
             }
             let dir = claimed[0].hello.profile_dir.clone().unwrap_or_default();
-            let profiles = profiles::read_profiles(&self.inner.chrome_dir).unwrap_or_default();
+            let profiles = profiles::read_all(&self.inner.roots).unwrap_or_default();
             let profile = profiles
                 .into_iter()
                 .find(|p| p.dir == dir)
                 .unwrap_or(Profile {
                     name: dir.clone(),
+                    id: dir.clone(),
+                    browser: "chrome".into(),
+                    root: PathBuf::new(),
                     dir,
                     last_used: false,
                 });
@@ -596,7 +697,7 @@ impl Server {
     // Each tool's work, shared by its MCP method and by browser_batch.
 
     async fn do_list_profiles(&self) -> Outcome {
-        let profiles = profiles::read_profiles(&self.inner.chrome_dir)
+        let profiles = profiles::read_all(&self.inner.roots)
             .map_err(|e| format!("Could not read Chrome's profiles: {e:#}"))?;
         let hosts = self.hosts().await;
         let selected = self
@@ -605,7 +706,7 @@ impl Server {
             .lock()
             .await
             .as_ref()
-            .map(|b| b.profile.dir.clone());
+            .map(|b| b.profile.id.clone());
         let list: Vec<Value> = profiles
             .iter()
             .map(|p| {
@@ -614,11 +715,12 @@ impl Server {
                     .filter(|h| h.hello.profile_dir.as_deref() == Some(p.dir.as_str()))
                     .count();
                 let mut v = json!({
-                    "dir": p.dir,
+                    "dir": p.id,
+                    "browser": p.browser,
                     "name": p.name,
                     "lastUsed": p.last_used,
                     "connected": answering > 0,
-                    "selected": selected.as_deref() == Some(p.dir.as_str()),
+                    "selected": selected.as_deref() == Some(p.id.as_str()),
                 });
                 if answering == 0 {
                     v["nextStep"] = json!(self.next_step(p));
@@ -639,12 +741,21 @@ impl Server {
     }
 
     async fn do_select_profile(&self, args: SelectProfileArgs) -> Outcome {
-        let profiles = profiles::read_profiles(&self.inner.chrome_dir)
+        let profiles = profiles::read_all(&self.inner.roots)
             .map_err(|e| format!("Could not read Chrome's profiles: {e:#}"))?;
         let Some(profile) = profiles::resolve(&profiles, &args.profile).cloned() else {
+            let both = profiles::ambiguous(&profiles, &args.profile);
+            if !both.is_empty() {
+                let ids: Vec<&str> = both.iter().map(|p| p.id.as_str()).collect();
+                return Err(format!(
+                    "\"{}\" is a profile in more than one browser. Say which: {}",
+                    args.profile,
+                    ids.join(", ")
+                ));
+            }
             let names: Vec<String> = profiles
                 .iter()
-                .map(|p| format!("{} ({})", p.name, p.dir))
+                .map(|p| format!("{} ({})", p.name, p.id))
                 .collect();
             return Err(format!(
                 "No profile \"{}\". Profiles: {}",
@@ -659,7 +770,7 @@ impl Server {
         };
         self.bind(profile.clone(), &host).await?;
         json_text(
-            json!({ "selected": { "dir": profile.dir, "name": profile.name }, "extensionVersion": host.hello.extension_version }),
+            json!({ "selected": { "dir": profile.id, "name": profile.name }, "extensionVersion": host.hello.extension_version }),
         )
     }
 
@@ -1363,8 +1474,8 @@ pub async fn main() -> anyhow::Result<()> {
         pace: pace_from_env(),
         ..Default::default()
     };
-    let server = Server::with_options(
-        profiles::chrome_dir(),
+    let server = Server::with_roots(
+        profiles::roots(),
         crate::paths::socket_dir(),
         open_in_chrome(),
         opts,

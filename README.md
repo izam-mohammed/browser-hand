@@ -12,7 +12,8 @@ server and a Chrome extension. The extension's only UI is a toolbar popup to
 record your own steps, which Claude can then read and replay, and a settings
 page.
 Modelled on Claude in Chrome (`reference/claude-in-chrome/`), with profiles in
-place of a connected-browser list. Runs on macOS with Google Chrome.
+place of a connected-browser list. Runs on macOS and Linux, with Google Chrome,
+Chromium, Edge, Brave or Vivaldi (Windows is not supported).
 
 ## How it fits together
 
@@ -27,7 +28,8 @@ is not open. The wire format is `docs/protocol.md`.
 
 ## Install
 
-Needs Rust (1.88+), Node (to build the extension) and Google Chrome.
+Needs Rust (1.88+), Node (to build the extension) and a Chromium browser:
+Google Chrome, Chromium, Edge, Brave or Vivaldi, on macOS or Linux.
 
 1. Build everything and register the native host:
 
@@ -37,7 +39,10 @@ Needs Rust (1.88+), Node (to build the extension) and Google Chrome.
 
    It builds `host/` and `extension/`, copies the binary into
    `plugin/server/`, and writes one file outside the repository,
-   `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/dev.browserhand.host.json`
+   `NativeMessagingHosts/dev.browserhand.host.json` in the data dir of each
+   installed browser (macOS: `~/Library/Application Support/Google/Chrome/`;
+   Linux: `~/.config/google-chrome/`; Brave, Edge, Chromium and Vivaldi have
+   their own)
    (`plugin/server/browser-hand install --uninstall` removes it).
 
 2. Get the extension into each Chrome profile Claude may use. Once the

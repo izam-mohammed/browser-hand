@@ -2,8 +2,8 @@
 
 browser-hand lets Claude Code drive your own Chrome profiles. It picks a
 profile, opens and reads pages, and clicks, types and scrolls the way a
-person does, with your logins already in place. It runs on macOS with Google
-Chrome.
+person does, with your logins already in place. It runs on macOS and Linux with
+Google Chrome, Chromium, Edge, Brave or Vivaldi.
 
 It comes in three parts, and you need all three:
 
