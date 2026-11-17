@@ -189,7 +189,9 @@ make check   # format, lint, types, tests, release build, advisories, secrets
 `make lint`, `make test`, `make coverage` and `make security` run one part
 each; `docs/standards.md` lists every check and what it needs installed
 (`gitleaks`, `osv-scanner`). `cargo test` also regenerates
-`extension/src/wire.gen.ts`.
+`extension/src/wire.gen.ts`. `docs/testing.md` says how to run every suite
+and proof, headless on Chrome for Testing where it can, and what only a
+person can check.
 
 Proofs that the external pieces behave as documented live in
 `scripts/prove/`; each prints `PASS` or `FAIL`. Two of them need you at
