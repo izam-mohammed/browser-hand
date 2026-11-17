@@ -78,6 +78,102 @@ fn upload_refuses_files_that_add_up_to_more_than_the_limit() {
     assert!(e.contains("10 MB"), "{e}");
 }
 
+fn write(dir: &Path, rel: &str) -> String {
+    let p = dir.join(rel);
+    std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+    std::fs::write(&p, b"secret").unwrap();
+    s(&p)
+}
+
+fn refused(path: &str) -> String {
+    let e = files::read_for_upload(&[path.to_string()]).unwrap_err();
+    assert!(e.starts_with("refused:"), "{e}");
+    assert!(e.contains("ask the person for another file"), "{e}");
+    e
+}
+
+#[test]
+fn upload_refuses_env_pem_and_key_files_in_any_case() {
+    let dir = tempfile::tempdir().unwrap();
+    for name in [
+        ".env",
+        ".ENV",
+        ".env.local",
+        ".env.production",
+        "server.pem",
+        "SERVER.PEM",
+        "id.key",
+        "x.KEY",
+    ] {
+        let e = refused(&write(dir.path(), name));
+        assert!(e.contains(name), "{e}");
+    }
+    assert!(refused(&write(dir.path(), ".env")).contains("holds secrets"));
+}
+
+#[test]
+fn upload_refuses_anything_inside_a_ssh_folder() {
+    let dir = tempfile::tempdir().unwrap();
+    for rel in [
+        ".ssh/id_ed25519",
+        ".ssh/config",
+        "a/.SSH/known_hosts",
+        ".ssh/deep/x.txt",
+    ] {
+        let e = refused(&write(dir.path(), rel));
+        assert!(e.contains(".ssh"), "{e}");
+    }
+}
+
+#[test]
+fn upload_refuses_a_symlink_to_a_protected_file_under_a_harmless_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = write(dir.path(), ".ssh/id_ed25519");
+    let link = dir.path().join("holiday.txt");
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    let e = refused(&s(&link));
+    assert!(e.contains("symlink") || e.contains(".ssh"), "{e}");
+    let env = write(dir.path(), "real/.env");
+    let link2 = dir.path().join("notes.png");
+    std::os::unix::fs::symlink(&env, &link2).unwrap();
+    refused(&s(&link2));
+}
+
+#[test]
+fn upload_refuses_a_hard_link_and_says_why() {
+    let dir = tempfile::tempdir().unwrap();
+    let orig = write(dir.path(), "secret.txt");
+    let link = dir.path().join("harmless.txt");
+    std::fs::hard_link(&orig, &link).unwrap();
+    for p in [&orig, &s(&link)] {
+        let e = refused(p);
+        assert!(e.contains("hard link"), "{e}");
+    }
+}
+
+#[test]
+fn upload_still_takes_normal_files_and_lookalike_names() {
+    let dir = tempfile::tempdir().unwrap();
+    for rel in [
+        "config.env.example",
+        "environment.txt",
+        "monkey.png",
+        "keys.txt",
+        "pem.txt",
+        "ssh/readme.txt",
+        "my.ssh.txt",
+        "photo.png",
+    ] {
+        let p = write(dir.path(), rel);
+        assert!(files::read_for_upload(&[p]).is_ok(), "{rel}");
+    }
+    // A symlink to a normal file is fine.
+    let t = write(dir.path(), "plain.txt");
+    let l = dir.path().join("alias.txt");
+    std::os::unix::fs::symlink(&t, &l).unwrap();
+    assert!(files::read_for_upload(&[s(&l)]).is_ok());
+}
+
 #[test]
 fn a_kept_image_is_found_by_its_id_and_ids_do_not_repeat() {
     let mut store = ImageStore::default();

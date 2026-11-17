@@ -36,6 +36,60 @@ pub fn mime_for(path: &Path) -> &'static str {
     }
 }
 
+const ASK: &str = "Do not work around this: ask the person for another file.";
+
+/// The rule a path breaks, if any: credential names and folders.
+fn credential_rule(path: &Path) -> Option<&'static str> {
+    let in_ssh = path
+        .components()
+        .any(|c| c.as_os_str().to_string_lossy().eq_ignore_ascii_case(".ssh"));
+    if in_ssh {
+        return Some("it is inside a .ssh folder, which holds SSH keys");
+    }
+    let name = path.file_name()?.to_string_lossy().to_ascii_lowercase();
+    if name == ".env" || name.starts_with(".env.") {
+        return Some("it is a .env file, which holds secrets");
+    }
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("pem") => Some("it is a .pem file, which holds keys or certificates"),
+        Some("key") => Some("it is a .key file, which holds private keys"),
+        _ => None,
+    }
+}
+
+/// Refuses credential files by name, folder, resolved symlink and link count.
+fn check_not_credential(p: &str, path: &Path, meta: &std::fs::Metadata) -> Result<(), String> {
+    if let Some(why) = credential_rule(path) {
+        return Err(format!("refused: {p} is not uploaded because {why}. {ASK}"));
+    }
+    if let Ok(real) = std::fs::canonicalize(path) {
+        if real != path {
+            if let Some(why) = credential_rule(&real) {
+                return Err(format!(
+                    "refused: {p} is a symlink to {}, and it is not uploaded because {why}. {ASK}",
+                    real.display()
+                ));
+            }
+        }
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if meta.nlink() > 1 {
+            return Err(format!(
+                "refused: {p} is a hard link (the same file has another name), so its real name cannot be checked. {ASK}"
+            ));
+        }
+    }
+    let _ = meta;
+    Ok(())
+}
+
 /// The files as `{name, mimeType, data}` for the extension, or why not.
 pub fn read_for_upload(paths: &[String]) -> Result<Vec<Value>, String> {
     if paths.is_empty() {
@@ -52,6 +106,7 @@ pub fn read_for_upload(paths: &[String]) -> Result<Vec<Value>, String> {
         if !meta.is_file() {
             return Err(format!("bad_args: {p} is not a file"));
         }
+        check_not_credential(p, path, &meta)?;
         total += meta.len();
         if total > MAX_UPLOAD_BYTES {
             return Err(format!(

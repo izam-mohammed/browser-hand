@@ -30,6 +30,7 @@ fn the_instructions_carry_the_rules_that_matter() {
         "nextStep",
         "REDACTED",
         "may have run",
+        "hard-linked files",
     ] {
         assert!(INSTRUCTIONS.contains(must), "missing: {must}");
     }
