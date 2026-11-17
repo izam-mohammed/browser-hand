@@ -7,9 +7,13 @@
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "tsc --noEmit && vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.8",
     "@mozilla/readability": "0.6.0",
     "@types/chrome": "0.3.7",
     "@types/node": "26.6.6",
