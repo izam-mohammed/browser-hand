@@ -36,9 +36,11 @@ when the user talks about something they recorded.
    user's behalf. With exactly one connected profile, use it.
 4. A profile that is not open can still be selected: `select_profile` opens it
    with Chrome's command line, starting Chrome if needed. If it then reports
-   that the extension did not answer, tell the user to load `extension/dist`
-   unpacked in that profile (`chrome://extensions`, Developer mode, Load
-   unpacked) and stop.
+   that the extension did not answer, or `list_profiles` gives that profile a
+   `nextStep`, relay the step to the user (add the extension from the Chrome
+   Web Store page, or turn it on in `chrome://extensions`, or Load unpacked
+   when there is no store build) and stop. A `warning` on a profile means two
+   builds are on in it: tell the user to turn one off.
 
 ## Tabs
 
