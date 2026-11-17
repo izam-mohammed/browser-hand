@@ -1,7 +1,8 @@
 //! `browser-hand mcp`          the stdio MCP server Claude Code starts
 //! `browser-hand native-host`  the native messaging host (Chrome starts it
 //!                             with the extension origin as its only argument)
-//! `browser-hand install`      writes the host manifest (`--uninstall` removes it)
+//! `browser-hand install`      writes the host manifest and the External Extensions file
+//!                             (`--uninstall` removes them, `--no-store` skips the file)
 //! `browser-hand reload`       reloads the extension in every connected profile
 
 use std::process::ExitCode;
@@ -22,9 +23,9 @@ fn main() -> ExitCode {
         "native-host" => run(browser_hand::native_host::main()),
         "mcp" => run(browser_hand::mcp::main()),
         "reload" => run(browser_hand::reload::main()),
-        "install" => browser_hand::install::main(args.iter().any(|a| a == "--uninstall")),
+        "install" => browser_hand::install::main(&args),
         _ => {
-            eprintln!("usage: browser-hand mcp | native-host | install [--uninstall] | reload");
+            eprintln!("usage: browser-hand mcp | native-host | install [--uninstall] [--no-store] [--mobileconfig <path>] | reload");
             return ExitCode::from(2);
         }
     };

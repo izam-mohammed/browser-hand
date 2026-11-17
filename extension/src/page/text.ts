@@ -5,7 +5,10 @@ import { Readability } from "@mozilla/readability";
 export const MAX_TEXT = 100_000;
 
 function squash(text: string): string {
-  return text.replace(/[ \t]+/g, " ").replace(/\n\s*\n\s*\n+/g, "\n\n").trim();
+  return text
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
+    .trim();
 }
 
 export function pageText(doc: Document): string {
@@ -23,6 +26,7 @@ export function pageText(doc: Document): string {
   }
   if (!body) body = (doc.body as HTMLElement | null)?.innerText ?? doc.body?.textContent ?? "";
   let out = `${title}\n${doc.location?.href ?? ""}\n\n${squash(body)}`;
-  if (out.length > MAX_TEXT) out = `${out.slice(0, MAX_TEXT)}\n[truncated: ${out.length} characters in full]`;
+  if (out.length > MAX_TEXT)
+    out = `${out.slice(0, MAX_TEXT)}\n[truncated: ${out.length} characters in full]`;
   return out;
 }

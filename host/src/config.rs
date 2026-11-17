@@ -8,6 +8,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use rmcp::schemars::{self, JsonSchema};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -24,10 +25,11 @@ pub const POLL: Duration = Duration::from_secs(2);
 pub const NOT_A_PATTERN: &str = "Not a pattern. Use host/path, for example docs.google.com/*";
 const HEADER: &str = "# Written by the browser-hand settings page. Edits here apply too.\n";
 
-#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
 #[serde(default)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct Settings {
+    /// The file's format version.
     pub version: u32,
     pub input: InputSettings,
     pub sessions: SessionSettings,
@@ -36,11 +38,11 @@ pub struct Settings {
     pub debugger: DebuggerSettings,
 }
 
-#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
 #[serde(default)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct InputSettings {
-    /// `human` or `fast`.
+    /// `human` or `fast`. Fast keeps the same events without travel time.
     pub pace: String,
     /// 0.25 to 3.0, multiplies the gap between keys.
     pub typing_speed: f64,
@@ -48,29 +50,33 @@ pub struct InputSettings {
     pub mouse_speed: f64,
 }
 
-#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
 #[serde(default)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct SessionSettings {
     /// A Chrome profile dir; empty asks.
     pub default_profile: String,
+    /// Whether a session opens its tab group in a new window.
     pub new_window: bool,
+    /// Whether Claude's tabs close when the session ends.
     pub close_tabs_on_end: bool,
 }
 
-#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq, Default)]
 #[serde(default)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct SiteSettings {
+    /// Sites Claude never opens or acts on, as `host/path` patterns.
     pub blocked: Vec<String>,
+    /// Sites Claude may read and screenshot but not click, type in or script.
     pub read_only: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
 #[serde(default)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct CaptureSettings {
-    /// One of `SCREENSHOT_SIZES`.
+    /// `1024x640`, `1280x800` or `1568x980`.
     pub screenshot_size: String,
     /// JPEG quality, 30 to 100.
     pub screenshot_quality: u32,
@@ -80,7 +86,7 @@ pub struct CaptureSettings {
     pub gif_frame_delay_ms: u32,
 }
 
-#[derive(Serialize, Deserialize, TS, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
 #[serde(default)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct DebuggerSettings {

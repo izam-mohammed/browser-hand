@@ -38,7 +38,8 @@ function cap(s: string): string {
 
 /** Passwords, card fields and one-time codes: their values are never recorded. */
 export function isSensitive(el: Element): boolean {
-  if (el.tagName.toLowerCase() === "input" && (el as HTMLInputElement).type === "password") return true;
+  if (el.tagName.toLowerCase() === "input" && (el as HTMLInputElement).type === "password")
+    return true;
   const tokens = (el.getAttribute("autocomplete") ?? "").toLowerCase().split(/\s+/);
   return tokens.some((t) => t.startsWith("cc-") || SENSITIVE_AUTOCOMPLETE.has(t));
 }
@@ -132,13 +133,17 @@ export function framePath(win: Window): number[] {
 /** Rich text the person types into; jsdom has no `isContentEditable`, so the attribute too. */
 const isEditable = (el: Element) =>
   (el as HTMLElement).isContentEditable === true ||
-  el.closest('[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]') !== null;
+  el.closest(
+    '[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]',
+  ) !== null;
 
 const isField = (el: Element) => {
   const tag = el.tagName.toLowerCase();
   if (tag === "textarea" || tag === "select") return true;
   if (tag !== "input") return false;
-  return !["checkbox", "radio", "file", "button", "submit", "reset", "image", "hidden"].includes((el as HTMLInputElement).type);
+  return !["checkbox", "radio", "file", "button", "submit", "reset", "image", "hidden"].includes(
+    (el as HTMLInputElement).type,
+  );
 };
 
 /** The element an event really hit, through shadow roots. */
@@ -236,7 +241,10 @@ export class Capture {
     if (this.lastValue.get(el) === value) return;
     this.lastValue.set(el, value);
     const masked = isSensitive(el);
-    this.emit({ type: "change", selectors: selectorsFor(el), value: masked ? MASKED : value }, masked);
+    this.emit(
+      { type: "change", selectors: selectorsFor(el), value: masked ? MASKED : value },
+      masked,
+    );
   }
 
   private change(e: Event) {
@@ -281,10 +289,24 @@ export class Capture {
         this.scrollTimers.delete(target);
         if (!this.on) return;
         const doc = this.win.document;
-        if (target === doc || target === doc.documentElement || target === this.win || target === doc.body) {
-          this.emit({ type: "scroll", x: Math.round(this.win.scrollX), y: Math.round(this.win.scrollY) });
+        if (
+          target === doc ||
+          target === doc.documentElement ||
+          target === this.win ||
+          target === doc.body
+        ) {
+          this.emit({
+            type: "scroll",
+            x: Math.round(this.win.scrollX),
+            y: Math.round(this.win.scrollY),
+          });
         } else if (target instanceof Element) {
-          this.emit({ type: "scroll", selectors: selectorsFor(target), x: Math.round(target.scrollLeft), y: Math.round(target.scrollTop) });
+          this.emit({
+            type: "scroll",
+            selectors: selectorsFor(target),
+            x: Math.round(target.scrollLeft),
+            y: Math.round(target.scrollTop),
+          });
         }
       }, SCROLL_SETTLE_MS),
     );
@@ -347,7 +369,12 @@ function deepQuery(root: ParentNode, css: string): Element | null {
 
 const ARIA = /^aria\/(.*?)(?:\[role="([^"]*)"\])?$/s;
 
-function byName(doc: Document, name: string, role: string | undefined, matchText: boolean): Element | null {
+function byName(
+  doc: Document,
+  name: string,
+  role: string | undefined,
+  matchText: boolean,
+): Element | null {
   const body = doc.body ?? doc.documentElement;
   const want = name.toLowerCase();
   // `find` ranks by words; keep only exact names among its best.
@@ -359,7 +386,9 @@ function byName(doc: Document, name: string, role: string | undefined, matchText
   let last: Element | null = null;
   for (const el of allElements(body)) {
     if (role && roleOf(el) !== role) continue;
-    const label = matchText ? cap((el as HTMLElement).innerText ?? el.textContent ?? "") : cap(nameOf(el));
+    const label = matchText
+      ? cap((el as HTMLElement).innerText ?? el.textContent ?? "")
+      : cap(nameOf(el));
     if (label.toLowerCase() === want) {
       if (!matchText) return el;
       last = el; // the deepest element with exactly this text
@@ -398,7 +427,10 @@ function resolveOne(doc: Document, sel: Selector): Element | null {
 const show = (sel: Selector) => (typeof sel === "string" ? sel : sel.join(" >>> "));
 
 /** The first selector that finds an element, and what was tried. */
-export function resolveSelectors(doc: Document, selectors: Selector[]): { el: Element | null; tried: string[] } {
+export function resolveSelectors(
+  doc: Document,
+  selectors: Selector[],
+): { el: Element | null; tried: string[] } {
   const tried: string[] = [];
   for (const sel of selectors) {
     tried.push(show(sel));
@@ -417,7 +449,8 @@ export function resolveSelectors(doc: Document, selectors: Selector[]): { el: El
 export function fieldKind(el: Element): "select" | "check" | "text" | "editable" | "other" {
   const tag = el.tagName.toLowerCase();
   if (tag === "select") return "select";
-  if (tag === "input" && ["checkbox", "radio"].includes((el as HTMLInputElement).type)) return "check";
+  if (tag === "input" && ["checkbox", "radio"].includes((el as HTMLInputElement).type))
+    return "check";
   if (tag === "textarea" || (tag === "input" && isField(el))) return "text";
   if (isEditable(el)) return "editable";
   return "other";

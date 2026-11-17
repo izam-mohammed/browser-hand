@@ -19,13 +19,16 @@ const json = (v: unknown) => JSON.stringify(v ?? null);
 
 function selectorText(sel: unknown): string {
   if (typeof sel === "string") return sel;
-  if (Array.isArray(sel)) return sel.filter((p): p is string => typeof p === "string").join(" >>> ");
+  if (Array.isArray(sel))
+    return sel.filter((p): p is string => typeof p === "string").join(" >>> ");
   return "";
 }
 
 /** The selector a person reads best: the aria/ one, else the first. */
 function target(step: Step): string | undefined {
-  const all = Array.isArray(step.selectors) ? step.selectors.map(selectorText).filter((t) => t) : [];
+  const all = Array.isArray(step.selectors)
+    ? step.selectors.map(selectorText).filter((t) => t)
+    : [];
   const t = all.find((s) => s.startsWith("aria/")) ?? all[0];
   return t === undefined ? undefined : clip(t, TARGET_MAX);
 }
@@ -66,11 +69,18 @@ export function stepLine(n: number, step: Step, meta?: Partial<Meta>): string {
     const v = str(step.value) ?? json(step.value);
     add(meta?.masked === true || v === MASKED ? MASKED : JSON.stringify(clip(v, VALUE_MAX)));
   }
-  const events = Array.isArray(step.assertedEvents) ? (step.assertedEvents as { type?: unknown; url?: unknown }[]) : [];
+  const events = Array.isArray(step.assertedEvents)
+    ? (step.assertedEvents as { type?: unknown; url?: unknown }[])
+    : [];
   const loads = str(events.find((e) => e?.type === "navigation")?.url);
   if (loads && kind !== "navigate") add(`(then loads ${clip(loads, URL_MAX)})`);
-  if (Array.isArray(step.frame) && step.frame.length) add(`(in frame ${step.frame.map(json).join(".")})`);
-  if (meta?.unrecorded === true) add("(Chrome lets no extension into this page: nothing on it was recorded)");
-  if (meta?.blocked === true) add("(a site blocked in browser-hand settings: nothing on it was recorded, not even its address)");
+  if (Array.isArray(step.frame) && step.frame.length)
+    add(`(in frame ${step.frame.map(json).join(".")})`);
+  if (meta?.unrecorded === true)
+    add("(Chrome lets no extension into this page: nothing on it was recorded)");
+  if (meta?.blocked === true)
+    add(
+      "(a site blocked in browser-hand settings: nothing on it was recorded, not even its address)",
+    );
   return parts.join(" ");
 }

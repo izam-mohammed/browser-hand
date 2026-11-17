@@ -33,9 +33,11 @@ echo "== reload"
 cat <<EOF
 
 Built. Next:
-  1. First time only, in each Chrome profile to use: chrome://extensions,
-     Developer mode on, Load unpacked: $root/extension/dist. After that,
-     every build reloads it there by itself.
+  1. Store route (once the extension is published and its ID is built in):
+     quit and reopen Chrome, then click Enable in each profile.
+     Development route, first time only, in each Chrome profile to use:
+     chrome://extensions, Developer mode on, Load unpacked:
+     $root/extension/dist. After that, every build reloads it there by itself.
   2. Start Claude Code with the plugin:
        claude --plugin-dir $root/plugin
      (or add only the server: claude mcp add --scope user browser-hand -- $root/plugin/server/browser-hand mcp)

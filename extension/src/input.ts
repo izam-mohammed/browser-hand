@@ -1,21 +1,29 @@
 // The `computer` tool's acting half: each action becomes a timed run of CDP
 // Input events shaped like a hand on a mouse and keyboard
 // (plans/03-humane-input.md). Screenshots are `screenshot.ts`.
-import { PARAMS, type Params } from "./humane/params";
-import { aimPoint, movePath, type Pt } from "./humane/path";
-import type { Rng } from "./humane/random";
-import { clickHoldMs, dwellMs, keyGapMs, keyHoldMs, multiClickGapMs, wheelGapMs } from "./humane/timing";
+
 import {
+  type Combo,
   charKey,
   isZoomShortcut,
+  type KeyDef,
+  MOD,
   macCommands,
   modifierKey,
   modifiersBits,
   parseCombo,
-  type Combo,
-  type KeyDef,
-  MOD,
 } from "./humane/keys";
+import { PARAMS, type Params } from "./humane/params";
+import { aimPoint, movePath, type Pt } from "./humane/path";
+import type { Rng } from "./humane/random";
+import {
+  clickHoldMs,
+  dwellMs,
+  keyGapMs,
+  keyHoldMs,
+  multiClickGapMs,
+  wheelGapMs,
+} from "./humane/timing";
 import { ToolError } from "./wire";
 
 export type Pace = "human" | "fast";
@@ -38,6 +46,8 @@ export interface InputDeps {
   rect(ref: string): Promise<Rect>;
   scrollIntoView(ref: string): Promise<void>;
   viewport(): Promise<{ width: number; height: number }>;
+  /** Shows a move on the page's cursor overlay; fire and forget. */
+  cursor?(path: Pt[], intervalMs: number): void;
 }
 
 export interface ComputerArgs {
@@ -92,7 +102,10 @@ export class Input {
   private async start(): Promise<Pt> {
     if (this.cursor) return this.cursor;
     const vp = await this.d.viewport();
-    this.cursor = { x: vp.width * (0.3 + 0.4 * this.d.rng()), y: vp.height * (0.3 + 0.4 * this.d.rng()) };
+    this.cursor = {
+      x: vp.width * (0.3 + 0.4 * this.d.rng()),
+      y: vp.height * (0.3 + 0.4 * this.d.rng()),
+    };
     return this.cursor;
   }
 
@@ -101,6 +114,8 @@ export class Input {
     const from = await this.start();
     const path = pace === "fast" ? [to] : movePath(from, to, width, this.d.rng, this.p);
     const extra = { button: buttons ? "left" : "none", buttons, modifiers };
+    // The page's cursor twin gets the whole path at once and animates it.
+    this.d.cursor?.([from, ...path], this.p.moveIntervalMs);
     const t0 = this.d.now();
     for (const [i, pt] of path.entries()) {
       // Behind schedule (slow answers from Chrome): skip points, never the
@@ -136,7 +151,12 @@ export class Input {
     return modifiersBits(parseCombo(`${args.modifiers}+a`).mods);
   }
 
-  private async click(args: ComputerArgs, button: keyof typeof BUTTON_BITS, count: number, pace: Pace) {
+  private async click(
+    args: ComputerArgs,
+    button: keyof typeof BUTTON_BITS,
+    count: number,
+    pace: Pace,
+  ) {
     const { at, width } = await this.target(args, pace);
     const modifiers = this.modBits(args);
     await this.moveTo(at, width, pace);
@@ -160,7 +180,12 @@ export class Input {
     return point;
   }
 
-  private async keyEvent(type: string, key: KeyDef, modifiers: number, extra: { [key: string]: unknown } = {}) {
+  private async keyEvent(
+    type: string,
+    key: KeyDef,
+    modifiers: number,
+    extra: { [key: string]: unknown } = {},
+  ) {
     await this.d.send("Input.dispatchKeyEvent", {
       type,
       key: key.key,
@@ -186,7 +211,12 @@ export class Input {
       mods = MOD.shift;
     }
     const text = key.text;
-    await this.keyEvent(text ? "keyDown" : "rawKeyDown", key, mods, text ? { text, unmodifiedText: text } : {});
+    await this.keyEvent(
+      text ? "keyDown" : "rawKeyDown",
+      key,
+      mods,
+      text ? { text, unmodifiedText: text } : {},
+    );
     const hold = keyHoldMs(this.d.rng, this.p);
     await this.wait(hold, pace);
     await this.keyEvent("keyUp", key, mods);
@@ -273,11 +303,19 @@ export class Input {
         const modifiers = this.modBits(args);
         await this.moveTo({ x: sx, y: sy }, this.p.defaultTargetWidth, pace);
         await this.wait(dwellMs(this.d.rng, this.p), pace);
-        await this.mouse("mousePressed", { x: sx, y: sy }, { button: "left", buttons: 1, clickCount: 1, modifiers });
+        await this.mouse(
+          "mousePressed",
+          { x: sx, y: sy },
+          { button: "left", buttons: 1, clickCount: 1, modifiers },
+        );
         await this.wait(clickHoldMs(this.d.rng, this.p), pace);
         await this.moveTo({ x: ex, y: ey }, this.p.defaultTargetWidth, pace, 1, modifiers);
         await this.wait(dwellMs(this.d.rng, this.p) / 2, pace);
-        await this.mouse("mouseReleased", { x: ex, y: ey }, { button: "left", buttons: 0, clickCount: 1, modifiers });
+        await this.mouse(
+          "mouseReleased",
+          { x: ex, y: ey },
+          { button: "left", buttons: 0, clickCount: 1, modifiers },
+        );
         return `Dragged from (${sx}, ${sy}) to (${ex}, ${ey})`;
       }
       case "type": {
@@ -293,14 +331,18 @@ export class Input {
         return `Typed ${[...args.text].length} characters`;
       }
       case "key": {
-        if (!args.text) throw new ToolError("bad_args", "key needs text, e.g. \"Enter\" or \"cmd+a\"");
+        if (!args.text) throw new ToolError("bad_args", 'key needs text, e.g. "Enter" or "cmd+a"');
         const repeat = args.repeat ?? 1;
         if (!Number.isInteger(repeat) || repeat < 1 || repeat > 100) {
           throw new ToolError("bad_args", "repeat must be a whole number from 1 to 100");
         }
         const combos = args.text.trim().split(/\s+/).map(parseCombo);
         const zoom = combos.find(isZoomShortcut);
-        if (zoom) throw new ToolError("bad_args", "Page zoom shortcuts are not supported; use the zoom action to magnify a region");
+        if (zoom)
+          throw new ToolError(
+            "bad_args",
+            "Page zoom shortcuts are not supported; use the zoom action to magnify a region",
+          );
         let first = true;
         for (let i = 0; i < repeat; i++) {
           for (const c of combos) {
@@ -312,13 +354,17 @@ export class Input {
         return `Pressed ${args.text}${repeat > 1 ? ` x${repeat}` : ""}`;
       }
       case "scroll": {
-        if (!args.scroll_direction) throw new ToolError("bad_args", "scroll needs scroll_direction");
+        if (!args.scroll_direction)
+          throw new ToolError("bad_args", "scroll needs scroll_direction");
         const ticks = args.scroll_amount ?? 3;
-        if (!Number.isInteger(ticks) || ticks < 1 || ticks > 10) throw new ToolError("bad_args", "scroll_amount must be 1 to 10");
+        if (!Number.isInteger(ticks) || ticks < 1 || ticks > 10)
+          throw new ToolError("bad_args", "scroll_amount must be 1 to 10");
         const { at, width } = await this.target(args, pace);
         await this.moveTo(at, width, pace);
         const d = this.p.wheelDelta;
-        const [dx, dy] = { up: [0, -d], down: [0, d], left: [-d, 0], right: [d, 0] }[args.scroll_direction];
+        const [dx, dy] = { up: [0, -d], down: [0, d], left: [-d, 0], right: [d, 0] }[
+          args.scroll_direction
+        ];
         for (let i = 0; i < ticks; i++) {
           await this.wheel(at, dx!, dy!);
           await this.wait(wheelGapMs(this.d.rng, this.p), pace);

@@ -1,13 +1,16 @@
 // The tab tools. Every session owns one tab group titled "browser-hand" in
 // this profile and may only touch tabs inside it, and never a site the
 // settings block, nor act on one they make read-only (plans/06-settings.md).
-import { SiteRules, gate, type Use } from "./sites";
+import { gate, SiteRules, type Use } from "./sites";
 import { ToolError } from "./wire";
 
 export const GROUP_TITLE = "browser-hand";
 
 type Api = {
-  tabs: Pick<typeof chrome.tabs, "get" | "query" | "create" | "remove" | "update" | "group" | "goBack" | "goForward">;
+  tabs: Pick<
+    typeof chrome.tabs,
+    "get" | "query" | "create" | "remove" | "update" | "group" | "goBack" | "goForward"
+  >;
   tabGroups: Pick<typeof chrome.tabGroups, "get" | "update">;
   windows: Pick<typeof chrome.windows, "create" | "getLastFocused">;
 };
@@ -119,10 +122,16 @@ export class TabTools {
     try {
       tab = await this.api.tabs.get(tabId);
     } catch {
-      throw new ToolError("no_tab", `Tab ${tabId} does not exist. Call tabs_context for current tab ids.`);
+      throw new ToolError(
+        "no_tab",
+        `Tab ${tabId} does not exist. Call tabs_context for current tab ids.`,
+      );
     }
     if (groupId === undefined || tab.groupId !== groupId) {
-      throw new ToolError("no_tab", `Tab ${tabId} is not in this session's ${GROUP_TITLE} group. Call tabs_context for current tab ids.`);
+      throw new ToolError(
+        "no_tab",
+        `Tab ${tabId} is not in this session's ${GROUP_TITLE} group. Call tabs_context for current tab ids.`,
+      );
     }
     const sites = this.sites();
     gate(sites, tab.url, use);
@@ -134,7 +143,10 @@ export class TabTools {
     let groupId = await this.group(session);
     if (groupId === undefined) {
       if (!args.createIfEmpty) {
-        return { tabs: [], note: `No ${GROUP_TITLE} tab group for this session yet. Call tabs_context with createIfEmpty: true, or tabs_create.` };
+        return {
+          tabs: [],
+          note: `No ${GROUP_TITLE} tab group for this session yet. Call tabs_context with createIfEmpty: true, or tabs_create.`,
+        };
       }
       groupId = (await this.createGroup(session)).groupId;
     }
@@ -176,7 +188,8 @@ export class TabTools {
     }
     // Leaving a site is never refused; arriving at a blocked one is.
     await this.ownTab(session, tabId, "any");
-    const target = args.url === "back" || args.url === "forward" ? undefined : normaliseUrl(args.url);
+    const target =
+      args.url === "back" || args.url === "forward" ? undefined : normaliseUrl(args.url);
     if (target !== undefined) gate(this.sites(), target, "read");
 
     // Listen before navigating: a cached page can finish loading before
@@ -193,7 +206,10 @@ export class TabTools {
     if (this.sites().access(tab.url) === "blocked") {
       const host = hostOf(tab.url);
       await this.api.tabs.update(tabId, { url: "about:blank" });
-      throw new ToolError("blocked", `${host} is blocked in browser-hand settings; ask the person. The tab was sent to about:blank.`);
+      throw new ToolError(
+        "blocked",
+        `${host} is blocked in browser-hand settings; ask the person. The tab was sent to about:blank.`,
+      );
     }
     const result: Record<string, unknown> = { tabId, url: tab.url ?? "", title: tab.title ?? "" };
     if (!loaded) result.note = `Still loading after ${NAVIGATE_TIMEOUT_MS / 1000} s`;
@@ -207,7 +223,9 @@ export class TabTools {
     const groupId = await this.group(session);
     await this.store.delete(session);
     if (groupId === undefined || !(this.opts.closeTabsOnEnd?.() ?? false)) return;
-    const ids = (await this.api.tabs.query({ groupId })).map((t) => t.id).filter((id): id is number => id !== undefined);
+    const ids = (await this.api.tabs.query({ groupId }))
+      .map((t) => t.id)
+      .filter((id): id is number => id !== undefined);
     if (ids.length) await this.api.tabs.remove(ids);
   }
 

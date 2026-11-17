@@ -3,14 +3,21 @@
 import { resolveRef } from "./walker";
 
 export class PageError extends Error {
-  constructor(readonly code: "bad_args" | "page_error", message: string) {
+  constructor(
+    readonly code: "bad_args" | "page_error",
+    message: string,
+  ) {
     super(message);
   }
 }
 
 export function element(ref: string): Element {
   const el = resolveRef(ref);
-  if (!el) throw new PageError("bad_args", `${ref} is not on the page any more. Call read_page or find again.`);
+  if (!el)
+    throw new PageError(
+      "bad_args",
+      `${ref} is not on the page any more. Call read_page or find again.`,
+    );
   return el;
 }
 
@@ -58,7 +65,8 @@ export function formInput(ref: string, value: string | number | boolean): string
 
   if (tag === "input" || tag === "textarea") {
     const input = el as HTMLInputElement;
-    if (input.type === "file") throw new PageError("bad_args", `${ref} is a file input; use file_upload`);
+    if (input.type === "file")
+      throw new PageError("bad_args", `${ref} is a file input; use file_upload`);
     input.focus();
     setNativeValue(input, String(value));
     fire(input, "input", "change");
@@ -95,7 +103,10 @@ function toFiles(files: FilePayload[]): DataTransfer {
 export function setFiles(ref: string, files: FilePayload[]): string {
   const el = element(ref);
   if (!(el instanceof HTMLInputElement) || el.type !== "file") {
-    throw new PageError("bad_args", `${ref} is not a file input. Use find("file input") to locate it.`);
+    throw new PageError(
+      "bad_args",
+      `${ref} is not a file input. Use find("file input") to locate it.`,
+    );
   }
   el.files = toFiles(files).files;
   fire(el, "input", "change");
@@ -108,7 +119,15 @@ export function dropFiles(x: number, y: number, files: FilePayload[]): string {
   if (!target) throw new PageError("bad_args", `Nothing at (${x}, ${y}) to drop on`);
   const dt = toFiles(files);
   for (const type of ["dragenter", "dragover", "drop"]) {
-    target.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, dataTransfer: dt }));
+    target.dispatchEvent(
+      new DragEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        dataTransfer: dt,
+      }),
+    );
   }
   return `Dropped ${files.length} file(s) on <${target.tagName.toLowerCase()}> at (${x}, ${y})`;
 }

@@ -29,10 +29,28 @@ const ROLE_WORDS: Record<string, string[]> = {
   slider: ["slider"],
 };
 
-const STOP = new Set(["the", "a", "an", "of", "for", "to", "in", "on", "with", "that", "this", "and", "or", "containing"]);
+const STOP = new Set([
+  "the",
+  "a",
+  "an",
+  "of",
+  "for",
+  "to",
+  "in",
+  "on",
+  "with",
+  "that",
+  "this",
+  "and",
+  "or",
+  "containing",
+]);
 
 function words(s: string): string[] {
-  return s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w && !STOP.has(w));
+  return s
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w && !STOP.has(w));
 }
 
 export interface Match {
@@ -53,7 +71,8 @@ export function find(root: Element, query: string): { matches: Match[]; total: n
     if (!role) continue;
     const name = nameOf(el);
     // A password's value is never matched: a hit would confirm the secret.
-    const value = (el as HTMLInputElement).type === "password" ? "" : (el as HTMLInputElement).value;
+    const value =
+      (el as HTMLInputElement).type === "password" ? "" : (el as HTMLInputElement).value;
     const extra = [el.getAttribute("placeholder"), value, el.getAttribute("title"), el.id]
       .filter(Boolean)
       .join(" ");
@@ -79,7 +98,9 @@ export function formatFind(query: string, result: { matches: Match[]; total: num
   if (!result.matches.length) return `No elements match "${query}". Try other words, or read_page.`;
   const lines = result.matches.map((m) => `- ${m.role}${m.name ? ` "${m.name}"` : ""} [${m.ref}]`);
   if (result.total > MAX_RESULTS) {
-    lines.push(`(${result.total} elements match; showing the best ${MAX_RESULTS}. Use a more specific query.)`);
+    lines.push(
+      `(${result.total} elements match; showing the best ${MAX_RESULTS}. Use a more specific query.)`,
+    );
   }
   return lines.join("\n");
 }

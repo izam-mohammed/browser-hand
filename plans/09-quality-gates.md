@@ -265,70 +265,98 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the rough cut: one command runs every check that exists (needs you: try it)
 
-- [ ] `make check` runs rustfmt in check mode, Clippy with `-D warnings`,
+- [x] `make check` runs rustfmt in check mode, Clippy with `-D warnings`,
   tsc, `cargo test`, `vitest run`, the release build, osv-scanner over both
   lockfiles and gitleaks over the history, stopping at the first failure
   (expected in `Makefile`), with `lint`, `test`, `coverage` and
   `security` as their own targets.
-- [ ] The shared gate is called on every PR and weekly with
+  Landed 2026-11-17: the release build is `cargo build --release` plus
+  `npm run build`, not `scripts/build.sh`, which also installs the native
+  host into Chrome. osv-scanner reads `osv-scanner.toml` (two advisories
+  accepted with reasons: rmcp's HTTP client, unused here and pinned to
+  `~3.8`; unmaintained `ttf-parser`, no fix); `.gitleaksignore` lists four
+  extension-manifest public keys read as API keys. `rustix` bumped to 1.1.6
+  in `host/Cargo.lock`.
+- [x] The shared gate is called on every PR and weekly with
   `ecosystem: node`, pinned by SHA (expected in
   `.github/workflows/security.yml`), with Dependabot for cargo, npm and
   actions (`.github/dependabot.yml`) and the baseline hooks
   (`.pre-commit-config.yaml`) copied from `repo-template`.
-- [ ] `docs/standards.md` lists every check with its command and makes
+- [x] `docs/standards.md` lists every check with its command and makes
   `make check` the one command; README's Tests section points at it.
-- [ ] Check: `make check` passes on this branch, and `make security` fails
+- [x] Check: `make check` passes on this branch, and `make security` fails
   on a fake key planted in a scratch copy (never committed).
+  Landed 2026-11-17: `make check` passed (about 2 minutes on a loaded
+  machine). The plant was an uncommitted file scanned with `gitleaks dir`
+  (found); `make security` itself scans history, so it fails only once a
+  key is committed, and the pre-commit hook catches it before that.
 - [ ] You try it: run `make check` from the repository root and say whether
   its output and run time are what you want from it. What you want changed
   goes into the phases below.
 
 ### Phase 2: the TypeScript is formatted and linted
 
-- [ ] `@biomejs/biome`'s pinned version has no high or critical advisory on
+- [x] `@biomejs/biome`'s pinned version has no high or critical advisory on
   OSV.dev, recorded in `docs/standards.md` § Decided; one found reopens
   decision 3 before anything else in this phase.
-- [ ] Biome formats and lints `extension/src` and `extension/test`
+- [x] Biome formats and lints `extension/src` and `extension/test`
   (expected in `extension/biome.json`, `extension/package.json` scripts
   `lint` and `format`), generated `wire.gen.ts` ignored, and its run time on
   `extension/` recorded in `docs/standards.md` against decision 3.
-- [ ] The first `npm --prefix extension run format` lands as a commit of its
+  Landed 2026-11-17: the config is `extension/biome.jsonc` (comments), with
+  `noNonNullAssertion`, `useDomNodeTextContent` and, in `test/`, three
+  fake-friendly rules off, each reasoned in the file; `biome ci` runs in
+  0.3 s. The generated `src/options/theme.gen.css` is ignored too.
+- [x] The first `npm --prefix extension run format` lands as a commit of its
   own with no other change.
-- [ ] `make lint` runs Biome after rustfmt and Clippy, and
+- [x] `make lint` runs Biome after rustfmt and Clippy, and
   `docs/standards.md` gains the row.
-- [ ] Check: `make check` passes, and `npx --prefix extension biome ci`
+- [x] Check: `make check` passes, and `npx --prefix extension biome ci`
   reports no diff and no diagnostics.
 
 ### Phase 3: the host reaches 90 % lines
 
-- [ ] Tests for the least covered host modules, lowest first
+- [x] Tests for the least covered host modules, lowest first
   (`install.rs`, `reload.rs`, `tools/images.rs`, `tools/files.rs`,
   `main.rs`, `mcp.rs`), driven through a temporary home directory and fake
   sockets (expected in `host/tests/install.rs`, `host/tests/reload.rs`,
   `host/tests/mcp.rs`).
-- [ ] `make coverage` fails under 90 % host lines (`cargo llvm-cov
+  Landed 2026-11-17: host lines 83.0 % to 91.7 % with `host/tests/cli.rs`
+  (the binary as Chrome and Claude run it), `launcher.rs` (fake `open` and
+  `pgrep` on PATH), `host_conn.rs`, `reload.rs`, `tools.rs` and a batch
+  dispatch module in `mcp.rs`; `reload::report` split out of `main` to be
+  testable.
+- [x] `make coverage` fails under 90 % host lines (`cargo llvm-cov
   --fail-under-lines 90`), and `docs/standards.md` records the floor.
-- [ ] Check: `make check` passes, and `make coverage` prints host lines at
+- [x] Check: `make check` passes, and `make coverage` prints host lines at
   or over 90 %.
 
 ### Phase 4: the extension reaches 90 % lines
 
-- [ ] Tests for the least covered extension modules, taken from
+- [x] Tests for the least covered extension modules, taken from
   `vitest run --coverage` with the text reporter, lowest first (expected in
   `extension/test/`), with Chrome APIs faked as the existing tests do.
-- [ ] `thresholds.lines` set to 90 with `src/wire.gen.ts` excluded (expected
+  Landed 2026-11-17: extension lines 77.3 % to 91.8 % with
+  `test/background.test.ts` (the service worker's wiring over stand-ins
+  and a fake Chrome) and `test/entries.test.ts` (claim, popup, settings,
+  main-world and content entries, the page client).
+- [x] `thresholds.lines` set to 90 with `src/wire.gen.ts` excluded (expected
   in `extension/vitest.config.mjs`), and the exclusion named in
   `docs/standards.md`.
-- [ ] Check: `make check` passes, and `make coverage` prints extension lines
+- [x] Check: `make check` passes, and `make coverage` prints extension lines
   at or over 90 %.
 
 ### Phase 5: CI runs the same command
 
-- [ ] `.github/workflows/ci.yml` runs `make check` (macOS-only steps
+- [x] `.github/workflows/ci.yml` runs `make check` (macOS-only steps
   skipped on Linux as the host job does today), every action pinned by full
   commit SHA with its version in a comment, `persist-credentials: false`,
   and the coverage summary written to the job summary.
-- [ ] `docs/standards.md` § CI describes both workflows.
+  Landed 2026-11-17: one job, not two; `make check` now runs `lint`,
+  `coverage` (the tests inside it), `build` and `security`. The secret
+  scanner is downloaded and checksum-verified because the install action
+  has no gitleaks. Written, not yet run on a runner.
+- [x] `docs/standards.md` § CI describes both workflows.
 - [ ] Check: `make check` passes locally, and the PR shows `ci` and
   `Security` green (waits on the billing hold in `## Open decisions`).
 

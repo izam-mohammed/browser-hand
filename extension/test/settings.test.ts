@@ -1,7 +1,26 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SettingsPage, TOAST_MS, changeCount, speedLabel, type PagePort } from "../src/options/page";
-import { DEFAULTS, LAST_KEY, OLDER_AFTER_MS, PORT_NAME, SAVE_TIMEOUT_MS, SettingsHub, type HubDeps, type PageMsg, type PageState, type PortLike, type Settings, type WorkerMsg } from "../src/settings";
+import {
+  changeCount,
+  type PagePort,
+  SettingsPage,
+  speedLabel,
+  TOAST_MS,
+} from "../src/options/page";
+import {
+  DEFAULTS,
+  type HubDeps,
+  LAST_KEY,
+  OLDER_AFTER_MS,
+  type PageMsg,
+  type PageState,
+  PORT_NAME,
+  type PortLike,
+  SAVE_TIMEOUT_MS,
+  type Settings,
+  SettingsHub,
+  type WorkerMsg,
+} from "../src/settings";
 import { NOT_A_PATTERN } from "../src/sites";
 import type { Frame } from "../src/wire";
 
@@ -32,7 +51,8 @@ function hub(portUp = true) {
   const deps: HubDeps = {
     local: {
       get: async (k) => (local.has(k) ? { [k]: structuredClone(local.get(k)) } : {}),
-      set: async (items) => void Object.entries(items).forEach(([k, v]) => local.set(k, structuredClone(v))),
+      set: async (items) =>
+        void Object.entries(items).forEach(([k, v]) => local.set(k, structuredClone(v))),
     },
     post: (f) => {
       if (!portUp) return false;
@@ -68,7 +88,9 @@ describe("the settings in the worker", () => {
   it("refuses other senders: a content script, another page, another extension", () => {
     const { h } = hub();
     expect(h.accept(pagePort({ id: ID, url: "https://evil.test/" }).port)).toBe(false);
-    expect(h.accept(pagePort({ id: ID, url: `chrome-extension://${ID}/claim.html` }).port)).toBe(false);
+    expect(h.accept(pagePort({ id: ID, url: `chrome-extension://${ID}/claim.html` }).port)).toBe(
+      false,
+    );
     expect(h.accept(pagePort({ id: "otherextensionid", url: OPTIONS }).port)).toBe(false);
     expect(h.accept(pagePort({ id: ID, url: OPTIONS }, "rec").port)).toBe(false);
     expect(h.accept(pagePort({ id: ID, url: OPTIONS }).port)).toBe(true);
@@ -105,7 +127,11 @@ describe("the settings in the worker", () => {
     expect(h.state()).toMatchObject({ connected: true });
     expect(h.state().down).toBeUndefined();
     h.portClosed("Specified native messaging host not found.");
-    expect(h.state()).toMatchObject({ connected: false, down: "not_running", detail: "Specified native messaging host not found." });
+    expect(h.state()).toMatchObject({
+      connected: false,
+      down: "not_running",
+      detail: "Specified native messaging host not found.",
+    });
   });
 
   it("an open port with no settings after a while is an older host", () => {
@@ -132,9 +158,15 @@ describe("the settings in the worker", () => {
     h.onFrame(frame(DEFAULTS));
     const answer = h.save(DEFAULTS, "100");
     vi.advanceTimersByTime(SAVE_TIMEOUT_MS);
-    expect(await answer).toMatchObject({ ok: false, error: { message: expect.stringMatching(/did not answer/) } });
+    expect(await answer).toMatchObject({
+      ok: false,
+      error: { message: expect.stringMatching(/did not answer/) },
+    });
     h.portClosed();
-    expect(await h.save(DEFAULTS, "100")).toMatchObject({ ok: false, error: { message: expect.stringMatching(/not connected/) } });
+    expect(await h.save(DEFAULTS, "100")).toMatchObject({
+      ok: false,
+      error: { message: expect.stringMatching(/not connected/) },
+    });
   });
 
   it("serves the page: state at once, saves, and Retry reconnects", async () => {
@@ -143,14 +175,28 @@ describe("the settings in the worker", () => {
     h.onFrame(frame(DEFAULTS, "3"));
     const page = pagePort({ id: ID, url: OPTIONS });
     h.accept(page.port);
-    expect(page.sent[0]).toMatchObject({ type: "state", state: { connected: true, revision: "3", version: "0.1.0" } });
+    expect(page.sent[0]).toMatchObject({
+      type: "state",
+      state: { connected: true, revision: "3", version: "0.1.0" },
+    });
     page.send({ op: "retry" });
     expect(reconnect).toHaveBeenCalledOnce();
     page.send({ op: "save", settings: DEFAULTS, revision: "3" });
     await Promise.resolve();
     expect(posted.at(-1)).toMatchObject({ type: "settings_set", revision: "3" });
-    h.onFrame({ type: "settings_saved", id: 1, ok: false, error: { field: "sites.blocked", message: "bad" } });
-    await vi.waitFor(() => expect(page.sent.at(-1)).toEqual({ type: "saved", ok: false, error: { field: "sites.blocked", message: "bad" } }));
+    h.onFrame({
+      type: "settings_saved",
+      id: 1,
+      ok: false,
+      error: { field: "sites.blocked", message: "bad" },
+    });
+    await vi.waitFor(() =>
+      expect(page.sent.at(-1)).toEqual({
+        type: "saved",
+        ok: false,
+        error: { field: "sites.blocked", message: "bad" },
+      }),
+    );
   });
 });
 
@@ -195,8 +241,20 @@ function mount() {
     type(`${key}-input`, value);
     click(`${key}-add`);
   };
-  const patterns = (key: string) => [...$(`${key}-list`).querySelectorAll("code")].map((c) => c.textContent);
-  return { root, page, sent, send: (m: WorkerMsg) => toPage(m), state, $, click, type, addPattern, patterns };
+  const patterns = (key: string) =>
+    [...$(`${key}-list`).querySelectorAll("code")].map((c) => c.textContent);
+  return {
+    root,
+    page,
+    sent,
+    send: (m: WorkerMsg) => toPage(m),
+    state,
+    $,
+    click,
+    type,
+    addPattern,
+    patterns,
+  };
 }
 
 describe("the settings page", () => {
@@ -206,13 +264,23 @@ describe("the settings page", () => {
   it("shows every section of the design with the values the host sent", () => {
     const p = mount();
     p.send({ type: "state", state: p.state() });
-    expect([...p.root.querySelectorAll("h2")].map((h) => h.textContent)).toEqual(["Input", "Sessions", "Site access", "Capture", "Debugger"]);
+    expect([...p.root.querySelectorAll("h2")].map((h) => h.textContent)).toEqual([
+      "Input",
+      "Sessions",
+      "Site access",
+      "Capture",
+      "Debugger",
+    ]);
     expect(p.$("pill").textContent).toBe("Connected");
     expect(p.root.textContent).not.toContain("config.toml");
     expect(p.$("pace-human").getAttribute("aria-checked")).toBe("true");
     expect(p.$("typing-value").textContent).toBe("1.0×");
     expect(p.$<HTMLSelectElement>("default-profile").value).toBe("Default");
-    expect([...p.$<HTMLSelectElement>("default-profile").options].map((o) => o.text)).toEqual(["Ask each time", "Personal", "Work"]);
+    expect([...p.$<HTMLSelectElement>("default-profile").options].map((o) => o.text)).toEqual([
+      "Ask each time",
+      "Personal",
+      "Work",
+    ]);
     expect(p.$("new-window").getAttribute("aria-checked")).toBe("true");
     expect(p.$("close-tabs").getAttribute("aria-checked")).toBe("false");
     expect(p.patterns("blocked")).toEqual(["*.bank.com/*", "hr.example.com/*"]);
@@ -250,7 +318,9 @@ describe("the settings page", () => {
   it("removing a pattern and flipping a toggle are changes too", () => {
     const p = mount();
     p.send({ type: "state", state: p.state() });
-    p.$("blocked-list").querySelector<HTMLButtonElement>('[aria-label="Remove hr.example.com/*"]')!.click();
+    p.$("blocked-list")
+      .querySelector<HTMLButtonElement>('[aria-label="Remove hr.example.com/*"]')!
+      .click();
     p.click("close-tabs");
     expect(p.patterns("blocked")).toEqual(["*.bank.com/*"]);
     expect(p.$("close-tabs").getAttribute("aria-checked")).toBe("true");
@@ -274,10 +344,19 @@ describe("the settings page", () => {
     p.send({ type: "state", state: p.state() });
     p.click("pace-fast");
     p.click("save");
-    expect(p.sent).toEqual([{ op: "save", settings: expect.objectContaining({ input: expect.objectContaining({ pace: "fast" }) }), revision: "100" }]);
+    expect(p.sent).toEqual([
+      {
+        op: "save",
+        settings: expect.objectContaining({ input: expect.objectContaining({ pace: "fast" }) }),
+        revision: "100",
+      },
+    ]);
     expect(p.$("save").textContent).toBe("Saving");
     p.send({ type: "saved", ok: true, path: "/Users/someone/.config/browser-hand/config.toml" });
-    p.send({ type: "state", state: p.state({ settings: (p.sent[0] as { settings: Settings }).settings, revision: "200" }) });
+    p.send({
+      type: "state",
+      state: p.state({ settings: (p.sent[0] as { settings: Settings }).settings, revision: "200" }),
+    });
     expect(p.$("toast").hidden).toBe(false);
     expect(p.$("toast-title").textContent).toBe("Saved");
     expect(p.$("toast-body").hidden).toBe(true);
@@ -299,7 +378,15 @@ describe("the settings page", () => {
     expect(p.$("count").textContent).toBe("1 unsaved change");
     p.click("save");
     expect((p.sent[0] as { revision: string }).revision).toBe("100");
-    p.send({ type: "saved", ok: false, error: { field: null, message: "Settings changed in another profile. The page now shows them; make your change again." } });
+    p.send({
+      type: "saved",
+      ok: false,
+      error: {
+        field: null,
+        message:
+          "Settings changed in another profile. The page now shows them; make your change again.",
+      },
+    });
     expect(p.$("toast-title").textContent).toMatch(/changed in another profile/);
     expect(p.$("mouse-value").textContent).toBe("2.0×");
     expect(p.$("pace-human").getAttribute("aria-checked")).toBe("true");
@@ -311,14 +398,25 @@ describe("the settings page", () => {
     p.send({ type: "state", state: p.state() });
     p.addPattern("blocked", "x.example.com/*");
     p.click("save");
-    p.send({ type: "saved", ok: false, error: { field: "sites.blocked", message: "sites.blocked: at most 200 patterns" } });
+    p.send({
+      type: "saved",
+      ok: false,
+      error: { field: "sites.blocked", message: "sites.blocked: at most 200 patterns" },
+    });
     expect(p.$("blocked-error").textContent).toBe("sites.blocked: at most 200 patterns");
     expect(p.$("save-error").textContent).toBe("sites.blocked: at most 200 patterns");
   });
 
   it("disconnected: the pill and banner follow the port, controls are read-only, Retry asks at once", () => {
     const p = mount();
-    p.send({ type: "state", state: p.state({ connected: false, down: "not_running", detail: "Specified native messaging host not found." }) });
+    p.send({
+      type: "state",
+      state: p.state({
+        connected: false,
+        down: "not_running",
+        detail: "Specified native messaging host not found.",
+      }),
+    });
     expect(p.$("pill").textContent).toBe("Not connected");
     expect(p.$("pill").className).toContain("warning");
     expect(p.$("banner").hidden).toBe(false);
@@ -328,7 +426,10 @@ describe("the settings page", () => {
     expect(p.$("sections").classList.contains("readonly")).toBe(true);
     expect(p.$<HTMLButtonElement>("pace-fast").disabled).toBe(true);
     expect(p.$<HTMLInputElement>("blocked-input").disabled).toBe(true);
-    expect(p.patterns("blocked"), "the last values still show").toEqual(["*.bank.com/*", "hr.example.com/*"]);
+    expect(p.patterns("blocked"), "the last values still show").toEqual([
+      "*.bank.com/*",
+      "hr.example.com/*",
+    ]);
     p.click("pace-fast");
     expect(p.$("savebar").hidden).toBe(true);
     p.click("retry");
@@ -342,12 +443,17 @@ describe("the settings page", () => {
   it("an older host is named as older", () => {
     const p = mount();
     p.send({ type: "state", state: p.state({ connected: false, down: "older" }) });
-    expect(p.$("banner-title").textContent).toBe("The browser-hand host is older than this extension");
+    expect(p.$("banner-title").textContent).toBe(
+      "The browser-hand host is older than this extension",
+    );
   });
 
   it("warnings about the file show while connected", () => {
     const p = mount();
-    p.send({ type: "state", state: p.state({ warnings: ["input.mouse_speed: must be 0.25 to 3.0; using the default"] }) });
+    p.send({
+      type: "state",
+      state: p.state({ warnings: ["input.mouse_speed: must be 0.25 to 3.0; using the default"] }),
+    });
     expect(p.$("warnings").hidden).toBe(false);
     expect(p.$("warnings").textContent).toContain("input.mouse_speed");
     expect(p.$("warnings").textContent).not.toContain("config.toml");
@@ -358,7 +464,9 @@ describe("the settings page", () => {
     const s = p.state();
     s.settings.sessions.default_profile = "Profile 9";
     p.send({ type: "state", state: s });
-    expect(p.$<HTMLSelectElement>("default-profile").selectedOptions[0]!.text).toBe("Profile 9 (not found)");
+    expect(p.$<HTMLSelectElement>("default-profile").selectedOptions[0]!.text).toBe(
+      "Profile 9 (not found)",
+    );
   });
 });
 
@@ -374,6 +482,11 @@ describe("page helpers", () => {
   });
 
   it("write speeds the way the design does", () => {
-    expect([speedLabel(1), speedLabel(0.5), speedLabel(0.25), speedLabel(3)]).toEqual(["1.0×", "0.5×", "0.25×", "3.0×"]);
+    expect([speedLabel(1), speedLabel(0.5), speedLabel(0.25), speedLabel(3)]).toEqual([
+      "1.0×",
+      "0.5×",
+      "0.25×",
+      "3.0×",
+    ]);
   });
 });

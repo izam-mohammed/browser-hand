@@ -5,7 +5,8 @@ import { seeded } from "../src/humane/random";
 import { fittsMs, keyGapMs, keyHoldMs } from "../src/humane/timing";
 import { Input, type InputDeps } from "../src/input";
 
-const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
+const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+  Math.hypot(a.x - b.x, a.y - b.y);
 
 describe("paths", () => {
   it("end exactly on the target and stay within the spread", () => {
@@ -14,7 +15,8 @@ describe("paths", () => {
       const to = { x: 400, y: 300 };
       const pts = segment(from, to, 500, seeded(seed));
       expect(pts.at(-1)).toEqual(to);
-      for (const p of pts) expect(dist(p, from) + dist(p, to)).toBeLessThan(dist(from, to) + 2 * PARAMS.spreadMax);
+      for (const p of pts)
+        expect(dist(p, from) + dist(p, to)).toBeLessThan(dist(from, to) + 2 * PARAMS.spreadMax);
     }
   });
 
@@ -77,6 +79,7 @@ describe("typing timing", () => {
 
 /** An Input whose CDP calls and sleeps are recorded, not sent. */
 function recorder(rect = { x: 200, y: 150, width: 80, height: 30, inViewport: true }) {
+  const cursor: { path: { x: number; y: number }[]; intervalMs: number }[] = [];
   const events: { method: string; params: any }[] = [];
   let slept = 0;
   const deps: InputDeps = {
@@ -88,8 +91,9 @@ function recorder(rect = { x: 200, y: 150, width: 80, height: 30, inViewport: tr
     rect: async () => rect,
     scrollIntoView: async () => {},
     viewport: async () => ({ width: 1200, height: 800 }),
+    cursor: (path, intervalMs) => void cursor.push({ path, intervalMs }),
   };
-  return { input: new Input(deps), events, slept: () => slept };
+  return { input: new Input(deps), events, cursor, slept: () => slept };
 }
 
 const types = (events: { method: string; params: any }[]) => events.map((e) => e.params.type);
@@ -113,10 +117,34 @@ describe("computer actions", () => {
     expect(slept()).toBe(0);
   });
 
+  it("sends the page cursor each move's whole path once, before the events", async () => {
+    const { input, events, cursor } = recorder();
+    await input.run({ action: "left_click", coordinate: [600, 400] }, "human");
+    expect(cursor).toHaveLength(1);
+    const moved = events.filter((e) => e.params.type === "mouseMoved");
+    expect(cursor[0]!.path.length).toBe(moved.length + 1);
+    expect(cursor[0]!.path.at(-1)).toEqual({ x: 600, y: 400 });
+    expect(cursor[0]!.intervalMs).toBeGreaterThan(0);
+  });
+
+  it("sends the page cursor a drag's start and end as two moves", async () => {
+    const { input, cursor } = recorder();
+    await input.run(
+      { action: "left_click_drag", start_coordinate: [10, 10], coordinate: [300, 200] },
+      "fast",
+    );
+    expect(cursor.map((c) => c.path.at(-1))).toEqual([
+      { x: 10, y: 10 },
+      { x: 300, y: 200 },
+    ]);
+  });
+
   it("a double click sends click counts 1 then 2", async () => {
     const { input, events } = recorder();
     await input.run({ action: "double_click", coordinate: [10, 10] }, "fast");
-    const presses = events.filter((e) => e.params.type === "mousePressed").map((e) => e.params.clickCount);
+    const presses = events
+      .filter((e) => e.params.type === "mousePressed")
+      .map((e) => e.params.clickCount);
     expect(presses).toEqual([1, 2]);
   });
 
@@ -133,9 +161,16 @@ describe("computer actions", () => {
     await input.run({ action: "type", text: "Hi!" }, "fast");
     const keys = events.map((e) => `${e.params.type}:${e.params.key}`);
     expect(keys).toEqual([
-      "rawKeyDown:Shift", "keyDown:H", "keyUp:H", "keyUp:Shift",
-      "keyDown:i", "keyUp:i",
-      "rawKeyDown:Shift", "keyDown:!", "keyUp:!", "keyUp:Shift",
+      "rawKeyDown:Shift",
+      "keyDown:H",
+      "keyUp:H",
+      "keyUp:Shift",
+      "keyDown:i",
+      "keyUp:i",
+      "rawKeyDown:Shift",
+      "keyDown:!",
+      "keyUp:!",
+      "keyUp:Shift",
     ]);
     expect(events.find((e) => e.params.key === "i")!.params.text).toBe("i");
   });
@@ -183,7 +218,9 @@ describe("computer actions", () => {
     });
     await input.run({ action: "left_click", coordinate: [100, 100] }, "human");
     const moves = events.filter((e) => e.type === "mouseMoved");
-    const planned = movePath({ x: 0, y: 0 }, { x: 100, y: 100 }, PARAMS.defaultTargetWidth, seeded(1)).length * PARAMS.moveIntervalMs;
+    const planned =
+      movePath({ x: 0, y: 0 }, { x: 100, y: 100 }, PARAMS.defaultTargetWidth, seeded(1)).length *
+      PARAMS.moveIntervalMs;
     // The last point lands, and the glide takes about its planned time, not 100 ms per point.
     expect(moves.at(-1)!.t - moves[0]!.t).toBeLessThan(planned * 2 + 200);
 
@@ -208,7 +245,10 @@ describe("computer actions", () => {
     const { input, events } = recorder();
     await input.run({ action: "key", text: "cmd+a" }, "fast");
     expect(events.map((e) => `${e.params.type}:${e.params.key}`)).toEqual([
-      "rawKeyDown:Meta", "rawKeyDown:a", "keyUp:a", "keyUp:Meta",
+      "rawKeyDown:Meta",
+      "rawKeyDown:a",
+      "keyUp:a",
+      "keyUp:Meta",
     ]);
     expect(events[1]!.params).toMatchObject({ modifiers: 4, commands: ["selectAll"] });
     expect(events[1]!.params.text).toBeUndefined();
@@ -216,13 +256,20 @@ describe("computer actions", () => {
 
   it("refuses page zoom shortcuts and bad repeats", async () => {
     const { input } = recorder();
-    await expect(input.run({ action: "key", text: "cmd+=" }, "fast")).rejects.toMatchObject({ code: "bad_args" });
-    await expect(input.run({ action: "key", text: "Enter", repeat: 101 }, "fast")).rejects.toMatchObject({ code: "bad_args" });
+    await expect(input.run({ action: "key", text: "cmd+=" }, "fast")).rejects.toMatchObject({
+      code: "bad_args",
+    });
+    await expect(
+      input.run({ action: "key", text: "Enter", repeat: 101 }, "fast"),
+    ).rejects.toMatchObject({ code: "bad_args" });
   });
 
   it("scrolls in wheel notches of 100", async () => {
     const { input, events } = recorder();
-    await input.run({ action: "scroll", coordinate: [300, 300], scroll_direction: "down", scroll_amount: 4 }, "fast");
+    await input.run(
+      { action: "scroll", coordinate: [300, 300], scroll_direction: "down", scroll_amount: 4 },
+      "fast",
+    );
     const wheels = events.filter((e) => e.params.type === "mouseWheel");
     expect(wheels.map((w) => w.params.deltaY)).toEqual([100, 100, 100, 100]);
   });
@@ -230,14 +277,20 @@ describe("computer actions", () => {
   it("refuses a bad scroll_amount before moving the mouse", async () => {
     const { input, events } = recorder();
     await expect(
-      input.run({ action: "scroll", coordinate: [300, 300], scroll_direction: "down", scroll_amount: 11 }, "fast"),
+      input.run(
+        { action: "scroll", coordinate: [300, 300], scroll_direction: "down", scroll_amount: 11 },
+        "fast",
+      ),
     ).rejects.toMatchObject({ code: "bad_args" });
     expect(events).toEqual([]);
   });
 
   it("drags with the button held along the way", async () => {
     const { input, events } = recorder();
-    await input.run({ action: "left_click_drag", start_coordinate: [10, 10], coordinate: [300, 40] }, "human");
+    await input.run(
+      { action: "left_click_drag", start_coordinate: [10, 10], coordinate: [300, 40] },
+      "human",
+    );
     const pressAt = events.findIndex((e) => e.params.type === "mousePressed");
     const between = events.slice(pressAt + 1, -1);
     expect(between.length).toBeGreaterThan(3);
@@ -247,16 +300,27 @@ describe("computer actions", () => {
 
   it("wait is capped at 10 s", async () => {
     const { input } = recorder();
-    await expect(input.run({ action: "wait", duration: 11 }, "fast")).rejects.toMatchObject({ code: "bad_args" });
+    await expect(input.run({ action: "wait", duration: 11 }, "fast")).rejects.toMatchObject({
+      code: "bad_args",
+    });
   });
 });
 
 describe("speeds from the settings", () => {
   it("typing speed multiplies the gap between keys and nothing else", () => {
     const p = scaledParams(0.5, 1);
-    expect([p.keyGapMeanMs, p.keyGapSdMs, p.keyGapFloorMs]).toEqual([PARAMS.keyGapMeanMs / 2, PARAMS.keyGapSdMs / 2, PARAMS.keyGapFloorMs / 2]);
+    expect([p.keyGapMeanMs, p.keyGapSdMs, p.keyGapFloorMs]).toEqual([
+      PARAMS.keyGapMeanMs / 2,
+      PARAMS.keyGapSdMs / 2,
+      PARAMS.keyGapFloorMs / 2,
+    ]);
     expect(p.wordPauseMs).toEqual([0, 60]);
-    expect([p.keyHoldMeanMs, p.fittsA, p.fittsB, p.moveIntervalMs]).toEqual([PARAMS.keyHoldMeanMs, PARAMS.fittsA, PARAMS.fittsB, PARAMS.moveIntervalMs]);
+    expect([p.keyHoldMeanMs, p.fittsA, p.fittsB, p.moveIntervalMs]).toEqual([
+      PARAMS.keyHoldMeanMs,
+      PARAMS.fittsA,
+      PARAMS.fittsB,
+      PARAMS.moveIntervalMs,
+    ]);
   });
 
   it("mouse speed multiplies the cursor's travel time", () => {
@@ -280,7 +344,8 @@ describe("speeds from the settings", () => {
     const moveFast = recorder();
     moveFast.input.setParams(scaledParams(1, 0.25));
     await moveFast.input.run({ action: "left_click", coordinate: [900, 600] }, "human");
-    const moves = (e: { params: { type: string } }[]) => e.filter((x) => x.params.type === "mouseMoved").length;
+    const moves = (e: { params: { type: string } }[]) =>
+      e.filter((x) => x.params.type === "mouseMoved").length;
     expect(moves(moveFast.events)).toBeLessThan(moves(moveSlow.events) / 2);
   });
 });

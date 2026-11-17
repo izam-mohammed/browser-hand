@@ -5,21 +5,48 @@
 // applies the settings the native host sends, serving the settings page
 // (`settings.ts`, plans/06-settings.md).
 import { DebuggerManager } from "./debugger";
-import { scaledParams, type Params } from "./humane/params";
+import { type Params, scaledParams } from "./humane/params";
 import { seeded } from "./humane/random";
-import { Input, type ComputerArgs, type Pace, type Rect } from "./input";
+import { type ComputerArgs, Input, type Pace, type Rect } from "./input";
 import { NetworkLog } from "./network";
-import { toPage } from "./page-client";
 import type { RecMsg } from "./page/content";
 import type { Step } from "./page/record";
-import { POPUP, Recorder, fromPopup, popupOp, type PopupMsg, type PopupReply, type RecorderDeps, type TabLike } from "./recorder";
-import { replayStep, type ReplayDeps, type Resolved } from "./replay";
-import { capture, captureVisible, shotPrefs, DEFAULT_SHOT, type Shot, type ShotPrefs } from "./screenshot";
-import { SettingsHub, type PortLike } from "./settings";
+import { toPage } from "./page-client";
+import {
+  fromPopup,
+  POPUP,
+  type PopupMsg,
+  type PopupReply,
+  popupOp,
+  Recorder,
+  type RecorderDeps,
+  type TabLike,
+} from "./recorder";
+import { type ReplayDeps, type Resolved, replayStep } from "./replay";
+import {
+  type Around,
+  capture,
+  captureVisible,
+  DEFAULT_SHOT,
+  type Shot,
+  type ShotPrefs,
+  shotPrefs,
+} from "./screenshot";
+import { type PortLike, SettingsHub } from "./settings";
 import { SiteRuleSync } from "./site-rules";
 import { SiteRules, useFor } from "./sites";
-import { GROUP_TITLE, TabTools, type GroupStore } from "./tabs";
-import { PROTOCOL, Reassembler, ToolError, err, ok, text, type CallFrame, type Content, type Frame } from "./wire";
+import { GROUP_TITLE, type GroupStore, TabTools } from "./tabs";
+import {
+  type CallFrame,
+  type Content,
+  err,
+  type Frame,
+  ok,
+  PROTOCOL,
+  Reassembler,
+  ToolError,
+  text,
+} from "./wire";
 
 const HOST = "dev.browserhand.host";
 const MAX_RETRY_MS = 30_000;
@@ -46,7 +73,8 @@ const hub = new SettingsHub({
 let sites = new SiteRules();
 let params: Params = scaledParams();
 let shot: ShotPrefs = DEFAULT_SHOT;
-const pace = (asked?: Pace): Pace => asked ?? (hub.settings.input.pace === "fast" ? "fast" : "human");
+const pace = (asked?: Pace): Pace =>
+  asked ?? (hub.settings.input.pace === "fast" ? "fast" : "human");
 
 const groups: GroupStore = {
   async get(session) {
@@ -96,22 +124,42 @@ chrome.tabs.onRemoved.addListener((tabId) => inputs.delete(tabId));
 function inputFor(tabId: number): Input {
   let input = inputs.get(tabId);
   if (!input) {
-    input = new Input({
-      send: (method, params) => dbg.send(tabId, method, params),
-      sleep,
-      now: () => performance.now(),
-      rng: seeded((Date.now() ^ (tabId * 2654435761)) >>> 0),
-      get isMac() {
-        return isMac;
+    input = new Input(
+      {
+        send: (method, params) => dbg.send(tabId, method, params),
+        sleep,
+        now: () => performance.now(),
+        rng: seeded((Date.now() ^ (tabId * 2654435761)) >>> 0),
+        get isMac() {
+          return isMac;
+        },
+        rect: (ref) => toPage<Rect>(tabId, { op: "rect", ref }),
+        scrollIntoView: async (ref) => void (await toPage(tabId, { op: "scroll_into_view", ref })),
+        viewport: () => toPage<{ width: number; height: number }>(tabId, { op: "viewport" }),
+        // A page without the content script (chrome://) has no overlay; the move still happens.
+        cursor: (path, intervalMs) =>
+          void toPage(tabId, { op: "cursor_move", path, intervalMs }).catch(() => {}),
       },
-      rect: (ref) => toPage<Rect>(tabId, { op: "rect", ref }),
-      scrollIntoView: async (ref) => void (await toPage(tabId, { op: "scroll_into_view", ref })),
-      viewport: () => toPage<{ width: number; height: number }>(tabId, { op: "viewport" }),
-    }, params);
+      params,
+    );
     inputs.set(tabId, input);
   }
   return input;
 }
+
+/** Hides and shows the tab's cursor overlay around a capture; never fails. */
+const cursorAround = (tabId: number): Around => ({
+  hide: () =>
+    toPage(tabId, { op: "cursor_hide" }).then(
+      () => {},
+      () => {},
+    ),
+  show: () =>
+    toPage(tabId, { op: "cursor_show" }).then(
+      () => {},
+      () => {},
+    ),
+});
 
 const recorder = new Recorder({
   action: chrome.action,
@@ -132,12 +180,18 @@ void recorder.syncPopup();
 const siteRules = new SiteRuleSync({
   dnr: {
     getSessionRules: () => chrome.declarativeNetRequest.getSessionRules(),
-    updateSessionRules: (o) => chrome.declarativeNetRequest.updateSessionRules(o as chrome.declarativeNetRequest.UpdateRuleOptions),
+    updateSessionRules: (o) =>
+      chrome.declarativeNetRequest.updateSessionRules(
+        o as chrome.declarativeNetRequest.UpdateRuleOptions,
+      ),
   },
   async groupTabs() {
     const found = await chrome.tabGroups.query({ title: GROUP_TITLE });
     const lists = await Promise.all(found.map((g) => chrome.tabs.query({ groupId: g.id })));
-    return lists.flat().map((t) => t.id).filter((id): id is number => id !== undefined);
+    return lists
+      .flat()
+      .map((t) => t.id)
+      .filter((id): id is number => id !== undefined);
   },
   blocked: () => hub.settings.sites.blocked,
 });
@@ -160,7 +214,8 @@ function replayDeps(session: string, pace: Pace): ReplayDeps {
     show: async (tabId) => {
       if (!(await chrome.tabs.get(tabId)).active) await chrome.tabs.update(tabId, { active: true });
     },
-    formInput: (tabId, ref, value) => recorder.busy(tabId, () => toPage(tabId, { op: "form_input", ref, value })),
+    formInput: (tabId, ref, value) =>
+      recorder.busy(tabId, () => toPage(tabId, { op: "form_input", ref, value })),
     scroll: (tabId, ref, x, y) => toPage(tabId, { op: "scroll_xy", ref, x, y }),
     navigate: (tabId, url) => tabs.navigate(session, { tabId, url }),
     waitForLoad,
@@ -173,16 +228,32 @@ function replayDeps(session: string, pace: Pace): ReplayDeps {
 }
 
 /** A tool answers with content blocks; a plain value becomes one text block. */
+// biome-ignore lint/suspicious/noExplicitAny: each tool checks its own args at runtime.
 type Tool = (session: string, args: any) => Promise<unknown>;
 
-const shotContent = (s: Shot): Content[] => [text(s.text), { type: "image", data: s.data, mimeType: s.mimeType }];
+const shotContent = (s: Shot): Content[] => [
+  text(s.text),
+  { type: "image", data: s.data, mimeType: s.mimeType },
+];
 
-async function screenshot(session: string, tabId: number, opts: { scale?: number; region?: [number, number, number, number] }) {
+async function screenshot(
+  session: string,
+  tabId: number,
+  opts: { scale?: number; region?: [number, number, number, number] },
+) {
   const tab = await tabs.ownTab(session, tabId, "read");
   try {
-    return await capture(dbg, tabId, opts, shot);
+    return await capture(dbg, tabId, opts, shot, cursorAround(tabId));
   } catch (e) {
-    if (e instanceof ToolError && e.code === "debugger_refused" && !opts.region) return captureVisible(tab, shot);
+    if (e instanceof ToolError && e.code === "debugger_refused" && !opts.region) {
+      const around = cursorAround(tabId);
+      await around.hide();
+      try {
+        return await captureVisible(tab, shot);
+      } finally {
+        await around.show();
+      }
+    }
     throw e;
   }
 }
@@ -200,14 +271,20 @@ async function javascript(session: string, a: { text: string; tabId: number }) {
     userGesture: true,
   });
   if (r.exceptionDetails) {
-    throw new ToolError("page_error", r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
+    throw new ToolError(
+      "page_error",
+      r.exceptionDetails.exception?.description ?? r.exceptionDetails.text,
+    );
   }
   const res = r.result;
   let out: string;
   if (!res || res.type === "undefined") out = "undefined";
-  else if ("value" in res) out = typeof res.value === "string" ? res.value : JSON.stringify(res.value, null, 2);
+  else if ("value" in res)
+    out = typeof res.value === "string" ? res.value : JSON.stringify(res.value, null, 2);
   else out = res.description ?? res.type;
-  return out.length > JS_RESULT_MAX ? `${out.slice(0, JS_RESULT_MAX)}\n[truncated: ${out.length} characters]` : out;
+  return out.length > JS_RESULT_MAX
+    ? `${out.slice(0, JS_RESULT_MAX)}\n[truncated: ${out.length} characters]`
+    : out;
 }
 
 const tools: Record<string, Tool> = {
@@ -222,7 +299,13 @@ const tools: Record<string, Tool> = {
 
   read_page: async (s, a) => {
     await tabs.ownTab(s, a.tabId, useFor("read_page"));
-    return toPage(a.tabId, { op: "read_page", filter: a.filter, depth: a.depth, ref_id: a.ref_id, max_chars: a.max_chars });
+    return toPage(a.tabId, {
+      op: "read_page",
+      filter: a.filter,
+      depth: a.depth,
+      ref_id: a.ref_id,
+      max_chars: a.max_chars,
+    });
   },
   find: async (s, a) => {
     await tabs.ownTab(s, a.tabId, useFor("find"));
@@ -234,7 +317,13 @@ const tools: Record<string, Tool> = {
   },
   read_console_messages: async (s, a) => {
     await tabs.ownTab(s, a.tabId, useFor("read_console_messages"));
-    return toPage(a.tabId, { op: "console", pattern: a.pattern, onlyErrors: a.onlyErrors, limit: a.limit, clear: a.clear });
+    return toPage(a.tabId, {
+      op: "console",
+      pattern: a.pattern,
+      onlyErrors: a.onlyErrors,
+      limit: a.limit,
+      clear: a.clear,
+    });
   },
   read_network_requests: async (s, a) => {
     await tabs.ownTab(s, a.tabId, useFor("read_network_requests"));
@@ -257,8 +346,17 @@ const tools: Record<string, Tool> = {
     return toPage(a.tabId, { op: "drop_files", x: a.coordinate[0], y: a.coordinate[1], files });
   },
 
-  computer: async (s, a: ComputerArgs & { tabId: number; pace?: Pace; scale?: number; region?: [number, number, number, number] }) => {
-    if (a.action === "screenshot") return shotContent(await screenshot(s, a.tabId, { scale: a.scale }));
+  computer: async (
+    s,
+    a: ComputerArgs & {
+      tabId: number;
+      pace?: Pace;
+      scale?: number;
+      region?: [number, number, number, number];
+    },
+  ) => {
+    if (a.action === "screenshot")
+      return shotContent(await screenshot(s, a.tabId, { scale: a.scale }));
     if (a.action === "zoom") {
       if (!a.region) throw new ToolError("bad_args", "zoom needs region [x0, y0, x1, y1]");
       return shotContent(await screenshot(s, a.tabId, { scale: a.scale, region: a.region }));
@@ -268,7 +366,11 @@ const tools: Record<string, Tool> = {
   },
   resize_window: async (s, a) => {
     const tab = await tabs.ownTab(s, a.tabId, useFor("resize_window"));
-    const win = await chrome.windows.update(tab.windowId, { width: Math.round(a.width), height: Math.round(a.height), state: "normal" });
+    const win = await chrome.windows.update(tab.windowId, {
+      width: Math.round(a.width),
+      height: Math.round(a.height),
+      state: "normal",
+    });
     return `Window resized to ${win.width}x${win.height}`;
   },
 
@@ -278,7 +380,8 @@ const tools: Record<string, Tool> = {
   recording_delete: (_s, a: { id: string }) => recorder.remove(a.id),
   replay_step: async (s, a: { tabId: number; step: Step; pace?: Pace }) => {
     await tabs.ownTab(s, a.tabId, useFor("replay_step"));
-    if (!a.step || typeof a.step.type !== "string") throw new ToolError("bad_args", "replay_step needs a step");
+    if (!a.step || typeof a.step.type !== "string")
+      throw new ToolError("bad_args", "replay_step needs a step");
     return replayStep(replayDeps(s, pace(a.pace)), a.tabId, a.step);
   },
 };
@@ -369,7 +472,9 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   void tabs.committed(d);
   void recorder.navigated(d);
 });
-chrome.webNavigation.onCreatedNavigationTarget.addListener((d) => void recorder.openedFrom(d.sourceTabId, d.tabId));
+chrome.webNavigation.onCreatedNavigationTarget.addListener(
+  (d) => void recorder.openedFrom(d.sourceTabId, d.tabId),
+);
 chrome.tabs.onCreated.addListener((tab) => void recorder.tabCreated(tab as TabLike));
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   if (info.status === "loading") void recorder.tabUpdated(tabId, tab.windowId);
@@ -387,10 +492,12 @@ chrome.windows.onRemoved.addListener((windowId) => void recorder.windowRemoved(w
 // Content scripts ask whether their window records, and send steps.
 chrome.runtime.onMessage.addListener((msg: RecMsg, sender, reply) => {
   const tab = sender.tab;
-  if (sender.id !== chrome.runtime.id || tab?.id === undefined || typeof msg?.__bhRec !== "string") return;
+  if (sender.id !== chrome.runtime.id || tab?.id === undefined || typeof msg?.__bhRec !== "string")
+    return;
   let on: Promise<boolean>;
   if (msg.__bhRec === "hello") on = recorder.isRecording(tab.windowId);
-  else if (msg.__bhRec === "step" && typeof msg.step?.type === "string") on = recorder.step(tab.id, tab.windowId, msg, sender.url ?? tab.url);
+  else if (msg.__bhRec === "step" && typeof msg.step?.type === "string")
+    on = recorder.step(tab.id, tab.windowId, msg, sender.url ?? tab.url);
   else return;
   on.then(
     (v) => reply({ on: v }),
@@ -401,8 +508,13 @@ chrome.runtime.onMessage.addListener((msg: RecMsg, sender, reply) => {
 
 // The toolbar popup lists, opens, deletes and starts recordings.
 chrome.runtime.onMessage.addListener((msg: PopupMsg, sender, reply: (r: PopupReply) => void) => {
-  if (typeof msg?.__bhPopup !== "string" || !fromPopup(sender, chrome.runtime.id, chrome.runtime.getURL(POPUP))) return;
-  const activeTab = async (windowId: number) => (await chrome.tabs.query({ active: true, windowId }))[0] as TabLike | undefined;
+  if (
+    typeof msg?.__bhPopup !== "string" ||
+    !fromPopup(sender, chrome.runtime.id, chrome.runtime.getURL(POPUP))
+  )
+    return;
+  const activeTab = async (windowId: number) =>
+    (await chrome.tabs.query({ active: true, windowId }))[0] as TabLike | undefined;
   popupOp(recorder, msg, activeTab).then(
     (value) => reply({ ok: true, value }),
     (e) => reply({ ok: false, error: e instanceof Error ? e.message : String(e) }),
@@ -412,7 +524,11 @@ chrome.runtime.onMessage.addListener((msg: PopupMsg, sender, reply: (r: PopupRep
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   // Only the extension's own claim page may claim.
-  if (sender.id !== chrome.runtime.id || sender.url?.startsWith(chrome.runtime.getURL("claim.html")) !== true) return;
+  if (
+    sender.id !== chrome.runtime.id ||
+    sender.url?.startsWith(chrome.runtime.getURL("claim.html")) !== true
+  )
+    return;
   if (msg?.type !== "claim" || typeof msg.dir !== "string" || typeof msg.nonce !== "string") return;
   (async () => {
     await chrome.storage.local.set({ profileDir: msg.dir });

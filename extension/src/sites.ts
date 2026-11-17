@@ -14,6 +14,7 @@ export const NOT_A_PATTERN = "Not a pattern. Use host/path, for example docs.goo
 
 /** Whether `p` follows the grammar; the host has a dot, or is `localhost` or `*`. */
 export function isPattern(p: string): boolean {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this refuses.
   if (!p || p.trim() !== p || /[\s?#\\]/.test(p) || /[\u0000-\u001f\u007f]/.test(p)) return false;
   const slash = p.indexOf("/");
   if (slash <= 0) return false;
@@ -32,7 +33,7 @@ export function patternProblem(p: string, list: readonly string[]): string | nul
   return null;
 }
 
-const escape = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+const escapeRe = (s: string) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 
 /** The pattern as two regex pieces: its host (no `*` crosses a `/`) and its path. */
 function pieces(p: string): { host: string; path: string } {
@@ -44,8 +45,8 @@ function pieces(p: string): { host: string; path: string } {
     host = host.slice(2);
   }
   return {
-    host: prefix + host.split("*").map(escape).join("[^/]*"),
-    path: p.slice(slash).split("*").map(escape).join(".*"),
+    host: prefix + host.split("*").map(escapeRe).join("[^/]*"),
+    path: p.slice(slash).split("*").map(escapeRe).join(".*"),
   };
 }
 
@@ -97,7 +98,14 @@ export type Use = "read" | "act" | "any";
 /** `computer` actions that only look (Edge cases: screenshot, zoom, scroll, scroll_to). */
 const LOOKING = new Set(["screenshot", "zoom", "scroll", "scroll_to"]);
 /** Tools that only read the page, or touch the window and not the page. */
-const READING = new Set(["read_page", "find", "get_page_text", "read_console_messages", "read_network_requests", "resize_window"]);
+const READING = new Set([
+  "read_page",
+  "find",
+  "get_page_text",
+  "read_console_messages",
+  "read_network_requests",
+  "resize_window",
+]);
 
 /** What `tool` (with its `action` for `computer`) does to its tab.
  * `navigate` checks its own way (`TabTools.navigate`): leaving a site is
@@ -122,7 +130,10 @@ export function gate(rules: SiteRules, url: string | undefined, use: Use) {
   if (use === "any") return;
   const access = rules.access(url);
   if (access === "blocked") {
-    throw new ToolError("blocked", `${hostOf(url!)} is blocked in browser-hand settings; ask the person.`);
+    throw new ToolError(
+      "blocked",
+      `${hostOf(url!)} is blocked in browser-hand settings; ask the person.`,
+    );
   }
   if (access === "read_only" && use === "act") {
     throw new ToolError(

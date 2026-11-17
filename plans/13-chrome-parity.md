@@ -275,11 +275,11 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: the rough cut (needs you: try it)
 
-- [ ] A visible cursor follows every glide, click and drag on the page and
+- [x] A visible cursor follows every glide, click and drag on the page and
   is hidden while a screenshot is taken (expected in
   `extension/src/page/cursor.ts`, fed by `Mouse.moveTo` in
   `extension/src/input.ts`), pinned by `cursor.test.ts`.
-- [ ] `read_network_requests` shows named auth values and userinfo as
+- [x] `read_network_requests` shows named auth values and userinfo as
   `REDACTED`, and `urlPattern` matches the redacted URL (expected in
   `extension/src/network.ts`), pinned by redaction cases in
   `network.test.ts`.
@@ -292,17 +292,17 @@ repository instructions for recording useful development findings.
 
 ### Phase 2: a steady reconnect
 
-- [ ] When the bound profile's connection drops, the next call waits up to
+- [x] When the bound profile's connection drops, the next call waits up to
   6 s for the same profile's host and goes on; after that it fails as now
   (expected in `host/src/mcp.rs` `call`), pinned by a fake-clock test.
-- [ ] A call cut off mid-way says the action may have run and to check the
+- [x] A call cut off mid-way says the action may have run and to check the
   page before repeating it (expected in `host/src/host_conn.rs`
   `call_error_frame`), pinned by a mid-call drop test.
 - [ ] Check: the standard check command passes.
 
 ### Phase 3: plain-spoken argument errors
 
-- [ ] An array or object argument sent as JSON text is refused with the
+- [x] An array or object argument sent as JSON text is refused with the
   field name and the shape to send, and never coerced (expected in
   `host/src/tools/args.rs`), pinned by tests on `coordinate`, `region`
   and `browser_batch` `actions`, with a JSON-looking `text` accepted.
@@ -310,11 +310,11 @@ repository instructions for recording useful development findings.
 
 ### Phase 4: the cursor's polish and the words
 
-- [ ] The overlay respects the person's reduced-motion setting by snapping
+- [x] The overlay respects the person's reduced-motion setting by snapping
   instead of gliding, and disappears a few seconds after the last action
   (expected in `extension/src/page/cursor.ts`), pinned by
   `cursor.test.ts`.
-- [ ] `host/src/instructions.md` and `plugin/skills/browser-hand/SKILL.md`
+- [x] `host/src/instructions.md` and `plugin/skills/browser-hand/SKILL.md`
   say network URLs come redacted and a dropped action may have run,
   pinned by `host/tests/instructions.rs`.
 - [ ] Check: the standard check command passes.

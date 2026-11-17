@@ -13,55 +13,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  host:
-    name: host (rust)
+  check:
+    name: make check
     # The private repo's GitHub-hosted minutes are blocked, so the job runs
     # on the linux machine (system-notes plan 03).
     runs-on: [self-hosted, linux, izam-linux]
-    defaults:
-      run:
-        working-directory: host
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      # Full history: the secret scan reads every commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: host
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2
         with:
-          tool: cargo-llvm-cov
-      - name: lint
-        run: |
-          cargo fmt --check
-          cargo clippy --all-targets --locked -- -D warnings
-      - name: build
-        run: cargo build --release --locked
-      - name: test and coverage
-        # Fails when line coverage drops under the floor.
-        run: cargo llvm-cov --locked --summary-only --fail-under-lines 70
-
-  extension:
-    name: extension (typescript)
-    # The private repo's GitHub-hosted minutes are blocked, so the job runs
-    # on the linux machine (system-notes plan 03).
-    runs-on: [self-hosted, linux, izam-linux]
-    defaults:
-      run:
-        working-directory: extension
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+          # mdBook and lychee versions are the pins in docs/standards.md.
+          tool: cargo-llvm-cov,osv-scanner,mdbook@0.5.2,lychee@0.24.2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: extension/package-lock.json
-      - run: npm ci --no-audit --no-fund
-      - name: lint
-        run: npm run typecheck
-      - name: build
-        run: npm run build
-      - name: test and coverage
-        # Thresholds live in vitest.config.mjs.
-        run: npm run coverage
+      - name: install the secret scanner
+        # Same version as .pre-commit-config.yaml; the download is checked
+        # against the release's checksum file.
+        run: |
+          command -v gitleaks >/dev/null && exit 0
+          v=8.30.1
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${v}"
+          curl -sSfL "${base}/gitleaks_${v}_linux_x64.tar.gz" -o "${RUNNER_TEMP}/gitleaks_${v}_linux_x64.tar.gz"
+          curl -sSfL "${base}/gitleaks_${v}_checksums.txt" -o "${RUNNER_TEMP}/gl.sum"
+          (cd "${RUNNER_TEMP}" && grep linux_x64 gl.sum | sha256sum -c -)
+          mkdir -p "${HOME}/.local/bin"
+          tar -xzf "${RUNNER_TEMP}/gitleaks_${v}_linux_x64.tar.gz" -C "${HOME}/.local/bin" gitleaks
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+      - run: npm --prefix extension ci --no-audit --no-fund
+      - name: make check
+        # `shell: bash` turns on pipefail, so a failing check fails the step
+        # even through tee.
+        shell: bash
+        run: make check 2>&1 | tee "${RUNNER_TEMP}/check.log"
+      - name: coverage summary
+        if: always()
+        run: |
+          {
+            echo '### Coverage'
+            echo '```'
+            grep -E '^(TOTAL|Statements|Branches|Functions|Lines)' "${RUNNER_TEMP}/check.log" || true
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"

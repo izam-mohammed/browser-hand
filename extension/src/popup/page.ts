@@ -73,7 +73,11 @@ export class PopupPage {
 
   // Building.
 
-  private el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = {}, ...kids: (Node | string)[]): HTMLElementTagNameMap[K] {
+  private el<K extends keyof HTMLElementTagNameMap>(
+    tag: K,
+    attrs: Attrs = {},
+    ...kids: (Node | string)[]
+  ): HTMLElementTagNameMap[K] {
     const e = this.doc.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
       if (v === undefined || v === false) continue;
@@ -107,13 +111,23 @@ export class PopupPage {
     const listView = this.el(
       "div",
       { class: "view", id: "list-view" },
-      this.button("start", "start", () => void this.start(), this.el("i", { class: "rec-dot", "aria-hidden": "true" }), "Start recording"),
+      this.button(
+        "start",
+        "start",
+        () => void this.start(),
+        this.el("i", { class: "rec-dot", "aria-hidden": "true" }),
+        "Start recording",
+      ),
       this.el("p", { class: "hint" }, "Records this window. Alt+Shift+R starts and stops it too."),
       this.el(
         "div",
         { class: "empty", id: "empty" },
         this.el("h2", {}, "No recordings yet"),
-        this.el("p", { class: "hint" }, "Press Start recording, do the task, then click the toolbar button again to stop. Claude can then read it back or do it again."),
+        this.el(
+          "p",
+          { class: "hint" },
+          "Press Start recording, do the task, then click the toolbar button again to stop. Claude can then read it back or do it again.",
+        ),
       ),
       this.el(
         "div",
@@ -121,21 +135,34 @@ export class PopupPage {
         this.el("h2", { class: "label", id: "recent-label" }, "Recent recordings"),
         this.el("ul", { class: "recordings", id: "recordings", "aria-labelledby": "recent-label" }),
       ),
-      this.el("p", { class: "hint foot", id: "foot" }, "Recordings stay in this profile. Passwords and card numbers are saved masked."),
+      this.el(
+        "p",
+        { class: "hint foot", id: "foot" },
+        "Recordings stay in this profile. Passwords and card numbers are saved masked.",
+      ),
     );
     const stepsView = this.el(
       "div",
       { class: "view", id: "steps-view" },
       this.el("h2", { class: "rec-title", id: "rec-title" }),
       this.el("p", { class: "hint", id: "rec-meta" }),
-      this.el("ol", { class: "steps", id: "steps", tabindex: "0", "aria-label": "Steps, as Claude reads them" }),
+      this.el("ol", {
+        class: "steps",
+        id: "steps",
+        tabindex: "0",
+        "aria-label": "Steps, as Claude reads them",
+      }),
       this.el(
         "div",
         { class: "actions" },
         this.button("delete", "button danger", () => this.confirm(true), "Delete"),
         this.button("cancel", "button", () => this.confirm(false), "Keep it"),
         this.button("confirm", "button danger solid", () => void this.remove(), "Delete for good"),
-        this.el("p", { class: "hint", id: "use-hint" }, 'Ask Claude "what did I just record?" to use it.'),
+        this.el(
+          "p",
+          { class: "hint", id: "use-hint" },
+          'Ask Claude "what did I just record?" to use it.',
+        ),
       ),
     );
     const error = this.el("p", { class: "error", id: "error", role: "alert" });
@@ -153,7 +180,10 @@ export class PopupPage {
 
   private async load() {
     try {
-      const r = (await this.api.send({ __bhPopup: "list" })) as { recordings: Summary[]; recording: string | null };
+      const r = (await this.api.send({ __bhPopup: "list" })) as {
+        recordings: Summary[];
+        recording: string | null;
+      };
       if (r.recording) {
         // The popup is off while recording, so this click came through a
         // popup value Chrome lost; the person clicked to stop.
@@ -212,7 +242,9 @@ export class PopupPage {
     this.confirming = false;
     this.error = null;
     this.render();
-    const row = [...this.get("recordings").querySelectorAll<HTMLButtonElement>("button.row")].find((b) => b.dataset.id === id);
+    const row = [...this.get("recordings").querySelectorAll<HTMLButtonElement>("button.row")].find(
+      (b) => b.dataset.id === id,
+    );
     (row ?? this.get("start")).focus();
   }
 
@@ -250,11 +282,20 @@ export class PopupPage {
     const now = this.api.now();
     const rows = (this.list ?? []).map((s) => {
       const state = stateText(s, this.recording);
-      const meta = [when(s.startedAt, now), stepCount(s.steps), ...(state === "stopped by you" ? [] : [state])].join(" · ");
+      const meta = [
+        when(s.startedAt, now),
+        stepCount(s.steps),
+        ...(state === "stopped by you" ? [] : [state]),
+      ].join(" · ");
       const b = this.el(
         "button",
         { type: "button", class: "row", "data-id": s.id },
-        this.el("span", { class: "row-text" }, this.el("span", { class: "row-title" }, s.title || "Recording"), this.el("span", { class: "row-meta" }, meta)),
+        this.el(
+          "span",
+          { class: "row-text" },
+          this.el("span", { class: "row-title" }, s.title || "Recording"),
+          this.el("span", { class: "row-meta" }, meta),
+        ),
         this.el("span", { class: "open", "aria-hidden": "true" }, "›"),
       );
       b.addEventListener("click", () => void this.show(s));
@@ -268,9 +309,15 @@ export class PopupPage {
     const { summary, rec } = this.open;
     const steps = rec.flow?.steps ?? [];
     this.get("rec-title").textContent = rec.title || "Recording";
-    this.get("rec-meta").textContent = [when(rec.startedAt, this.api.now()), stepCount(steps.length), stateText(summary, this.recording)].join(" · ");
+    this.get("rec-meta").textContent = [
+      when(rec.startedAt, this.api.now()),
+      stepCount(steps.length),
+      stateText(summary, this.recording),
+    ].join(" · ");
     const lines = this.doc.createDocumentFragment();
-    steps.forEach((step, i) => lines.append(this.el("li", {}, stepLine(i + 1, step, rec.meta?.[i]))));
+    steps.forEach((step, i) => {
+      lines.append(this.el("li", {}, stepLine(i + 1, step, rec.meta?.[i])));
+    });
     this.get("steps").replaceChildren(lines);
   }
 

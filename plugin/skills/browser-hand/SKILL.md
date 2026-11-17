@@ -36,9 +36,11 @@ when the user talks about something they recorded.
    user's behalf. With exactly one connected profile, use it.
 4. A profile that is not open can still be selected: `select_profile` opens it
    with Chrome's command line, starting Chrome if needed. If it then reports
-   that the extension did not answer, tell the user to load `extension/dist`
-   unpacked in that profile (`chrome://extensions`, Developer mode, Load
-   unpacked) and stop.
+   that the extension did not answer, or `list_profiles` gives that profile a
+   `nextStep`, relay the step to the user (add the extension from the Chrome
+   Web Store page, or turn it on in `chrome://extensions`, or Load unpacked
+   when there is no store build) and stop. A `warning` on a profile means two
+   builds are on in it: tell the user to turn one off.
 
 ## Tabs
 
@@ -63,7 +65,9 @@ when the user talks about something they recorded.
   the viewport frame, so divide image pixels by the scale.
 - `read_console_messages` always with a `pattern`, e.g. `error|warn` or the
   app's log prefix. `read_network_requests` with a `urlPattern` such as
-  `/api/`.
+  `/api/`. Tokens, passwords and other secret-looking values in its URLs come
+  back as `REDACTED`, and `urlPattern` matches that form, so search by path,
+  not by a token value.
 
 ## Acting like a person
 
@@ -134,6 +138,14 @@ Stop and ask the user, explaining what you tried, when:
 - the task needs more exploring than it should, or drifts off the user's ask.
 
 Do not keep retrying the same failing action.
+
+If the connection drops, the next call waits up to 6 seconds for the same
+profile to come back. A call cut off mid-way says the action **may have run**:
+take a screenshot or `read_page` before repeating a click, a key or a submit.
+An argument refused because an array or object arrived as text (for example
+`coordinate` sent as `"[300, 200]"`) must be sent again as the array itself.
+The person sees an agent cursor on the page while you act; screenshots never
+show it.
 
 ## Recording a GIF
 

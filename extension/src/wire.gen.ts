@@ -3,7 +3,7 @@ import type { JsonValue } from "./serde_json/JsonValue";
 
 export type CaptureSettings = { 
 /**
- * One of `SCREENSHOT_SIZES`.
+ * `1024x640`, `1280x800` or `1568x980`.
  */
 screenshot_size: string, 
 /**
@@ -49,7 +49,7 @@ revision: string, } | { "type": "reload", } | { "type": "settings_saved", id: nu
 
 export type InputSettings = { 
 /**
- * `human` or `fast`.
+ * `human` or `fast`. Fast keeps the same events without travel time.
  */
 pace: string, 
 /**
@@ -70,15 +70,35 @@ export type SessionSettings = {
 /**
  * A Chrome profile dir; empty asks.
  */
-default_profile: string, new_window: boolean, close_tabs_on_end: boolean, };
+default_profile: string, 
+/**
+ * Whether a session opens its tab group in a new window.
+ */
+new_window: boolean, 
+/**
+ * Whether Claude's tabs close when the session ends.
+ */
+close_tabs_on_end: boolean, };
 
-export type Settings = { version: number, input: InputSettings, sessions: SessionSettings, sites: SiteSettings, capture: CaptureSettings, debugger: DebuggerSettings, };
+export type Settings = { 
+/**
+ * The file's format version.
+ */
+version: number, input: InputSettings, sessions: SessionSettings, sites: SiteSettings, capture: CaptureSettings, debugger: DebuggerSettings, };
 
 /**
  * Why a save was refused: the key at fault when there is one.
  */
 export type SettingsError = { field: string | null, message: string, };
 
-export type SiteSettings = { blocked: Array<string>, read_only: Array<string>, };
+export type SiteSettings = { 
+/**
+ * Sites Claude never opens or acts on, as `host/path` patterns.
+ */
+blocked: Array<string>, 
+/**
+ * Sites Claude may read and screenshot but not click, type in or script.
+ */
+read_only: Array<string>, };
 
 export type WireError = { code: ErrorCode, message: string, };

@@ -2,8 +2,8 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Step } from "../src/page/record";
-import { PopupPage, stateText, when, type PopupApi } from "../src/popup/page";
 import { clip, stepLine } from "../src/popup/lines";
+import { type PopupApi, PopupPage, stateText, when } from "../src/popup/page";
 import type { Meta, PopupMsg, Recording, Summary } from "../src/recorder";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
@@ -11,7 +11,9 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf
 // The golden file is the host's (plans/08-recorder-popup.md, Contract):
 // host/tests/mcp.rs holds `step_line` to it, and this holds `stepLine`.
 describe("stepLine", () => {
-  const fixture = JSON.parse(read("../../host/tests/fixtures/recordings.json")) as { records: Record<string, Recording> };
+  const fixture = JSON.parse(read("../../host/tests/fixtures/recordings.json")) as {
+    records: Record<string, Recording>;
+  };
 
   it("writes every fixture step exactly as recording_get does (host/tests/fixtures/recording-lines.txt)", () => {
     let out = "";
@@ -25,7 +27,9 @@ describe("stepLine", () => {
 
   it("masks a value the meta marks sensitive, whatever the step holds", () => {
     const step: Step = { type: "change", selectors: [["#pw"]], value: "hunter2" };
-    expect(stepLine(1, step, { actor: "person", masked: true })).toBe("1. [person] change #pw <masked>");
+    expect(stepLine(1, step, { actor: "person", masked: true })).toBe(
+      "1. [person] change #pw <masked>",
+    );
     expect(stepLine(2, { type: "change", value: "<masked>" })).toBe("2. [person] change <masked>");
   });
 
@@ -37,7 +41,9 @@ describe("stepLine", () => {
   it("takes a step with nothing it knows and still writes a line", () => {
     expect(stepLine(3, { type: "scroll" })).toBe("3. [person] scroll to 0,0");
     expect(stepLine(4, { type: "setViewport" })).toBe("4. [person] setViewport nullxnull");
-    expect(stepLine(5, { type: "click", assertedEvents: [{ type: "navigation", url: "" }] })).toBe("5. [person] click");
+    expect(stepLine(5, { type: "click", assertedEvents: [{ type: "navigation", url: "" }] })).toBe(
+      "5. [person] click",
+    );
   });
 });
 
@@ -55,7 +61,9 @@ describe("popup text", () => {
     expect(stateText(s, "r")).toBe("recording");
     expect(stateText(s, null)).toBe("stopped");
     expect(stateText({ ...s, stopReason: "stopped by the person" }, null)).toBe("stopped by you");
-    expect(stateText({ ...s, stopReason: "its window closed" }, null)).toBe("stopped: its window closed");
+    expect(stateText({ ...s, stopReason: "its window closed" }, null)).toBe(
+      "stopped: its window closed",
+    );
   });
 });
 
@@ -64,8 +72,22 @@ describe("popup text", () => {
 const NOW = new Date(2026, 9, 21, 19, 0).getTime();
 const at = (h: number, m: number, daysAgo = 0) => new Date(2026, 9, 21 - daysAgo, h, m).getTime();
 
-function recording(id: string, title: string, steps: Step[], meta: Partial<Meta>[] = []): Recording {
-  return { id, title, startedAt: at(18, 9), stoppedAt: at(18, 20), windowId: 1, flow: { title, steps }, meta: meta as Meta[], stopReason: "stopped by the person" };
+function recording(
+  id: string,
+  title: string,
+  steps: Step[],
+  meta: Partial<Meta>[] = [],
+): Recording {
+  return {
+    id,
+    title,
+    startedAt: at(18, 9),
+    stoppedAt: at(18, 20),
+    windowId: 1,
+    flow: { title, steps },
+    meta: meta as Meta[],
+    stopReason: "stopped by the person",
+  };
 }
 
 const WALK = recording(
@@ -80,9 +102,30 @@ const WALK = recording(
 );
 
 const LIST: Summary[] = [
-  { id: "rec_walk", title: "record walk", startedAt: at(18, 9), stoppedAt: at(18, 20), steps: 3, stopReason: "stopped by the person" },
-  { id: "rec_hands", title: "hands walk", startedAt: at(16, 51), stoppedAt: at(17, 0), steps: 9, stopReason: "no step for 30 minutes" },
-  { id: "rec_flights", title: "Search flights", startedAt: at(11, 20, 1), stoppedAt: at(11, 40, 1), steps: 1, stopReason: "stopped by the person" },
+  {
+    id: "rec_walk",
+    title: "record walk",
+    startedAt: at(18, 9),
+    stoppedAt: at(18, 20),
+    steps: 3,
+    stopReason: "stopped by the person",
+  },
+  {
+    id: "rec_hands",
+    title: "hands walk",
+    startedAt: at(16, 51),
+    stoppedAt: at(17, 0),
+    steps: 9,
+    stopReason: "no step for 30 minutes",
+  },
+  {
+    id: "rec_flights",
+    title: "Search flights",
+    startedAt: at(11, 20, 1),
+    stoppedAt: at(11, 40, 1),
+    steps: 1,
+    stopReason: "stopped by the person",
+  },
 ];
 
 function fakeApi(list: Summary[] = LIST, recordingId: string | null = null) {
@@ -141,7 +184,11 @@ describe("popup page", () => {
     const { page, rows, sent } = await mount();
     expect(ops(sent)).toEqual(["list"]);
     expect(document.activeElement).toBe(page.get("start"));
-    expect(rows().map((r) => r.querySelector(".row-title")!.textContent)).toEqual(["record walk", "hands walk", "Search flights"]);
+    expect(rows().map((r) => r.querySelector(".row-title")!.textContent)).toEqual([
+      "record walk",
+      "hands walk",
+      "Search flights",
+    ]);
     expect(rows().map((r) => r.querySelector(".row-meta")!.textContent)).toEqual([
       "Today 18:09 · 3 steps",
       "Today 16:51 · 9 steps · stopped: no step for 30 minutes",
@@ -270,7 +317,12 @@ describe("popup page", () => {
   it("renders page text as text", async () => {
     const evil = '<img src=x onerror="alert(1)">';
     const { page, rows, records } = await mount([{ ...LIST[0]!, title: evil }]);
-    records.set("rec_walk", { ...WALK, title: evil, flow: { title: evil, steps: [{ type: "click", selectors: [[`aria/${evil}`]] }] }, meta: [] });
+    records.set("rec_walk", {
+      ...WALK,
+      title: evil,
+      flow: { title: evil, steps: [{ type: "click", selectors: [[`aria/${evil}`]] }] },
+      meta: [],
+    });
     expect(rows()[0]!.querySelector(".row-title")!.textContent).toBe(evil);
     rows()[0]!.click();
     await flush();
@@ -296,7 +348,10 @@ describe("popup page", () => {
 
   it("renders 5,000 steps in one scrolling list", async () => {
     const { page, rows, records } = await mount();
-    const steps: Step[] = Array.from({ length: 5_000 }, (_, i) => ({ type: "click", selectors: [[`aria/b${i}`]] }));
+    const steps: Step[] = Array.from({ length: 5_000 }, (_, i) => ({
+      type: "click",
+      selectors: [[`aria/b${i}`]],
+    }));
     records.set("rec_walk", { ...WALK, flow: { title: "big", steps }, meta: [] });
     rows()[0]!.click();
     await flush();

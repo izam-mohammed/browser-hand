@@ -26,11 +26,39 @@ use crate::wire::{Content, Frame};
 /// (checked by `host/tests/mcp.rs`).
 pub const EXTENSION_ID: &str = "ednpkicgdjiiihmophoifehfeeoabjdc";
 
+/// The Chrome Web Store ID of the published (unlisted) extension, from the
+/// developer dashboard. `None` until the person has published it
+/// (`plans/07-install-extension.md` Phase 2): install then writes no
+/// External Extensions file and next steps name Load unpacked.
+pub const STORE_EXTENSION_ID: Option<&str> = None;
+
 /// Sent to Claude Code at connection (cut at 4,096 characters there;
 /// `host/tests/instructions.rs` keeps it under).
 pub const INSTRUCTIONS: &str = include_str!("instructions.md");
 
 const PROBE_WAIT: Duration = Duration::from_millis(800);
+/// How long a call waits for a dropped profile's host to come back.
+pub const RECONNECT_WAIT: Duration = Duration::from_secs(6);
+const RECONNECT_POLL: Duration = Duration::from_millis(250);
+
+/// Runs `find` now and every `step` until it gives something or `total`
+/// has passed.
+pub async fn wait_for<T, F, Fut>(total: Duration, step: Duration, mut find: F) -> Option<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Option<T>>,
+{
+    let deadline = tokio::time::Instant::now() + total;
+    loop {
+        if let Some(found) = find().await {
+            return Some(found);
+        }
+        if tokio::time::Instant::now() >= deadline {
+            return None;
+        }
+        tokio::time::sleep(step).await;
+    }
+}
 const CLAIM_WAIT: Duration = Duration::from_secs(10);
 /// Chrome cold-starting and loading the profile takes longer.
 const CLAIM_WAIT_COLD: Duration = Duration::from_secs(30);
@@ -92,6 +120,8 @@ pub struct ServerOptions {
     pub pace: Option<String>,
     /// `config.toml`: the default profile and the GIF folder and delay.
     pub config: PathBuf,
+    /// The Chrome Web Store ID of the published extension, when there is one.
+    pub store_id: Option<String>,
 }
 
 impl Default for ServerOptions {
@@ -99,6 +129,7 @@ impl Default for ServerOptions {
         ServerOptions {
             pace: None,
             config: crate::paths::config_path(),
+            store_id: STORE_EXTENSION_ID.map(String::from),
         }
     }
 }
@@ -115,6 +146,7 @@ pub struct Inner {
     launch: Launcher,
     pace: Option<String>,
     config: PathBuf,
+    store_id: Option<String>,
     bound: Mutex<Option<Bound>>,
     images: std::sync::Mutex<ImageStore>,
     recorder: Mutex<Recorder>,
@@ -232,6 +264,7 @@ impl Server {
                 launch,
                 pace: opts.pace,
                 config: opts.config,
+                store_id: opts.store_id,
                 bound: Mutex::new(None),
                 images: Default::default(),
                 recorder: Default::default(),
@@ -280,12 +313,58 @@ impl Server {
         Ok(())
     }
 
-    /// Opens `profile` with the claim page in it (starting Chrome if needed)
-    /// and waits for its host to say hello with that dir.
-    async fn claim(&self, profile: &Profile) -> Result<LiveHost, String> {
+    /// Whether Chrome has unpacked the store build into `profile`
+    /// (`<profile>/Extensions/<store id>/`; unpacked builds leave no folder).
+    fn store_build_in(&self, profile: &Profile) -> bool {
+        self.inner.store_id.as_deref().is_some_and(|id| {
+            self.inner
+                .chrome_dir
+                .join(&profile.dir)
+                .join("Extensions")
+                .join(id)
+                .is_dir()
+        })
+    }
+
+    /// The store page of the extension, built from the constant ID only.
+    fn store_url(&self) -> Option<String> {
+        self.inner
+            .store_id
+            .as_ref()
+            .map(|id| format!("https://chromewebstore.google.com/detail/{id}"))
+    }
+
+    /// What to ask the person for a profile whose extension is not answering.
+    fn next_step(&self, profile: &Profile) -> String {
+        match self.store_url() {
+            None => "Ask the person to load the extension in that profile: chrome://extensions, \
+                     Developer mode on, Load unpacked: extension/dist. They open chrome://extensions \
+                     themselves; a link to it cannot be opened for them."
+                .into(),
+            Some(_) if self.store_build_in(profile) => "The extension is installed in that profile but not answering. \
+                     Ask the person to turn it on in chrome://extensions (they open it themselves; \
+                     a link to it cannot be opened for them), then try again."
+                .into(),
+            Some(url) => format!(
+                "Ask the person to click Add to Chrome, then Add extension, on {url} in that profile, \
+                 then try again. (If they ran browser-hand install, quitting and reopening Chrome and \
+                 clicking Enable also works.)"
+            ),
+        }
+    }
+
+    /// Opens `profile` with the claim page of extension `id` in it (starting
+    /// Chrome if needed) and waits for its host to say hello with that dir.
+    /// The inner `Err` carries whether Chrome had to be started and how long
+    /// it waited.
+    async fn claim_with(
+        &self,
+        profile: &Profile,
+        id: &str,
+    ) -> Result<Result<LiveHost, (bool, Duration)>, String> {
         let nonce = uuid::Uuid::new_v4().simple().to_string();
         let url = format!(
-            "chrome-extension://{EXTENSION_ID}/claim.html#dir={}&nonce={nonce}",
+            "chrome-extension://{id}/claim.html#dir={}&nonce={nonce}",
             encode_component(&profile.dir)
         );
         let started = (self.inner.launch)(&profile.dir, &url)
@@ -294,20 +373,55 @@ impl Server {
         let deadline = tokio::time::Instant::now() + wait;
         loop {
             if let Some(h) = Self::host_for(&self.hosts().await, &profile.dir) {
-                return Ok(h.clone());
+                return Ok(Ok(h.clone()));
             }
             if tokio::time::Instant::now() >= deadline {
-                return Err(format!(
-                    "Opened the profile \"{}\" ({}){}, but its browser-hand extension did not answer within {} s. \
-                     Is the extension loaded in that profile? (chrome://extensions, Developer mode, Load unpacked: extension/dist)",
-                    profile.name,
-                    profile.dir,
-                    if started { " after starting Chrome" } else { "" },
-                    wait.as_secs()
-                ));
+                return Ok(Err((started, wait)));
             }
             tokio::time::sleep(Duration::from_millis(300)).await;
         }
+    }
+
+    /// Opens `profile` with the claim page in it (starting Chrome if needed)
+    /// and waits for its host to say hello with that dir. The store build's
+    /// page where the profile has it, else the dev build's; the dev build's
+    /// once more when a silent store folder was the first try. On a timeout
+    /// with a store ID built in, opens the store page in the profile.
+    async fn claim(&self, profile: &Profile) -> Result<LiveHost, String> {
+        let store_here = self.store_build_in(profile);
+        let first = match (&self.inner.store_id, store_here) {
+            (Some(id), true) => id.clone(),
+            _ => EXTENSION_ID.to_owned(),
+        };
+        let mut outcome = self.claim_with(profile, &first).await?;
+        if outcome.is_err() && first != EXTENSION_ID {
+            outcome = self.claim_with(profile, EXTENSION_ID).await?;
+        }
+        let (started, wait) = match outcome {
+            Ok(host) => return Ok(host),
+            Err(timeout) => timeout,
+        };
+        let mut message = format!(
+            "Opened the profile \"{}\" ({}){}, but its browser-hand extension did not answer within {} s. ",
+            profile.name,
+            profile.dir,
+            if started { " after starting Chrome" } else { "" },
+            wait.as_secs()
+        );
+        if let Some(url) = self.store_url() {
+            // Best effort: the error already says what to do.
+            let _ = (self.inner.launch)(&profile.dir, &url);
+            message.push_str(&format!(
+                "Opened its Chrome Web Store page in that profile. {}",
+                self.next_step(profile)
+            ));
+        } else {
+            message.push_str(&format!(
+                "Is the extension loaded in that profile? (chrome://extensions, Developer mode, Load unpacked: extension/dist). {}",
+                self.next_step(profile)
+            ));
+        }
+        Err(message)
     }
 
     /// With no profile bound and a default profile in the settings that
@@ -368,11 +482,20 @@ impl Server {
 
         let b = bound.as_mut().expect("bound above");
         if !b.conn.is_alive() {
-            let hosts = self.hosts().await;
-            let Some(h) = Self::host_for(&hosts, &b.profile.dir) else {
+            // Chrome restarts the extension's worker now and then and the
+            // host's socket goes for a moment: wait for the same profile,
+            // never another one (plans/13-chrome-parity.md, decision 2).
+            let dir = b.profile.dir.clone();
+            let found = wait_for(RECONNECT_WAIT, RECONNECT_POLL, || async {
+                let hosts = self.hosts().await;
+                Self::host_for(&hosts, &dir).cloned()
+            })
+            .await;
+            let Some(h) = found else {
                 return Err(format!(
-                    "not_connected: the profile \"{}\" is no longer connected. Call select_profile again.",
-                    b.profile.name
+                    "not_connected: the profile \"{}\" is no longer connected (waited {} s for it to come back). Call select_profile again.",
+                    b.profile.name,
+                    RECONNECT_WAIT.as_secs()
                 ));
             };
             b.conn = HostConn::connect(&h.path)
@@ -478,13 +601,26 @@ impl Server {
         let list: Vec<Value> = profiles
             .iter()
             .map(|p| {
-                json!({
+                let answering = hosts
+                    .iter()
+                    .filter(|h| h.hello.profile_dir.as_deref() == Some(p.dir.as_str()))
+                    .count();
+                let mut v = json!({
                     "dir": p.dir,
                     "name": p.name,
                     "lastUsed": p.last_used,
-                    "connected": Self::host_for(&hosts, &p.dir).is_some(),
+                    "connected": answering > 0,
                     "selected": selected.as_deref() == Some(p.dir.as_str()),
-                })
+                });
+                if answering == 0 {
+                    v["nextStep"] = json!(self.next_step(p));
+                }
+                if answering > 1 {
+                    v["warning"] = json!(
+                        "Two browser-hand extensions answer for this profile (the store build and the unpacked one): ask the person to turn one off in chrome://extensions."
+                    );
+                }
+                v
             })
             .collect();
         let unclaimed = hosts

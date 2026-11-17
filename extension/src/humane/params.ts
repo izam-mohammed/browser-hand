@@ -55,7 +55,9 @@ export const PARAMS = {
 
 /** The shape of `PARAMS`, with numbers free to change (`scaledParams`). */
 export type Params = {
-  readonly [K in keyof typeof PARAMS]: (typeof PARAMS)[K] extends number ? number : readonly [number, number];
+  readonly [K in keyof typeof PARAMS]: (typeof PARAMS)[K] extends number
+    ? number
+    : readonly [number, number];
 };
 
 /** `PARAMS` with the settings' speeds (plans/06-settings.md): `typing`
