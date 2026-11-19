@@ -8,5 +8,5 @@ publish = false
 [workspace]
 
 [dependencies]
-toml = "=1.1.8"
+toml = "=1.2.1"
 serde = { version = "1", features = ["derive"] }
