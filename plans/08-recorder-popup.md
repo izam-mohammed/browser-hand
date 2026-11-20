@@ -428,6 +428,13 @@ repository instructions for recording useful development findings.
   no popup), click again and open the new recording. Say whether the popup
   and the steps read right. What you want changed goes into the phases
   below.
+  Landed 2026-11-20 (headless, Chrome for Testing 157 on Linux, throwaway
+  profile; left open): ran the popup opening with nothing recording, Start,
+  a short task, the stop click, and the new recording opened (see Phase 5's
+  note for what was seen). Not run: a real toolbar click (the click was
+  `chrome.action.onClicked.dispatch`, and the popup came from
+  `chrome.action.openPopup()`), and "say whether the popup and the steps
+  read right", which is a person's call; nobody judged it.
 
 ### Phase 3: the rest of the flow
 
@@ -493,6 +500,27 @@ repository instructions for recording useful development findings.
   shows `<masked>`), delete one, open Settings from the popup, and start
   and stop with `Alt+Shift+R`; a `## Verified` section in this plan records
   the date and what was seen.
+  Landed 2026-11-20 (headless, left open): ran
+  `.claude/skills/test-extension-linux/scripts/walk-popup.mjs` on Chrome for
+  Testing 157, throwaway profile, 25 checks, `POPUP WALK PASS`. Saw: the
+  popup (real popup view from `chrome.action.openPopup()`) with no
+  recordings shows "No recordings yet", focus on Start, nothing recording;
+  Start began a recording of the window and the popup closed itself; the
+  toolbar popup was `""` while recording; a task across a second tab (typed
+  user name, typed password, click, new tab, typed, click) left 9 steps;
+  `chrome.action.onClicked.dispatch` stopped it and the popup came back;
+  the row read "shop / Today 18:58 . 9 steps" and the steps view read
+  `change aria/pw[role="textbox"] <masked>`, the password text appearing
+  nowhere in the steps nor in `chrome.storage.local`; Delete asked in place,
+  "Delete for good" emptied the list and storage; Settings opened
+  `options.html` and the popup closed; `chrome.commands.onCommand` with
+  `toggle-recording` started and stopped a recording. Not run, so the box
+  stays open: a real toolbar click and a real `Alt+Shift+R` keystroke (both
+  simulated events; headless reports the command's shortcut as empty, though
+  the manifest suggests `Alt+Shift+R`), and nobody looked at how the popup
+  reads. Finding, not a bug: a popup opened as a tab (`Target.createTarget`)
+  gets "service worker did not answer", because `fromPopup` refuses a sender
+  with a `tab`; use `chrome.action.openPopup()` headless.
 - [ ] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
 
