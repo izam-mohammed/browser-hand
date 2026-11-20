@@ -198,9 +198,11 @@ repository instructions for recording useful development findings.
   pitch in the README's voice, the main button per decision 3, a short
   "what it does" row (profiles, reads pages, moves like a hand, records
   your steps) and a footer, in one self-contained file with no script.
-- [ ] Check: the project's check command from `docs/standards.md` passes,
+- [x] Check: the project's check command from `docs/standards.md` passes,
   and a headless-Chrome screenshot of `site/index.html` (KNOWLEDGE.md's
   recipe) shows the whole page on one screen at 1280 px wide.
+  Landed 2026-11-20: `make check` exits 0; a headless Chrome for Testing shot at
+  1280x800, dark and light, shows the whole page on one screen.
 - [ ] You try it: open `site/index.html` in Chrome and say whether the pitch,
   the art and the button are what you want a stranger to see. What you
   want changed goes into the phases below.
@@ -214,8 +216,10 @@ repository instructions for recording useful development findings.
   an allow-list, a link into the private repository or a local path, and
   runs inside the project's check command; `docs/standards.md` gains its
   row.
-- [ ] Check: the project's check command passes, and screenshots in dark
+- [x] Check: the project's check command passes, and screenshots in dark
   and light at 1280 px and 390 px show no overlap or scroll.
+  Landed 2026-11-20: `make check` exits 0; headless shots at 1280 and 390 px wide,
+  dark and light, show no overlap and no horizontal scroll.
 
 ### Phase 3: the README points at it
 
@@ -226,8 +230,9 @@ repository instructions for recording useful development findings.
 
 ### Phase 4: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to date)
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+  Landed 2026-11-20: opened as PR #32 (https://github.com/izam-mohammed/browser-hand/pull/32), since merged.
