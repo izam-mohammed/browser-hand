@@ -195,10 +195,11 @@ const siteRules = new SiteRuleSync({
       .filter((id): id is number => id !== undefined);
   },
   blocked: () => hub.settings.sites.blocked,
+  allowed: () => hub.settings.sites.allowed,
 });
 
 hub.onChange((s) => {
-  sites = new SiteRules(s.sites.blocked, s.sites.read_only);
+  sites = new SiteRules(s.sites.blocked, s.sites.read_only, s.sites.allowed);
   params = scaledParams(s.input.typing_speed, s.input.mouse_speed);
   for (const input of inputs.values()) input.setParams(params);
   shot = shotPrefs(s.capture.screenshot_size, s.capture.screenshot_quality);

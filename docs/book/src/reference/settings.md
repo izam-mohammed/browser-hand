@@ -26,6 +26,7 @@ The settings page writes these keys to `~/.config/browser-hand/config.toml` (`$X
 | --- | --- | --- | --- | --- |
 | `blocked` | Blocked sites | array of string | `[]` | Sites Claude never opens or acts on, as `host/path` patterns. |
 | `read_only` | Read-only sites | array of string | `[]` | Sites Claude may read and screenshot but not click, type in or script. |
+| `allowed` | Allowed sites | array of string | `[]` | When not empty, the only sites Claude may open or act on; `blocked` still wins over it. |
 
 ## `[capture]`
 

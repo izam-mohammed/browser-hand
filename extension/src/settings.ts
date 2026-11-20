@@ -23,7 +23,7 @@ export const DEFAULTS: Settings = {
   version: 1,
   input: { pace: "human", typing_speed: 1.0, mouse_speed: 1.0 },
   sessions: { default_profile: "", new_window: true, close_tabs_on_end: false },
-  sites: { blocked: [], read_only: [] },
+  sites: { blocked: [], read_only: [], allowed: [] },
   capture: {
     screenshot_size: "1280x800",
     screenshot_quality: 80,

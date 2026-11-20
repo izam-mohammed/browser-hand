@@ -179,7 +179,83 @@ describe("the gate per tool", () => {
   });
 });
 
+describe("the allow list", () => {
+  const rules = new SiteRules(
+    ["ads.docs.google.com/*"],
+    ["mail.google.com/*"],
+    ["*.google.com/*", "example.org/*"],
+  );
+  const go = (url: string, use: "read" | "act" = "act") => {
+    try {
+      gate(rules, url, use);
+      return "ok";
+    } catch (e) {
+      return (e as { message: string }).message;
+    }
+  };
+
+  it("lets listed sites through and refuses every other web page, in words that say why", () => {
+    expect(go("https://docs.google.com/d/1")).toBe("ok");
+    expect(go("https://example.org/a")).toBe("ok");
+    expect(go("https://news.example.com/")).toBe(
+      "news.example.com is not on the allowed sites list in browser-hand settings; ask the person.",
+    );
+    expect(rules.why("https://news.example.com/")).toBe("unlisted");
+  });
+
+  it("blocked wins over allowed, and read-only still applies to a listed site", () => {
+    expect(go("https://ads.docs.google.com/x")).toMatch(/is blocked in browser-hand settings/);
+    expect(rules.why("https://ads.docs.google.com/x")).toBe("listed");
+    expect(go("https://mail.google.com/", "read")).toBe("ok");
+    expect(go("https://mail.google.com/", "act")).toMatch(/read-only/);
+  });
+
+  it("does not judge pages that are not sites, and an empty list restricts nothing", () => {
+    for (const url of [
+      "about:blank",
+      "chrome://newtab/",
+      "chrome-extension://abc/claim.html",
+      undefined,
+    ])
+      expect(rules.access(url as string), String(url)).toBe("open");
+    expect(new SiteRules([], [], []).access("https://anything.test/")).toBe("open");
+  });
+
+  it("a list with no valid pattern blocks every web page, not none", () => {
+    expect(new SiteRules([], [], ["not a pattern"]).access("https://a.test/")).toBe("blocked");
+  });
+});
+
 describe("DNR session rules", () => {
+  it("with an allow list: block every web URL, allow each pattern, blocked on top", () => {
+    const rules = sessionRules(
+      ["ads.docs.google.com/*"],
+      [4, 2],
+      ["*.google.com/*", "bad pattern", "example.org/*"],
+    );
+    expect(rules.map((r) => [r.id, r.priority, r.action.type])).toEqual([
+      [1, 1, "block"],
+      [2, 2, "allow"],
+      [3, 2, "allow"],
+      [4, 3, "block"],
+    ]);
+    expect(rules[0]?.condition.regexFilter).toBe("^(?:https?|wss?)://");
+    expect(rules[1]?.condition.regexFilter).toBe(dnrRegex("*.google.com/*"));
+    expect(rules.every((r) => r.condition.tabIds.join() === "2,4")).toBe(true);
+    // The rules match real URLs the way the gate does.
+    const allows = new RegExp(rules[1]?.condition.regexFilter ?? "");
+    expect(allows.test("https://docs.google.com/d/1?x=1")).toBe(true);
+    expect(allows.test("https://evil.test/https://docs.google.com/")).toBe(false);
+    expect(
+      new RegExp(rules[0]?.condition.regexFilter ?? "").test("chrome-extension://abc/claim.html"),
+    ).toBe(false);
+  });
+
+  it("without an allow list the rules are the old ones", () => {
+    const rules = sessionRules(["*.bank.com/*"], [1]);
+    expect(rules.map((r) => [r.id, r.priority, r.action.type])).toEqual([[1, 1, "block"]]);
+  });
+
   it("one rule per blocked pattern, main_frame and sub_frame, for the group tabs only", () => {
     const rules = sessionRules(["*.bank.com/*", "not a pattern", "hr.example.com/*"], [7, 3]);
     expect(rules).toHaveLength(2);

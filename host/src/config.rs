@@ -81,6 +81,9 @@ pub struct SiteSettings {
     pub blocked: Vec<String>,
     /// Sites Claude may read and screenshot but not click, type in or script.
     pub read_only: Vec<String>,
+    /// When not empty, the only sites Claude may open or act on; `blocked`
+    /// still wins over it.
+    pub allowed: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
@@ -294,6 +297,7 @@ pub fn problems(s: &Settings) -> Vec<Problem> {
     }
     out.extend(list_problem("sites.blocked", &s.sites.blocked));
     out.extend(list_problem("sites.read_only", &s.sites.read_only));
+    out.extend(list_problem("sites.allowed", &s.sites.allowed));
     if !SCREENSHOT_SIZES.contains(&s.capture.screenshot_size.as_str()) {
         out.push(problem(
             "capture.screenshot_size",
@@ -341,6 +345,7 @@ fn reset(s: &mut Settings, field: &str) {
         "sessions.default_profile" => s.sessions.default_profile = d.sessions.default_profile,
         "sites.blocked" => keep(&mut s.sites.blocked),
         "sites.read_only" => keep(&mut s.sites.read_only),
+        "sites.allowed" => keep(&mut s.sites.allowed),
         "capture.screenshot_size" => s.capture.screenshot_size = d.capture.screenshot_size,
         "capture.screenshot_quality" => s.capture.screenshot_quality = d.capture.screenshot_quality,
         "capture.gif_folder" => s.capture.gif_folder = d.capture.gif_folder,
@@ -429,6 +434,7 @@ pub fn parse(text: &str) -> Result<(Settings, Vec<String>), String> {
     );
     take(&table, "sites", "blocked", &mut s.sites.blocked, &mut w);
     take(&table, "sites", "read_only", &mut s.sites.read_only, &mut w);
+    take(&table, "sites", "allowed", &mut s.sites.allowed, &mut w);
     take(
         &table,
         "capture",

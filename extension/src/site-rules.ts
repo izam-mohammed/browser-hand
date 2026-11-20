@@ -10,7 +10,7 @@ import { dnrRegex, isPattern } from "./sites";
 export interface Rule {
   id: number;
   priority: number;
-  action: { type: "block" };
+  action: { type: "block" | "allow" };
   condition: {
     regexFilter: string;
     resourceTypes: ("main_frame" | "sub_frame")[];
@@ -27,22 +27,46 @@ export interface SiteRulesDeps {
   groupTabs(): Promise<number[]>;
   /** The blocked patterns now. */
   blocked(): readonly string[];
+  /** The allowed patterns now; none means no restriction. */
+  allowed?(): readonly string[];
 }
 
-/** One rule per pattern, for these tabs; none when there are no tabs (an
- * empty `tabIds` is not allowed). */
-export function sessionRules(blocked: readonly string[], tabIds: readonly number[]): Rule[] {
+/** Every web URL, for the rule that blocks what no allow rule lets through. */
+const ANY_WEB = "^(?:https?|wss?)://";
+
+/** One rule per blocked pattern, for these tabs; none when there are no
+ * tabs (an empty `tabIds` is not allowed). With an allow list: a rule at
+ * priority 1 that blocks every web URL, one `allow` rule per allowed
+ * pattern at 2, and the blocked patterns at 3, so blocked wins over
+ * allowed (Chrome picks the highest priority). */
+export function sessionRules(
+  blocked: readonly string[],
+  tabIds: readonly number[],
+  allowed: readonly string[] = [],
+): Rule[] {
   if (tabIds.length === 0) return [];
-  return blocked.filter(isPattern).map((p, i) => ({
-    id: i + 1,
-    priority: 1,
-    action: { type: "block" },
-    condition: {
-      regexFilter: dnrRegex(p),
-      resourceTypes: ["main_frame", "sub_frame"],
-      tabIds: [...tabIds].sort((a, b) => a - b),
-    },
-  }));
+  const tabs = [...tabIds].sort((a, b) => a - b);
+  const rule = (
+    id: number,
+    priority: number,
+    type: "block" | "allow",
+    regexFilter: string,
+  ): Rule => ({
+    id,
+    priority,
+    action: { type },
+    condition: { regexFilter, resourceTypes: ["main_frame", "sub_frame"], tabIds: tabs },
+  });
+  const allows = allowed.filter(isPattern);
+  const blocks = blocked.filter(isPattern);
+  const rules: Rule[] = [];
+  if (allowed.length > 0) {
+    rules.push(rule(rules.length + 1, 1, "block", ANY_WEB));
+    for (const p of allows) rules.push(rule(rules.length + 1, 2, "allow", dnrRegex(p)));
+  }
+  const top = allowed.length > 0 ? 3 : 1;
+  for (const p of blocks) rules.push(rule(rules.length + 1, top, "block", dnrRegex(p)));
+  return rules;
 }
 
 /** Keeps the session rules in step with the settings and the groups. */
@@ -59,7 +83,11 @@ export class SiteRuleSync {
     this.chain = this.chain
       .then(async () => {
         this.queued = false;
-        const rules = sessionRules(this.d.blocked(), await this.d.groupTabs());
+        const rules = sessionRules(
+          this.d.blocked(),
+          await this.d.groupTabs(),
+          this.d.allowed?.() ?? [],
+        );
         const old = (await this.d.dnr.getSessionRules()).map((r) => r.id);
         await this.d.dnr.updateSessionRules({ removeRuleIds: old, addRules: rules });
       })

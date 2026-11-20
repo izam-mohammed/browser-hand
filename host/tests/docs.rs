@@ -179,6 +179,7 @@ const LABELS: &[(&str, &str)] = &[
     ),
     ("sites.blocked", "Blocked sites"),
     ("sites.read_only", "Read-only sites"),
+    ("sites.allowed", "Allowed sites"),
     ("capture.screenshot_size", "Screenshot size"),
     ("capture.screenshot_quality", "Screenshot quality"),
     ("capture.gif_folder", "GIF folder"),

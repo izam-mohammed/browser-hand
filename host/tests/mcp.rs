@@ -1306,6 +1306,34 @@ mod more {
     }
 
     #[tokio::test]
+    async fn the_command_line_replay_echoes_each_step_and_stops_at_a_masked_one_like_claudes() {
+        let (_s, server) = connected().await;
+        server.echo_steps(true);
+        let r = server
+            .recording_replay(Parameters(replay(2, &[("4", "dogs")])))
+            .await
+            .unwrap();
+        assert!(is_error(&r), "{}", all_text(&r));
+        // The header, steps 2 to 8 and the stop block, as the answer holds them.
+        let said = all_text(&r).lines().filter(|l| !l.is_empty()).count();
+        assert!(server.echoed() >= 9, "echoed {}", server.echoed());
+        assert!(
+            said >= server.echoed(),
+            "{said} lines for {} blocks",
+            server.echoed()
+        );
+        assert!(all_text(&r).contains("Stopped at step 9:") && all_text(&r).contains("masked"));
+
+        // Off, nothing is echoed.
+        let (_s2, quiet) = connected().await;
+        quiet
+            .recording_replay(Parameters(replay(2, &[])))
+            .await
+            .unwrap();
+        assert_eq!(quiet.echoed(), 0);
+    }
+
+    #[tokio::test]
     async fn replay_stops_at_an_unresolved_step_with_the_selectors_and_a_screenshot() {
         let (_s, server) = connected().await;
         let r = server

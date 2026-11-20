@@ -367,21 +367,24 @@ phase. New verified findings go to the file `kn path` prints.
   the call).
 - [x] 1000 appends timed and the figure written under Decision 3's
   evidence.
-- [ ] Check: `make check` passes, and a call with logging on adds one line
+- [x] Check: `make check` passes, and a call with logging on adds one line
   that `jq .` reads.
 
 ### Phase 3: the allow list
 
-- [ ] `sites.allowed` (fixed in `host/src/config.rs`) read by `SiteRules` and
+- [x] `sites.allowed` (fixed in `host/src/config.rs`) read by `SiteRules` and
   `sessionRules` (expected in `extension/src/sites.ts`,
   `extension/src/site-rules.ts`), with `blocked` over `allowed`, pinned by
   vitest and a host test of the parser and its problems.
 - [ ] Check: `make check` passes, and `sh scripts/prove/site-rules.sh` style
   proof shows a link to an unlisted site stopped and a listed one open.
+  Landed 2026-11-20: `make check` passes (coverage lines 90.05 %); the live
+  proof is `scripts/prove/allow-list.sh` in Phase 6, so this box stays open.
+  `chrome://`, `about:` and other non-web pages are not judged (Edge cases).
 
 ### Phase 4: replay without Claude
 
-- [ ] `browser-hand recordings` and `browser-hand replay` (expected in
+- [x] `browser-hand recordings` and `browser-hand replay` (expected in
   `host/src/replay_cli.rs`, `host/src/main.rs`) that reuse
   `do_select_profile` and `do_recording_replay` and print each step, pinned
   by a host test against the fake extension and by `main.rs`'s usage text.

@@ -138,6 +138,11 @@ blocked: Array<string>,
 /**
  * Sites Claude may read and screenshot but not click, type in or script.
  */
-read_only: Array<string>, };
+read_only: Array<string>, 
+/**
+ * When not empty, the only sites Claude may open or act on; `blocked`
+ * still wins over it.
+ */
+allowed: Array<string>, };
 
 export type WireError = { code: ErrorCode, message: string, };
