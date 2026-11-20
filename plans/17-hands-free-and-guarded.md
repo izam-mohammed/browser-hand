@@ -357,6 +357,9 @@ phase. New verified findings go to the file `kn path` prints.
 - [ ] You try it: set `save_screenshots = true` in `config.toml`, ask Claude
   to open a slow page and `wait_for` a word, then look in the folder for the
   screenshot, and say whether the wait and the save feel right.
+  Headless 2026-11-20 (Claude, not a person, so the box stays open): on CfT
+  158 `wait_for` returned in 2,047 ms on a page that shows its text after 2 s,
+  and with `save_screenshots` on one screenshot landed in the set folder.
 
 ### Phase 2: the audit log
 
@@ -395,6 +398,10 @@ phase. New verified findings go to the file `kn path` prints.
 - [ ] You try it: record two steps from the popup, run `browser-hand replay`
   on them with Claude closed, and say whether it moves like the Claude
   replay.
+  Headless 2026-11-20 (Claude, not a person, so the box stays open): the
+  recorder was started with its toggle command, trusted CDP input clicked
+  and typed, and `browser-hand replay` replayed the 7 steps it made, found by
+  ARIA name, exit 0. How it feels to you is still unseen.
 
 ### Phase 5: the settings page
 

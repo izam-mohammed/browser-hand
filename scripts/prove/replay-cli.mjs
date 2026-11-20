@@ -58,5 +58,65 @@ await run({}, async (h) => {
 
   r = await cli("replay", "rec_proof", "--profile", "Proof", "--from", "99");
   check(r.status === 1 && /from must be 1 to 3/.test(r.stdout + r.stderr), `a bad --from stops it with status 1: ${(r.stdout + r.stderr).trim().slice(0, 100)}`);
+
+  // A recording made the way a person makes one: the recorder started with
+  // its toggle command, trusted input over DevTools, then stopped.
+  await h.openTab(`${h.web}/form`);
+  await h.sleep(1500);
+  const target = (await (await fetch(`http://127.0.0.1:${h.env.BH_PORT}/json/list`)).json()).find(
+    (x) => x.type === "page" && x.url.includes("/form"),
+  );
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((r) => (ws.onopen = r));
+  let seq = 0;
+  const waiting = new Map();
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    waiting.get(m.id)?.(m);
+  };
+  const send = (method, params = {}) =>
+    new Promise((res) => {
+      const i = ++seq;
+      waiting.set(i, res);
+      ws.send(JSON.stringify({ id: i, method, params }));
+    });
+  const toggle = () =>
+    h.workerEval(
+      "chrome.tabs.query({ url: '*://localhost/*' }).then(async (tabs) => { await chrome.commands.onCommand.dispatch('toggle-recording', tabs[0]); return true; })",
+    );
+  const centre = async (sel) =>
+    JSON.parse(
+      (
+        await send("Runtime.evaluate", {
+          expression: `(()=>{const r=document.querySelector('${sel}').getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`,
+          returnByValue: true,
+        })
+      ).result.result.value,
+    );
+  const click = async (sel) => {
+    const p = await centre(sel);
+    for (const type of ["mouseMoved", "mousePressed", "mouseReleased"])
+      await send("Input.dispatchMouseEvent", { type, x: p.x, y: p.y, button: "left", clickCount: 1 });
+    await h.sleep(300);
+  };
+  await toggle();
+  await h.sleep(800);
+  await click("#go");
+  await click("#name");
+  await send("Input.insertText", { text: "alice" });
+  for (const type of ["keyDown", "keyUp"])
+    await send("Input.dispatchKeyEvent", { type, key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
+  await h.sleep(800);
+  await toggle();
+  await h.sleep(800);
+  ws.close();
+
+  r = await cli("recordings", "--profile", "Proof");
+  const made = r.stdout.split("\n").find((l) => /^rec_\w+/.test(l) && !l.startsWith("rec_proof"));
+  check(!!made, `the recorder made a recording: ${made}`);
+  const madeId = made.split(/\s+/)[0];
+  r = await cli("replay", madeId, "--profile", "Proof");
+  check(r.status === 0 && /Replayed steps 1 to \d+\./.test(r.stdout), `a recording made by hand replays: ${r.stdout.split("\n").slice(-2)[0]}`);
+  check(/\[person\] click aria\/Go/.test(r.stdout) && /change aria\/Name.*"alice"/.test(r.stdout), "its steps are the person's click and typing, found by ARIA name");
   console.log("PASS: browser-hand replay ran a recording with no model, printed each step and left the page as recorded");
 });
