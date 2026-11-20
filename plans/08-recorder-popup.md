@@ -493,8 +493,10 @@ repository instructions for recording useful development findings.
   shows `<masked>`), delete one, open Settings from the popup, and start
   and stop with `Alt+Shift+R`; a `## Verified` section in this plan records
   the date and what was seen.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Landed 2026-11-20: 300 extension tests and every host test pass, and
+  `sh scripts/build.sh` exits 0 with `BROWSER_HAND_CHROME_DIR` on a temp dir.
 
 ### Phase 6: open the PR
 
