@@ -92,3 +92,10 @@ and a TypeScript extension, with the tools Claude in Chrome has
 - [ ] `plans/16-windows.md` - the host installs through the registry, talks
   over named pipes and launches Chrome, Edge, Brave, Chromium and Vivaldi on
   Windows, the one parity gap left from plan 14.
+
+### Phase 17: hands-free and guarded
+
+- [ ] `plans/17-hands-free-and-guarded.md` - a recording replays without
+  Claude, sites can be allow-listed, every call can be logged, screenshots
+  can save to a folder of the person's choice, and `wait_for` replaces
+  guessed waits.
