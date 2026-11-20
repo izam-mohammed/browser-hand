@@ -26,6 +26,11 @@ before acting. This skill is the short path; those hold the evidence.
    - plan 15 identity: `sh scripts/prove/browser-identity.sh`
    - others: `scripts/prove/*.sh`; the table in `docs/testing.md` says which run headless.
    - unit gates: `npm --prefix extension test`, `cargo test --manifest-path host/Cargo.toml`, `make check`.
+3b. The whole tool walk in one go (select_profile, navigate, read, fill, click, drag, screenshot,
+   token hidden in the network read, big read, refused `.env` upload, worker stop mid-session):
+   `sh .claude/skills/test-extension-linux/scripts/walk.sh` prints `WALK PASS`. Known quirk it prints:
+   after the worker restarts, a tab it had attached to says `debugger_refused: Another debugger is already
+   attached`; a new tab works.
 4. Ad hoc poking: `sh scripts/prove/cft.sh start <tmp udd> <port> extension/dist`, then
    `node .claude/skills/test-extension-linux/scripts/cdp.mjs <port> eval ednpkicgdjiiihmophoifehfeeoabjdc/background '<js>'`,
    `... open chrome-extension://<id>/popup.html`, `... shot popup.html /tmp/popup.png`.
