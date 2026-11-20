@@ -405,6 +405,10 @@ phase. New verified findings go to the file `kn path` prints.
   regenerates through `UPDATE_DOCS=1`.
 - [ ] `plugin/skills/browser-hand/SKILL.md` and `host/src/instructions.md`
   tell Claude to use `wait_for` instead of long `wait`s.
+  Landed 2026-11-20 for `wait_for` and `save_screenshots`: the skill's
+  description now also matches "Claude in Chrome", a section maps the two
+  tool sets, and `instructions.md` is trimmed to stay under 4,096 characters
+  (4,077 now). The allow list, audit log and `replay` still need their words.
 - [ ] One headless proof each (expected in `scripts/prove/`) for `wait_for`,
   the allow list, the audit log and `replay`, each printing `PASS`, listed
   in `docs/testing.md`.
