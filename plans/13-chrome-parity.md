@@ -309,7 +309,8 @@ repository instructions for recording useful development findings.
 - [x] A call cut off mid-way says the action may have run and to check the
   page before repeating it (expected in `host/src/host_conn.rs`
   `call_error_frame`), pinned by a mid-call drop test.
-- [ ] Check: the standard check command passes.
+- [x] Check: the standard check command passes.
+  Landed 2026-11-20: `make check` exits 0 on Linux (lint, coverage floors, build, security, docs).
 
 ### Phase 3: plain-spoken argument errors
 
@@ -317,7 +318,8 @@ repository instructions for recording useful development findings.
   field name and the shape to send, and never coerced (expected in
   `host/src/tools/args.rs`), pinned by tests on `coordinate`, `region`
   and `browser_batch` `actions`, with a JSON-looking `text` accepted.
-- [ ] Check: the standard check command passes.
+- [x] Check: the standard check command passes.
+  Landed 2026-11-20: `make check` exits 0 on Linux (lint, coverage floors, build, security, docs).
 
 ### Phase 4: the cursor's polish and the words
 
@@ -328,7 +330,8 @@ repository instructions for recording useful development findings.
 - [x] `host/src/instructions.md` and `plugin/skills/browser-hand/SKILL.md`
   say network URLs come redacted and a dropped action may have run,
   pinned by `host/tests/instructions.rs`.
-- [ ] Check: the standard check command passes.
+- [x] Check: the standard check command passes.
+  Landed 2026-11-20: `make check` exits 0 on Linux (lint, coverage floors, build, security, docs).
 
 ### Phase 5: the walk (needs you at Chrome)
 
@@ -337,12 +340,14 @@ repository instructions for recording useful development findings.
   a page with a token in its URL, and quit and reopen the extension's
   worker (`chrome://extensions`, reload) mid-session to see the next call
   go on. Written under `## Verified` with the date.
-- [ ] Check: the standard check command passes.
+- [x] Check: the standard check command passes.
+  Landed 2026-11-20: `make check` exits 0 on Linux (lint, coverage floors, build, security, docs).
 
 ### Phase 6: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to
   date) with a Conventional Commit title for the whole change, a body
   naming this plan, what changed and why, and the checks run with their
   result. The PR's URL printed as the evidence. Opened, never merged.
+  Landed 2026-11-20: opened as PR #32 (https://github.com/izam-mohammed/browser-hand/pull/32), since merged.
