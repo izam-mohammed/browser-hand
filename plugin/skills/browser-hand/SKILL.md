@@ -120,10 +120,14 @@ window or closes its tabs, blocked and read-only sites, screenshot size and
 quality, the GIF folder and delay, and whether every screenshot is also
 saved to a folder (`save_screenshots`, off by default).
 
-- A tool answering `blocked` means the person blocked that site, or made it
-  read-only (you may read it and take screenshots, but not click, type,
-  fill forms or run scripts). Tell them and ask; never look for a way
-  around it.
+- A tool answering `blocked` means the person blocked that site, left it off
+  their allowed list (when that list has anything in it, only those sites
+  are open), or made it read-only (you may read it and take screenshots,
+  but not click, type, fill forms or run scripts). Tell them and ask; never
+  look for a way around it.
+- The person can also turn on an audit log of what you do (the tool, tab,
+  result and time, never what you typed or read). It needs nothing from
+  you; never read or edit it to learn what you did.
 - Never edit `config.toml` yourself, with Bash or otherwise, even when
   asked to change a setting: point the person at the settings page.
 
@@ -210,3 +214,6 @@ button again.
   who wants to open it in DevTools' Recorder panel.
 - `recording_delete` removes one when the user asks; the profile keeps the
   newest 20 anyway.
+- The user can also replay a recording themselves, with no Claude:
+  `browser-hand replay <id> --profile <name>` (and `browser-hand recordings`
+  to list). Mention it when they want a repeat run that needs no judgment.

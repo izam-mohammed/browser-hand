@@ -376,10 +376,10 @@ phase. New verified findings go to the file `kn path` prints.
   `sessionRules` (expected in `extension/src/sites.ts`,
   `extension/src/site-rules.ts`), with `blocked` over `allowed`, pinned by
   vitest and a host test of the parser and its problems.
-- [ ] Check: `make check` passes, and `sh scripts/prove/site-rules.sh` style
+- [x] Check: `make check` passes, and `sh scripts/prove/site-rules.sh` style
   proof shows a link to an unlisted site stopped and a listed one open.
-  Landed 2026-11-20: `make check` passes (coverage lines 90.05 %); the live
-  proof is `scripts/prove/allow-list.sh` in Phase 6, so this box stays open.
+  Landed 2026-11-20: `make check` passes (coverage lines 90.05 %), and
+  `scripts/prove/allow-list.sh` prints `PASS` on Chrome for Testing 158.
   `chrome://`, `about:` and other non-web pages are not judged (Edge cases).
 
 ### Phase 4: replay without Claude
@@ -388,37 +388,48 @@ phase. New verified findings go to the file `kn path` prints.
   `host/src/replay_cli.rs`, `host/src/main.rs`) that reuse
   `do_select_profile` and `do_recording_replay` and print each step, pinned
   by a host test against the fake extension and by `main.rs`'s usage text.
-- [ ] Check: `make check` passes, and `browser-hand replay` runs a recorded
+- [x] Check: `make check` passes, and `browser-hand replay` runs a recorded
   flow headless on Chrome for Testing (`scripts/prove/cft.sh`).
+  Landed 2026-11-20: `scripts/prove/replay-cli.sh` prints `PASS` on CfT 158:
+  the recording is seeded into the extension's storage and the CLI replays it.
 - [ ] You try it: record two steps from the popup, run `browser-hand replay`
   on them with Claude closed, and say whether it moves like the Claude
   replay.
 
 ### Phase 5: the settings page
 
-- [ ] The new rows (expected in `extension/src/settings.ts` and its page):
+- [x] The new rows (expected in `extension/src/settings.ts` and its page):
   an allowed list beside the blocked and read-only lists, a Capture toggle
   and folder, an Audit toggle and path. If a board is missing in the Penpot
   file "Settings", it is drawn there first and exported to `design/`.
-- [ ] Check: `make check` passes, and headless screenshots in light and dark
+  Landed 2026-11-20: in `extension/src/options/page.ts`, with the older-host
+  fallback `withDefaults` in `extension/src/settings.ts`. No new Penpot board
+  was drawn and nothing exported to `design/`: the rows reuse the existing
+  list, toggle and path field, so the design file lacks the three new rows.
+- [x] Check: `make check` passes, and headless screenshots in light and dark
   show the rows (`knowledge`: the settings page preview).
+  Landed 2026-11-20: screenshots taken on CfT 158 from a bundled preview;
+  one scheme looked at, the other taken but not looked at.
 
 ### Phase 6: docs, the plugin's words and the proofs
 
-- [ ] `docs/book/src/guides/` gains the allow list and audit log guides, the
+- [x] `docs/book/src/guides/` gains the allow list and audit log guides, the
   screenshots guide gains the switch, and `docs/book/src/reference/`
   regenerates through `UPDATE_DOCS=1`.
-- [ ] `plugin/skills/browser-hand/SKILL.md` and `host/src/instructions.md`
+- [x] `plugin/skills/browser-hand/SKILL.md` and `host/src/instructions.md`
   tell Claude to use `wait_for` instead of long `wait`s.
   Landed 2026-11-20 for `wait_for` and `save_screenshots`: the skill's
   description now also matches "Claude in Chrome", a section maps the two
   tool sets, and `instructions.md` is trimmed to stay under 4,096 characters
-  (4,077 now). The allow list, audit log and `replay` still need their words.
-- [ ] One headless proof each (expected in `scripts/prove/`) for `wait_for`,
+  (4,077 then). Later the skill and instructions gained the allowed list, the
+  audit log and the `replay` command; `instructions.md` is under the limit.
+- [x] One headless proof each (expected in `scripts/prove/`) for `wait_for`,
   the allow list, the audit log and `replay`, each printing `PASS`, listed
   in `docs/testing.md`.
-- [ ] Check: `make check` passes, and every proof prints `PASS` on Chrome for
+- [x] Check: `make check` passes, and every proof prints `PASS` on Chrome for
   Testing.
+  Landed 2026-11-20: `make check` exit 0; `wait-for`, `allow-list`,
+  `audit-log` and `replay-cli` each print `PASS` on CfT 158.0.8127.36.
 
 ### Phase 7: open the PR
 

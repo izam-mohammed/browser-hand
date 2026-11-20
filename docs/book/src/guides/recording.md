@@ -54,3 +54,18 @@ page has changed a lot, reading it and acting beats replaying.
 
 `recording_delete` removes one. See the [tools](../reference/tools.md) page
 for every input.
+
+## replay from a terminal, without Claude
+
+```sh
+browser-hand recordings --profile Work
+browser-hand replay rec_7 --profile Work --value 4="new search"
+```
+
+`recordings` lists them. `replay` runs one in a new tab of that profile with
+no Claude involved, printing each step as it runs. It moves at your pace
+setting, obeys your blocked, read-only and allowed sites, and stops at the
+first step it cannot do, exiting with status 1; `--from <step>` resumes. A
+masked value (a password) needs `--value <step>=<text>`. With no id it
+replays the newest. The [commands](../reference/commands.md) page lists the
+flags.

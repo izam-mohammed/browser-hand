@@ -96,6 +96,21 @@ describe("the settings in the worker", () => {
     expect(h.accept(pagePort({ id: ID, url: OPTIONS }).port)).toBe(true);
   });
 
+  it("fills the keys an older host does not send from the defaults", () => {
+    const { h } = hub();
+    const old = structuredClone(DEFAULTS) as unknown as Record<string, Record<string, unknown>>;
+    delete old.audit;
+    delete old.sites?.allowed;
+    delete old.capture?.save_screenshots;
+    delete old.capture?.screenshot_folder;
+    h.portOpened();
+    h.onFrame(frame(old as unknown as Settings));
+    expect(h.settings.audit).toEqual({ enabled: false, file: "" });
+    expect(h.settings.sites.allowed).toEqual([]);
+    expect(h.settings.capture.save_screenshots).toBe(false);
+    expect(h.state().settings).toEqual(DEFAULTS);
+  });
+
   it("is the defaults until the host speaks, then the host's, kept in settings:last", async () => {
     const { h, local } = hub();
     const seen: Settings[] = [];
@@ -269,6 +284,7 @@ describe("the settings page", () => {
       "Sessions",
       "Site access",
       "Capture",
+      "Audit log",
       "Debugger",
     ]);
     expect(p.$("pill").textContent).toBe("Connected");
@@ -313,6 +329,34 @@ describe("the settings page", () => {
     expect(p.patterns("blocked")).toEqual(["*.bank.com/*", "hr.example.com/*"]);
     expect(p.$("pace-human").getAttribute("aria-checked")).toBe("true");
     expect(p.$("read_only-error").hidden).toBe(true);
+  });
+
+  it("shows the allow list, the screenshot saving and the audit rows, and edits them", () => {
+    const p = mount();
+    p.send({ type: "state", state: p.state() });
+    expect(p.patterns("allowed")).toEqual([]);
+    expect(p.$("save-shots").getAttribute("aria-checked")).toBe("false");
+    expect(p.$<HTMLInputElement>("shot-folder").value).toBe("");
+    expect(p.$("audit-on").getAttribute("aria-checked")).toBe("false");
+    expect(p.$<HTMLInputElement>("audit-file").value).toBe("");
+
+    p.addPattern("allowed", "docs.google.com/*");
+    p.click("save-shots");
+    p.click("audit-on");
+    p.type("shot-folder", "~/Pictures/bh");
+    p.type("audit-file", "~/logs/bh.jsonl");
+    expect(p.patterns("allowed")).toEqual(["docs.google.com/*"]);
+    expect(p.$("save-shots").getAttribute("aria-checked")).toBe("true");
+    expect(p.$("count").textContent).toBe("5 unsaved changes");
+
+    // An empty path is allowed (it means the default); a wrong one waits Save.
+    p.type("shot-folder", "");
+    expect(p.$("shot-folder-error").hidden).toBe(true);
+    p.type("shot-folder", "pictures");
+    expect(p.$("shot-folder-error").textContent).toMatch(/Start with/);
+    p.type("audit-file", "/a/../b");
+    expect(p.$("audit-file-error").textContent).toMatch(/\.\./);
+    expect(p.$<HTMLButtonElement>("save").disabled).toBe(true);
   });
 
   it("removing a pattern and flipping a toggle are changes too", () => {
@@ -527,6 +571,12 @@ describe("page helpers", () => {
     });
     expect(changeCount(a, b)).toBe(3);
     expect(changeCount(a, a)).toBe(0);
+    const c = settingsWith((s) => {
+      s.sites.allowed = ["a.com/*"];
+      s.capture.save_screenshots = true;
+      s.audit.enabled = true;
+    });
+    expect(changeCount(a, c)).toBe(3);
   });
 
   it("write speeds the way the design does", () => {

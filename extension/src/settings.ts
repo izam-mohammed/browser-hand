@@ -36,6 +36,22 @@ export const DEFAULTS: Settings = {
   audit: { enabled: false, file: "" },
 };
 
+/** Settings from a host (or a stored copy) older than this extension lack
+ * the newer keys; each missing one takes its default. */
+export function withDefaults(s: Settings): Settings {
+  const d = DEFAULTS;
+  return {
+    ...d,
+    ...s,
+    input: { ...d.input, ...s.input },
+    sessions: { ...d.sessions, ...s.sessions },
+    sites: { ...d.sites, ...s.sites },
+    capture: { ...d.capture, ...s.capture },
+    debugger: { ...d.debugger, ...s.debugger },
+    audit: { ...d.audit, ...s.audit },
+  };
+}
+
 /** Why the page cannot save: the host is not there, or never sent settings. */
 export type Down = "not_running" | "older" | "connecting";
 
@@ -119,7 +135,7 @@ export class SettingsHub {
 
   /** The settings to act on now: the host's, else the last seen, else the defaults. */
   get settings(): Settings {
-    return this.last?.settings ?? DEFAULTS;
+    return this.last ? withDefaults(this.last.settings) : DEFAULTS;
   }
 
   get connected(): boolean {
