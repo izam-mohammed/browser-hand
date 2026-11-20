@@ -35,11 +35,12 @@ and a TypeScript extension, with the tools Claude in Chrome has
   every profile: pace, sessions, blocked and read-only sites, capture and
   the debugger.
 
-### Phase 7: install without Load unpacked (on hold, 2026-11-20)
+### Phase 7: install without Load unpacked (concluded, not released)
 
-Not publishing to the Chrome Web Store for now; the store-bound items wait.
+The store route was checked and is not being released (cost, review, the
+2-extension default cap); see the plan's `## Amended, 2026-11-20`.
 
-- [ ] `plans/07-install-extension.md` - browser-hand on the Chrome Web Store,
+- [x] `plans/07-install-extension.md` - browser-hand on the Chrome Web Store,
   unlisted, offered to every profile with one Enable click.
 
 ### Phase 8: the button asks first
