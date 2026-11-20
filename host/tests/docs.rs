@@ -182,6 +182,8 @@ const LABELS: &[(&str, &str)] = &[
     ("capture.screenshot_size", "Screenshot size"),
     ("capture.screenshot_quality", "Screenshot quality"),
     ("capture.gif_folder", "GIF folder"),
+    ("capture.save_screenshots", "Save every screenshot"),
+    ("capture.screenshot_folder", "Screenshot folder"),
     ("capture.gif_frame_delay_ms", "GIF frame delay"),
     ("debugger.detach_after_idle_s", "Detach after idle"),
 ];

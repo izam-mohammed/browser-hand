@@ -116,6 +116,7 @@ describe("the gate per tool", () => {
     for (const tool of [
       "read_page",
       "find",
+      "wait_for",
       "get_page_text",
       "read_console_messages",
       "read_network_requests",
@@ -137,6 +138,7 @@ describe("the gate per tool", () => {
     for (const tool of [
       "read_page",
       "find",
+      "wait_for",
       "get_page_text",
       "read_console_messages",
       "read_network_requests",

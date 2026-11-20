@@ -34,6 +34,8 @@ The settings page writes these keys to `~/.config/browser-hand/config.toml` (`$X
 | `screenshot_size` | Screenshot size | string | `"1280x800"` | `1024x640`, `1280x800` or `1568x980`. |
 | `screenshot_quality` | Screenshot quality | integer | `80` | JPEG quality, 30 to 100. |
 | `gif_folder` | GIF folder | string | `"~/Downloads/browser-hand"` | `~/...` or an absolute path. |
+| `save_screenshots` | Save every screenshot | boolean | `false` | Whether every screenshot Claude takes is also saved to a file. |
+| `screenshot_folder` | Screenshot folder | string | `""` | Where saved screenshots go: `~/...` or an absolute path; empty uses `gif_folder`. |
 | `gif_frame_delay_ms` | GIF frame delay | integer | `700` | 100 to 5000. |
 
 ## `[debugger]`

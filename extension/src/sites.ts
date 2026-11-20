@@ -101,6 +101,7 @@ const LOOKING = new Set(["screenshot", "zoom", "scroll", "scroll_to"]);
 const READING = new Set([
   "read_page",
   "find",
+  "wait_for",
   "get_page_text",
   "read_console_messages",
   "read_network_requests",

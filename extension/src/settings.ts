@@ -28,6 +28,8 @@ export const DEFAULTS: Settings = {
     screenshot_size: "1280x800",
     screenshot_quality: 80,
     gif_folder: "~/Downloads/browser-hand",
+    save_screenshots: false,
+    screenshot_folder: "",
     gif_frame_delay_ms: 700,
   },
   debugger: { detach_after_idle_s: 30 },

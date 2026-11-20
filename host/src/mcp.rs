@@ -710,8 +710,17 @@ impl Server {
         self.inner.recorder.lock().await.push(frame);
     }
 
-    /// Gives each image an id for `upload_image` and saves it when asked.
+    /// Gives each image an id for `upload_image` and saves it when asked,
+    /// or when the settings save every screenshot (`capture.save_screenshots`,
+    /// into `capture.screenshot_folder`, else the GIF folder).
     fn keep_images(&self, content: &mut Vec<Content>, save: bool) {
+        let capture = self.settings().capture;
+        let save = save || capture.save_screenshots;
+        let folder = if capture.screenshot_folder.is_empty() {
+            capture.gif_folder
+        } else {
+            capture.screenshot_folder
+        };
         let mut notes = vec![];
         for c in content.iter_mut() {
             if let Content::Image {
@@ -728,12 +737,7 @@ impl Server {
                     .keep(data.clone(), mime_type.clone());
                 notes.push(format!("imageId: {id}"));
                 if save {
-                    match images::save(
-                        data,
-                        mime_type,
-                        "screenshot",
-                        &self.settings().capture.gif_folder,
-                    ) {
+                    match images::save(data, mime_type, "screenshot", &folder) {
                         Ok(path) => notes.push(format!("Saved to {}", path.display())),
                         Err(e) => notes.push(format!("Could not save: {e}")),
                     }
@@ -1120,6 +1124,17 @@ impl Server {
         respond(Ok(out))
     }
 
+    /// `wait_for`: the extension polls; this only gives the call time to end.
+    async fn do_wait_for(&self, args: WaitForArgs) -> Outcome {
+        let seconds = u64::from(args.timeout_s.unwrap_or(15).clamp(1, 60));
+        self.call(
+            "wait_for",
+            to_args(&args),
+            Duration::from_secs(seconds + 10),
+        )
+        .await
+    }
+
     /// One tool by name, for browser_batch.
     async fn dispatch(&self, name: &str, input: Value) -> Outcome {
         fn parse<T: serde::de::DeserializeOwned>(name: &str, input: Value) -> Result<T, String> {
@@ -1165,6 +1180,7 @@ impl Server {
                 self.call(name, to_args(&parse::<FindArgs>(name, input)?), CALL_WAIT)
                     .await
             }
+            "wait_for" => self.do_wait_for(parse(name, input)?).await,
             "get_page_text" => {
                 self.call(name, to_args(&parse::<TabArgs>(name, input)?), CALL_WAIT)
                     .await
@@ -1333,6 +1349,17 @@ impl Server {
         Parameters(args): Parameters<FindArgs>,
     ) -> Result<CallToolResult, McpError> {
         Ok(respond(self.call("find", to_args(&args), CALL_WAIT).await))
+    }
+
+    #[tool(
+        description = "Wait until the page shows something, in one call, instead of guessing seconds with computer wait. Give exactly one of text (shown anywhere on the page, any case), ref (an element ref that is on the page) or url_contains (a substring of the tab's URL); set gone to wait for it to disappear. Polls every quarter second, through page loads, up to timeout_s (1 to 60, default 15), then fails with a timeout that names what it waited for.",
+        annotations(read_only_hint = true)
+    )]
+    pub async fn wait_for(
+        &self,
+        Parameters(args): Parameters<WaitForArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(respond(self.do_wait_for(args).await))
     }
 
     #[tool(

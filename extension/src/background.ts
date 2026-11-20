@@ -36,6 +36,7 @@ import { type PortLike, SettingsHub } from "./settings";
 import { SiteRuleSync } from "./site-rules";
 import { SiteRules, useFor } from "./sites";
 import { GROUP_TITLE, type GroupStore, TabTools } from "./tabs";
+import { type WaitArgs, type WaitDeps, waitFor } from "./wait";
 import {
   type CallFrame,
   type Content,
@@ -287,6 +288,24 @@ async function javascript(session: string, a: { text: string; tabId: number }) {
     : out;
 }
 
+/** What `wait_for` reads: the page's text and refs through the content
+ * script, the URL from the tab. A ref the page lost is `false`, not an error. */
+const waitDeps: WaitDeps = {
+  pageText: async (tabId) => String(await toPage(tabId, { op: "text" })),
+  hasRef: async (tabId, ref) => {
+    try {
+      await toPage(tabId, { op: "rect", ref });
+      return true;
+    } catch (e) {
+      if (e instanceof ToolError && /not on the page any more/.test(e.message)) return false;
+      throw e;
+    }
+  },
+  url: async (tabId) => (await chrome.tabs.get(tabId)).url ?? "",
+  sleep,
+  now: () => Date.now(),
+};
+
 const tools: Record<string, Tool> = {
   tabs_context: (s, a) => tabs.tabsContext(s, a),
   tabs_create: (s) => tabs.tabsCreate(s),
@@ -310,6 +329,10 @@ const tools: Record<string, Tool> = {
   find: async (s, a) => {
     await tabs.ownTab(s, a.tabId, useFor("find"));
     return toPage(a.tabId, { op: "find", query: a.query });
+  },
+  wait_for: async (s, a: WaitArgs) => {
+    await tabs.ownTab(s, a.tabId, useFor("wait_for"));
+    return waitFor(waitDeps, a);
   },
   get_page_text: async (s, a) => {
     await tabs.ownTab(s, a.tabId, useFor("get_page_text"));

@@ -82,6 +82,11 @@ pub struct CaptureSettings {
     pub screenshot_quality: u32,
     /// `~/...` or an absolute path.
     pub gif_folder: String,
+    /// Whether every screenshot Claude takes is also saved to a file.
+    pub save_screenshots: bool,
+    /// Where saved screenshots go: `~/...` or an absolute path; empty uses
+    /// `gif_folder`.
+    pub screenshot_folder: String,
     /// 100 to 5000.
     pub gif_frame_delay_ms: u32,
 }
@@ -135,6 +140,8 @@ impl Default for CaptureSettings {
             screenshot_size: "1280x800".into(),
             screenshot_quality: 80,
             gif_folder: "~/Downloads/browser-hand".into(),
+            save_screenshots: false,
+            screenshot_folder: String::new(),
             gif_frame_delay_ms: 700,
         }
     }
@@ -287,6 +294,11 @@ pub fn problems(s: &Settings) -> Vec<Problem> {
     if let Some(why) = folder_problem(&s.capture.gif_folder) {
         out.push(problem("capture.gif_folder", why));
     }
+    if !s.capture.screenshot_folder.is_empty() {
+        if let Some(why) = folder_problem(&s.capture.screenshot_folder) {
+            out.push(problem("capture.screenshot_folder", why));
+        }
+    }
     if !(100..=5000).contains(&s.capture.gif_frame_delay_ms) {
         out.push(problem("capture.gif_frame_delay_ms", "must be 100 to 5000"));
     }
@@ -315,6 +327,7 @@ fn reset(s: &mut Settings, field: &str) {
         "capture.screenshot_size" => s.capture.screenshot_size = d.capture.screenshot_size,
         "capture.screenshot_quality" => s.capture.screenshot_quality = d.capture.screenshot_quality,
         "capture.gif_folder" => s.capture.gif_folder = d.capture.gif_folder,
+        "capture.screenshot_folder" => s.capture.screenshot_folder = d.capture.screenshot_folder,
         "capture.gif_frame_delay_ms" => s.capture.gif_frame_delay_ms = d.capture.gif_frame_delay_ms,
         "debugger.detach_after_idle_s" => {
             s.debugger.detach_after_idle_s = d.debugger.detach_after_idle_s
@@ -417,6 +430,20 @@ pub fn parse(text: &str) -> Result<(Settings, Vec<String>), String> {
         "capture",
         "gif_folder",
         &mut s.capture.gif_folder,
+        &mut w,
+    );
+    take(
+        &table,
+        "capture",
+        "save_screenshots",
+        &mut s.capture.save_screenshots,
+        &mut w,
+    );
+    take(
+        &table,
+        "capture",
+        "screenshot_folder",
+        &mut s.capture.screenshot_folder,
         &mut w,
     );
     take(

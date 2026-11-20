@@ -739,6 +739,83 @@ mod more {
     }
 
     #[tokio::test]
+    async fn screenshots_save_only_when_the_switch_is_on_and_only_to_the_settings_folder() {
+        let out = tempfile::tempdir().unwrap();
+        let shots = out.path().join("shots");
+        let count = |dir: &std::path::Path| std::fs::read_dir(dir).map(|d| d.count()).unwrap_or(0);
+        let (s, server) = connected().await;
+        s.settings(|c| c.capture.screenshot_folder = shots.display().to_string());
+
+        // Off by default: nothing is written, whatever the folder says.
+        server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert_eq!(count(&shots), 0);
+
+        s.settings(|c| {
+            c.capture.screenshot_folder = shots.display().to_string();
+            c.capture.save_screenshots = true;
+        });
+        let r = server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert_eq!(count(&shots), 1);
+        assert!(all_text(&r).contains("Saved to"), "{}", all_text(&r));
+
+        // An empty folder falls back to the GIF folder.
+        let gifs = out.path().join("gifs");
+        s.settings(|c| {
+            c.capture.save_screenshots = true;
+            c.capture.gif_folder = gifs.display().to_string();
+        });
+        server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert_eq!(count(&gifs), 1);
+        assert_eq!(count(&shots), 1);
+    }
+
+    #[test]
+    fn wait_for_is_a_tool() {
+        let names: Vec<String> = Server::tool_router()
+            .list_all()
+            .into_iter()
+            .map(|t| t.name.to_string())
+            .collect();
+        assert!(names.iter().any(|n| n == "wait_for"), "{names:?}");
+    }
+
+    #[tokio::test]
+    async fn wait_for_sends_only_what_was_given_under_the_names_the_extension_reads() {
+        let (_s, server) = connected().await;
+        let r = server
+            .wait_for(Parameters(WaitForArgs {
+                tab_id: 1,
+                text: None,
+                element_ref: Some("ref_1_2".into()),
+                url_contains: None,
+                gone: Some(true),
+                timeout_s: Some(5),
+            }))
+            .await
+            .unwrap();
+        let t = text(&r);
+        assert!(t.starts_with("wait_for "), "{t}");
+        for want in [
+            "\"ref\":\"ref_1_2\"",
+            "\"gone\":true",
+            "\"timeout_s\":5",
+            "\"tabId\":1",
+        ] {
+            assert!(t.contains(want), "{want} in {t}");
+        }
+        assert!(!t.contains("null") && !t.contains("text"), "{t}");
+    }
+
+    #[tokio::test]
     async fn browser_hand_pace_overrides_the_settings_for_that_server() {
         let s = Setup::new();
         fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);

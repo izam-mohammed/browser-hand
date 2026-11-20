@@ -340,16 +340,18 @@ phase. New verified findings go to the file `kn path` prints.
 
 ### Phase 1: the rough cut, wait_for and saved screenshots (needs you: try it)
 
-- [ ] `wait_for` (expected in `host/src/mcp.rs`, `host/src/tools/args.rs`,
+- [x] `wait_for` (expected in `host/src/mcp.rs`, `host/src/tools/args.rs`,
   `extension/src/wait.ts`, routed in `extension/src/background.ts`) waits
   for text, a ref or a URL substring from the extension, pinned by
   `extension/test/wait.test.ts` and a host test listing it in the tool names
   (`host/tests/mcp.rs`).
-- [ ] `capture.save_screenshots` and `capture.screenshot_folder` (fixed in
+- [x] `capture.save_screenshots` and `capture.screenshot_folder` (fixed in
   `host/src/config.rs`) save each screenshot, off by default, pinned by a
   host test that a screenshot writes nothing until the switch is on.
-- [ ] Check: `make check` passes, and `browser-hand mcp` lists `wait_for`
+- [x] Check: `make check` passes, and `browser-hand mcp` lists `wait_for`
   among its tools.
+  Landed 2026-11-20: `make check` exit 0; host line coverage 90.03 % (floor
+  90). `Frame::Settings` boxes its `Settings` (clippy `large_enum_variant`).
 - [ ] You try it: set `save_screenshots = true` in `config.toml`, ask Claude
   to open a slow page and `wait_for` a word, then look in the folder for the
   screenshot, and say whether the wait and the save feel right.

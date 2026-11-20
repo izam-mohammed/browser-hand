@@ -15,6 +15,15 @@ screenshot_quality: number,
  */
 gif_folder: string, 
 /**
+ * Whether every screenshot Claude takes is also saved to a file.
+ */
+save_screenshots: boolean, 
+/**
+ * Where saved screenshots go: `~/...` or an absolute path; empty uses
+ * `gif_folder`.
+ */
+screenshot_folder: string, 
+/**
  * 100 to 5000.
  */
 gif_frame_delay_ms: number, };
