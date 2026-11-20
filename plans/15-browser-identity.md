@@ -244,6 +244,19 @@ repository instructions for recording useful development findings.
   "two extensions" warning, and `select_profile` `brave:Default` then a
   `navigate` lands in Brave. Say what felt off; it goes into the phases
   below.
+  Landed 2026-11-20 (headless, left open): ran
+  `.claude/skills/test-extension-linux/scripts/walk-browsers.sh` on Linux
+  with Chrome for Testing 157 and a throwaway `HOME`. Two CfT runs stood in
+  for Edge and Brave (`~/.config/microsoft-edge` and
+  `~/.config/BraveSoftware/Brave-Browser`, a `Default` profile in each), so
+  this is not real Brave or Edge, and Chrome was not one of them. Saw:
+  `list_profiles` listed `edge:Default` and `brave:Default`, each connected
+  once, no warning on either; `select_profile` `brave:Default`, then
+  `navigate` to a local page: the URL was a tab on Brave's DevTools port and
+  not on the other's; the same for `edge:Default`. `sh
+  scripts/prove/browser-identity.sh` printed PASS again. Not run, so the box
+  stays open: real Chrome and Brave, and "say what felt off", which is a
+  person's call.
 
 ### Phase 2: the settings page lists every browser's profiles
 
@@ -277,6 +290,14 @@ repository instructions for recording useful development findings.
 - [ ] On Linux with Chrome and Brave, and again on macOS: the Phase 1 try-it
   and the settings page's default-profile list showing both browsers'
   profiles. Written under `## Verified` with the date.
+  Landed 2026-11-20 (headless, left open): the Linux half ran as in Phase 1's
+  note, with two Chrome for Testing stand-ins named Edge and Brave. Added
+  there: the settings page (`options.html`, opened with
+  `Target.createTarget`) in each browser listed the default-profile choices
+  `Ask each time`, `Edge me (Microsoft Edge)` and `Brave me (Brave)`, with
+  values `edge:Default` and `brave:Default`. Not run: real Chrome and Brave,
+  and the whole macOS half (`proc_pidpath`); the box stays open and no
+  `## Verified` section is written, since it is not verified on either.
 - [x] Check: `make check`.
   Landed 17/11/2026: green in CI on PR #41.
 
