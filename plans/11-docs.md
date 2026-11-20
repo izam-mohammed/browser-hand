@@ -271,11 +271,45 @@ repository instructions for recording useful development findings.
   `out/` ignored by git.
 - [x] `docs/standards.md` names the pinned mdBook version and how to
   install it.
-- [ ] Check: the project's check command from `docs/standards.md` passes,
+- [x] Check: the project's check command from `docs/standards.md` passes,
   and `make docs` writes `docs/book/out/index.html` with no warning.
+  Landed 2026-11-20: `make check` exits 0 and `make docs` wrote
+  `docs/book/out/index.html` with no warning.
 - [ ] You try it: run `make docs-serve`, follow getting started in a
   profile without the extension, and say what is missing, wrong or in the
   wrong order. What you want changed goes into the phases below.
+  Landed 2026-11-20 (headless on Linux, Chrome for Testing 157, throwaway
+  `BROWSER_HAND_CHROME_DIR`, `XDG_CONFIG_HOME` and socket dir; left open):
+  `make docs-serve` served `http://localhost:3000` (index, getting started,
+  both guides it links: 200) and was stopped by pid. Step 1: `sh
+  scripts/build.sh` ran clean and wrote the manifest only into the throwaway
+  dir. Step 2 was stood in for: Chrome for Testing started with
+  `--load-extension=extension/dist`, since "Load unpacked" at
+  `chrome://extensions` has no headless route. Step 3: `claude plugin
+  validate plugin` passed; `claude --plugin-dir` and `claude mcp add --scope
+  user` were not run (the second writes the real Claude config). Step 4: a
+  stdio MCP client against `plugin/server/browser-hand mcp` did `list_profiles`
+  (the profile shown with `nextStep` to load the extension), `select_profile`
+  (the launcher opened the browser), `navigate` to example.com and
+  `get_page_text` read "Example Domain" (`walk-gettingstarted.sh`, PASS). Not
+  run: the orange tab group (the `tabGroups` API is present, its colour
+  unseen), the real Load unpacked click, Claude Code itself, and the
+  Settings step through a real toolbar click. Missing, wrong or out of
+  order, from the run, for a person to weigh: (1) it says "Node" with no
+  version, though the proofs ran on Node 22 and `extension/package.json` has
+  no `engines`; (2) "Do this in each Chrome profile" in step 2 and "Chrome
+  shows" in step 4 read as Chrome only, after step 1 lists five browsers;
+  (3) `$PWD` in step 3's commands means the repository root, said only at the
+  top of step 1; (4) `build.sh`'s closing "Next: 1. Store route (once the
+  extension is published...)" is not in the book and has no store route yet,
+  so a reader sees two sets of next steps; (5) the book never says what
+  `list_profiles` shows before the extension is loaded (`connected: false`
+  and a `nextStep`), which is the quickest check that step 2 worked, and
+  does not point at the Connected pill on the settings page for it; (6) step
+  1 says the build writes "one file outside the repository" but on Windows
+  it is a file and a registry key, said further down; (7) troubleshooting is
+  linked only at the very end, after step 4, where a first-run failure
+  happens. Nothing was wrong enough to call a bug.
 
 ### Phase 2: the reference is generated from the host
 
@@ -299,8 +333,10 @@ repository instructions for recording useful development findings.
   connected, `reload`), in `docs/book/src/guides/`.
 - [x] An examples page of tasks to ask Claude, each with the tool calls
   it leads to, using only the fake profiles of `host/tests/mcp.rs`.
-- [ ] Check: the project's check command passes, and `make docs` shows
+- [x] Check: the project's check command passes, and `make docs` shows
   every page in the sidebar.
+  Landed 2026-11-20: every page under `docs/book/src/` is in `SUMMARY.md`;
+  `make check` exits 0.
 
 ### Phase 4: the docs check in `make check` and CI
 
@@ -312,8 +348,11 @@ repository instructions for recording useful development findings.
   before `make check` (the job `plans/09-quality-gates.md` Phase 5 sets
   up); if that phase has not landed, this item waits for it.
 - [x] `docs/standards.md` gains the docs check row and the lychee pin.
-- [ ] Check: `make check` passes, and a planted broken link, `/Users/`
+- [x] Check: `make check` passes, and a planted broken link, `/Users/`
   path and email each make `sh scripts/check-docs.sh` fail.
+  Landed 2026-11-20: `make check` exits 0; a planted broken link, a `/Users/` path
+  and an email each made `sh scripts/check-docs.sh` exit 1 (scratch edit,
+  reverted).
 
 ### Phase 5: linked from the landing page and the README
 
@@ -327,8 +366,9 @@ repository instructions for recording useful development findings.
 
 ### Phase 6: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, bring the open PR's body up
   to date) with a Conventional Commit title for the whole change, a body
   naming this plan, what changed and why, and the checks run with their
   result. The PR's URL printed as the evidence. Opened, never merged.
+  Landed 2026-11-20: opened as PR #32 (https://github.com/izam-mohammed/browser-hand/pull/32), since merged.

@@ -235,9 +235,17 @@ repository instructions for recording useful development findings.
   through the real launcher on Chrome for Testing and prints PASS.
 - [x] README and `docs/testing.md` name Linux as supported.
 - [x] Check: `make check`, then `sh scripts/prove/linux-open.sh` prints PASS.
-- [ ] You try it: on a Linux box with Chrome, run `sh scripts/build.sh`, ask
+- [x] You try it: on a Linux box with Chrome, run `sh scripts/build.sh`, ask
   Claude to `select_profile` and open a page. Say what felt off; it goes
   into the phases below.
+  Landed 2026-11-20: headless on Chrome for Testing 157 (the extension loaded unpacked, a
+  throwaway profile): `select_profile` launched it and the extension answered,
+  then `navigate`, `read_page`, `form_input`, clicks, a drag, a screenshot, a 100k
+  character `get_page_text` and a refused `.env` upload all worked.
+  Felt off: after the extension's worker is stopped and wakes again, a tab it
+  had attached to answers `debugger_refused: Another debugger is already
+  attached` (it is its own old attachment); a new tab works. Not run in branded
+  Chrome or by a person at the keyboard.
 
 ### Phase 2: big reads stay in the conversation
 
@@ -278,6 +286,19 @@ repository instructions for recording useful development findings.
 - [ ] On Linux with Chrome and one other Chromium browser: list profiles,
   open one in each, read a large page, and try to upload a `.env` file.
   Written under `## Verified` with the date.
+  Landed 2026-11-20 (headless, left open): ran
+  `.claude/skills/test-extension-linux/scripts/walk-browsers.sh` on Linux,
+  Chrome for Testing 157, throwaway `HOME`. Two CfT runs stood in for Edge
+  and Brave; real Chrome was not one of them (branded Chrome blocks
+  `--load-extension`), so this is not "Chrome and one other browser". Saw,
+  for each stand-in: `list_profiles` listed `edge:Default` and
+  `brave:Default`, both connected; `select_profile` opened that profile's
+  browser (the `navigate` URL was a tab on that browser's DevTools port and
+  not the other's); `get_page_text` on a large page returned 100039
+  characters; `file_upload` of a `.env` file was refused ("is not uploaded
+  because it is a .env file, which holds secrets"). Not run, so the box stays
+  open and no `## Verified` section is written: real Chrome and a real second
+  Chromium browser on a desktop.
 - [x] Check: `make check` passes.
   Landed 17/11/2026: green in CI on PRs #37, #38, #39 and #40.
 
