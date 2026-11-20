@@ -366,8 +366,9 @@ repository instructions for recording useful development findings.
 
 ### Phase 6: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to date)
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+  Landed 2026-11-20: opened as PR #32 (https://github.com/izam-mohammed/browser-hand/pull/32), since merged.
