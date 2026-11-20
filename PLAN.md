@@ -95,3 +95,9 @@ The store route was checked and is not being released (cost, review, the
 - [ ] `plans/16-windows.md` - the host installs through the registry, talks
   over named pipes and launches Chrome, Edge, Brave, Chromium and Vivaldi on
   Windows, the one parity gap left from plan 14.
+
+### Phase 18: v0.1.0, the first version anyone can install
+
+- [ ] `plans/18-release-v0.1.0.md` - `v0.1.0` released to GitHub with
+  archives for five targets, install scripts, a Homebrew tap and a Scoop
+  bucket, built and published by CI.
