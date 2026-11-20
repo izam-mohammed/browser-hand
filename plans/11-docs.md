@@ -271,8 +271,10 @@ repository instructions for recording useful development findings.
   `out/` ignored by git.
 - [x] `docs/standards.md` names the pinned mdBook version and how to
   install it.
-- [ ] Check: the project's check command from `docs/standards.md` passes,
+- [x] Check: the project's check command from `docs/standards.md` passes,
   and `make docs` writes `docs/book/out/index.html` with no warning.
+  Landed 2026-11-20: `make check` exits 0 and `make docs` wrote
+  `docs/book/out/index.html` with no warning.
 - [ ] You try it: run `make docs-serve`, follow getting started in a
   profile without the extension, and say what is missing, wrong or in the
   wrong order. What you want changed goes into the phases below.
@@ -299,8 +301,10 @@ repository instructions for recording useful development findings.
   connected, `reload`), in `docs/book/src/guides/`.
 - [x] An examples page of tasks to ask Claude, each with the tool calls
   it leads to, using only the fake profiles of `host/tests/mcp.rs`.
-- [ ] Check: the project's check command passes, and `make docs` shows
+- [x] Check: the project's check command passes, and `make docs` shows
   every page in the sidebar.
+  Landed 2026-11-20: every page under `docs/book/src/` is in `SUMMARY.md`;
+  `make check` exits 0.
 
 ### Phase 4: the docs check in `make check` and CI
 
@@ -312,8 +316,11 @@ repository instructions for recording useful development findings.
   before `make check` (the job `plans/09-quality-gates.md` Phase 5 sets
   up); if that phase has not landed, this item waits for it.
 - [x] `docs/standards.md` gains the docs check row and the lychee pin.
-- [ ] Check: `make check` passes, and a planted broken link, `/Users/`
+- [x] Check: `make check` passes, and a planted broken link, `/Users/`
   path and email each make `sh scripts/check-docs.sh` fail.
+  Landed 2026-11-20: `make check` exits 0; a planted broken link, a `/Users/` path
+  and an email each made `sh scripts/check-docs.sh` exit 1 (scratch edit,
+  reverted).
 
 ### Phase 5: linked from the landing page and the README
 
@@ -327,8 +334,9 @@ repository instructions for recording useful development findings.
 
 ### Phase 6: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, bring the open PR's body up
   to date) with a Conventional Commit title for the whole change, a body
   naming this plan, what changed and why, and the checks run with their
   result. The PR's URL printed as the evidence. Opened, never merged.
+  Landed 2026-11-20: opened as PR #32 (https://github.com/izam-mohammed/browser-hand/pull/32), since merged.
