@@ -402,12 +402,15 @@ repository instructions for recording useful development findings.
   Edge and Brave at least; the Chromium and Vivaldi registry keys confirmed
   or corrected in `docs/external/windows.md`; written under `## Verified`
   with the date.
-- [ ] Check: `make check`.
+- [x] Check: `make check`.
+  Landed 2026-11-20: `make check` exits 0 on Linux, and its `make windows` step compiled
+  the Windows target (`windows-sys` checked, clippy clean); nothing ran on Windows.
 
 ### Phase 6: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to
   date) with a Conventional Commit title for the whole change, a body
   naming this plan, what changed and why, and the checks run with their
   result. The PR's URL printed as the evidence. Opened, never merged.
+  Landed 2026-11-20: opened as PR #43 (https://github.com/izam-mohammed/browser-hand/pull/43), since merged.

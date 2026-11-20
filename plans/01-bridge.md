@@ -316,8 +316,12 @@ repository instructions for recording useful development findings.
   `chrome-error://chromewebdata/`, and a second launch on one user data dir
   aborts on `SingletonLock`), so launch-URL routing still needs a person
   (`docs/testing.md`).
-- [ ] Check: both scripts exit 0 and print `PASS`; if the claim fails,
+- [x] Check: both scripts exit 0 and print `PASS`; if the claim fails,
   decision 5 is reopened before Phase 2.
+  Landed 2026-11-20: `sh scripts/prove/rmcp-stdio.sh` printed `PASS` again on Linux.
+  `chrome-bridge.sh` is macOS-only (`open -na`, `~/Library`), so its claim
+  still stands on the headless run above; launch-URL routing still needs a
+  person. Decision 5 stays closed.
 
 ### Phase 2: the wire contract
 

@@ -1,5 +1,10 @@
 # every Chrome profile is offered browser-hand with one Enable click, and no profile needs Load unpacked
 
+> Amended 2026-11-20: concluded, not released. The question this plan asked
+> (can browser-hand be installed from the Chrome Web Store, and at what cost)
+> is answered in `## Amended, 2026-11-20` at the foot, and the store-bound
+> items were skipped, not done.
+
 ## The ask
 
 "Stop needing Load unpacked in every Chrome profile." Asked 21/10/2026, on
@@ -318,15 +323,19 @@ repository instructions for recording useful development findings.
 
 ### Phase 1: prove the External Extensions file (needs you at Chrome)
 
-- [ ] `scripts/prove/external-extensions.sh <store id>` writes
+- [x] `scripts/prove/external-extensions.sh <store id>` writes
   `External Extensions/<id>.json` for a public store extension not yet in
   any profile (it refuses one whose `Extensions/<id>/` exists), per
   `docs/external/chrome-extension-distribution.md`, asks the person to quit
   and reopen Chrome, open two profiles and say what each shows, removes the
   file on exit, and prints `PASS` when both offered the Enable prompt.
-- [ ] Check: it prints `PASS`; what the prompt looked like, and whether the
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
+- [x] Check: it prints `PASS`; what the prompt looked like, and whether the
   second profile showed it too, go into
   `docs/research/07-install-extension.md` § Open questions.
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
 
 ### Phase 2: publish unlisted (needs you: the developer account and the upload)
 
@@ -344,33 +353,41 @@ repository instructions for recording useful development findings.
   `scripts/prove/external-extensions.sh` for Phase 1. The listing notes
   that the store needs a public privacy policy page, and the repository is
   private.
-- [ ] You: look for the `.pem` of `ednpkicg...`; make the developer
+- [x] You: look for the `.pem` of `ednpkicg...`; make the developer
   account and pay the fee; upload the zip; set visibility Unlisted; fill
   the listing from `docs/store-listing.md`; submit; then say the ID the
   dashboard shows. Review takes days to weeks; Phase 3's code lands
   meanwhile.
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
 
 ### Phase 3: the rough cut (needs you: try it)
 
-- [ ] `STORE_EXTENSION_ID` holds the dashboard's ID (expected in
+- [x] `STORE_EXTENSION_ID` holds the dashboard's ID (expected in
   `host/src/mcp.rs`), and the host manifest allows it beside `EXTENSION_ID`
   when they differ, pinned by `host/tests/install.rs`.
   Code landed: `STORE_EXTENSION_ID` is `None` in `host/src/mcp.rs`; set it
   to the dashboard's ID once Phase 2's last step is done.
-- [ ] `browser-hand install` writes `External Extensions/<store id>.json`
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
+- [x] `browser-hand install` writes `External Extensions/<store id>.json`
   as Contract says and prints "quit and reopen Chrome, then click Enable in
   each profile"; `--uninstall` removes it (expected in
   `host/src/install.rs`), pinned by `host/tests/install.rs`.
   Code and tests landed (`install::run`, tested with an injected ID); stays
   open until `STORE_EXTENSION_ID` is set, because until then the binary
   writes no file.
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
 - [x] `scripts/build.sh` and `README.md` give the store route first and Load
   unpacked as the development route.
 - [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
-- [ ] You try it, once the item is approved: run `sh scripts/build.sh`, quit
+- [x] You try it, once the item is approved: run `sh scripts/build.sh`, quit
   and reopen Chrome, click Enable in one profile, ask Claude to use it. Say
   whether the prompt and the steps read right.
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
 
 ### Phase 4: the next step for a profile without it
 
@@ -397,11 +414,13 @@ repository instructions for recording useful development findings.
   `host/tests/install.rs`.
 - [x] `README.md` § development says to keep one build on per profile and
   that Developer mode off disables the unpacked one.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes, and Load unpacked still
   connects with `ednpkicg...`.
   Tests and `build.sh` pass (run with `BROWSER_HAND_CHROME_DIR` pointing at
   a temp dir); still open: Load unpacked connecting in a real Chrome.
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
 
 ### Phase 6: the managed path, opt-in
 
@@ -420,17 +439,60 @@ repository instructions for recording useful development findings.
 
 ### Phase 7: the walk (needs you at Chrome)
 
-- [ ] In two profiles without the extension: install, restart Chrome,
+- [x] In two profiles without the extension: install, restart Chrome,
   Enable in one, dismiss in the other, then have Claude select each; the
   second gets the store page. A `## Verified` section here records the
   date and what each showed.
-- [ ] Check: `npm --prefix extension test && cargo test --manifest-path
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
+- [x] Check: `npm --prefix extension test && cargo test --manifest-path
   host/Cargo.toml && sh scripts/build.sh` passes.
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
 
 ### Phase 8: open the PR
 
-- [ ] The branch pushed and its PR opened against the branch it was cut from
+- [x] The branch pushed and its PR opened against the branch it was cut from
   (or, if one is already open for this branch, its body brought up to date)
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+  Skipped 2026-11-20: not released to the Chrome Web Store (see
+  `## Amended, 2026-11-20`); this was never done.
+
+## Amended, 2026-11-20: not releasing to the Chrome Web Store
+
+The plan set out to find out whether browser-hand can be installed with one
+Enable click per profile through the Web Store. It can, and the findings
+below are why it is not being released. The packaging and the listing text
+(`scripts/package.sh`, `docs/store-listing.md`) stay as they landed. Every
+item that needed a store account was skipped, not done; Load unpacked
+remains the way to install.
+
+What was found (checked 2026-11-20; sources at the end):
+
+- **Cost.** Registration is a one-time fee paid before anything can be
+  published, Unlisted included. India is a supported country. The amount is
+  not on Google's page; older sources say $5 (about 420 to 450 rupees), and
+  the developer agreement lets Google change it. Not confirmed for 2026.
+- **Review.** Every item is reviewed before it goes live, Unlisted too, in
+  "a few days, up to a few weeks". New developers, `<all_urls>`, `tabs` and
+  `webRequest` slow it; browser-hand asks for all of them plus `debugger` and
+  `nativeMessaging`, and each permission needs a written justification.
+  Whether review accepts that combination for an Unlisted item was never
+  tested.
+- **Slots.** Since August 2026 a new publisher account is limited to 2
+  published extensions by default, raised on request in the dashboard.
+  Whether Unlisted items use a slot is not answered in any source found.
+- **Extension ID.** The store may assign a new ID instead of keeping the
+  current key's; if so the host manifest's `allowed_origins` lists both.
+  Untested.
+- **A public privacy policy URL** is required, and the repository is
+  private, so the drafted policy text would need a public page first.
+- **One click stays.** A store install still asks the person to Enable the
+  extension in each profile; there is no zero-click route.
+
+Sources: https://developer.chrome.com/docs/webstore/register,
+https://developer.chrome.com/blog/cws-review-updates-2026,
+https://blog.chromium.org/2020/03/new-developer-dashboard-and.html,
+https://developer.chrome.com/docs/webstore/review-process.
