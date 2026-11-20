@@ -20,7 +20,7 @@ the four differ.
 | Version | What a user gets | Chain phase | Plans | New channels | State |
 | --- | --- | --- | --- | --- | --- |
 | v0.1.0 | The first version anyone can install: Claude drives your Chrome profiles, records and replays, on macOS, Linux and Windows | 18 | `plans/18-release-v0.1.0.md` (everything in plans 01 to 17) | release archives with install scripts, Homebrew tap, Scoop bucket | planned |
-| v0.2.0 | Windows checked on a real machine; install the plugin from a Claude Code marketplace | 19 | not written | the marketplace entry | planned |
+| v0.2.0 | Claude can use downloads, history, bookmarks, cookie status, page archives and alerts, each switched on by you and revocable; Windows checked on a real machine; the plugin in a Claude Code marketplace | 19 | `plans/19-optional-access.md`, a release plan not yet written | the marketplace entry | planned |
 
 ## Channels
 

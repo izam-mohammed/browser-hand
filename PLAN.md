@@ -101,3 +101,11 @@ The store route was checked and is not being released (cost, review, the
 - [ ] `plans/18-release-v0.1.0.md` - `v0.1.0` released to GitHub with
   archives for five targets, install scripts, a Homebrew tap and a Scoop
   bucket, built and published by CI.
+
+### Phase 19: v0.2.0, access you switch on one at a time
+
+- [ ] `plans/19-optional-access.md` - downloads, history, bookmarks, cookie
+  status, page archives, windows, asking you, a side panel, idle and
+  schedules, each an optional permission with a switch, a grant and a revoke
+  on the settings page.
+
