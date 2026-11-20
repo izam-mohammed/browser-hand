@@ -1,5 +1,9 @@
 # every Chrome profile is offered browser-hand with one Enable click, and no profile needs Load unpacked
 
+> On hold, 2026-11-20: not publishing to the Chrome Web Store for now, so the
+> store-bound phases below wait. Boxes stay as they are; nothing here is
+> skipped or dropped.
+
 ## The ask
 
 "Stop needing Load unpacked in every Chrome profile." Asked 21/10/2026, on
@@ -434,3 +438,4 @@ repository instructions for recording useful development findings.
   with a Conventional Commit title for the whole change, a body naming this
   plan, what changed and why, and the checks run with their result. The PR's
   URL printed as the evidence. Opened, never merged.
+
