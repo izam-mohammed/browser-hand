@@ -33,6 +33,7 @@ export const DEFAULTS: Settings = {
     gif_frame_delay_ms: 700,
   },
   debugger: { detach_after_idle_s: 30 },
+  audit: { enabled: false, file: "" },
 };
 
 /** Why the page cannot save: the host is not there, or never sent settings. */

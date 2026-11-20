@@ -186,6 +186,8 @@ const LABELS: &[(&str, &str)] = &[
     ("capture.screenshot_folder", "Screenshot folder"),
     ("capture.gif_frame_delay_ms", "GIF frame delay"),
     ("debugger.detach_after_idle_s", "Detach after idle"),
+    ("audit.enabled", "Audit log"),
+    ("audit.file", "Audit file"),
 ];
 
 fn settings_page() -> String {

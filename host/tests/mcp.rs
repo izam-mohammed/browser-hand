@@ -816,6 +816,78 @@ mod more {
     }
 
     #[tokio::test]
+    async fn the_audit_log_writes_a_line_per_call_only_when_on_and_never_fails_a_call() {
+        let out = tempfile::tempdir().unwrap();
+        let file = out.path().join("audit.jsonl");
+        let lines = |f: &std::path::Path| -> Vec<serde_json::Value> {
+            std::fs::read_to_string(f)
+                .unwrap_or_default()
+                .lines()
+                .map(|l| serde_json::from_str(l).unwrap())
+                .collect()
+        };
+        let (s, server) = connected().await;
+
+        // Off by default: no file.
+        s.settings(|c| c.audit.file = file.display().to_string());
+        server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert!(!file.exists());
+
+        s.settings(|c| {
+            c.audit.enabled = true;
+            c.audit.file = file.display().to_string();
+        });
+        server
+            .computer(Parameters(ComputerArgs {
+                text: Some("hunter2".into()),
+                ..computer(ComputerAction::Type)
+            }))
+            .await
+            .unwrap();
+        let items = vec![BatchItem {
+            name: "find".into(),
+            input: serde_json::json!({ "query": "secret field", "tabId": 1 }),
+        }];
+        server
+            .browser_batch(Parameters(BatchArgs { actions: items }))
+            .await
+            .unwrap();
+        let got = lines(&file);
+        assert_eq!(got.len(), 2, "{got:?}");
+        assert_eq!(
+            (got[0]["tool"].as_str(), got[0]["action"].as_str()),
+            (Some("computer"), Some("type"))
+        );
+        assert_eq!(got[1]["tool"], "find", "a batch item has its own line");
+        assert!(got.iter().all(|l| l["ok"] == true && l["tab"] == 1));
+        let raw = std::fs::read_to_string(&file).unwrap();
+        assert!(
+            !raw.contains("hunter2") && !raw.contains("secret field"),
+            "{raw}"
+        );
+
+        // A file that cannot be opened does not fail the call.
+        std::fs::write(out.path().join("blocker"), "x").unwrap();
+        s.settings(|c| {
+            c.audit.enabled = true;
+            c.audit.file = out
+                .path()
+                .join("blocker")
+                .join("a.jsonl")
+                .display()
+                .to_string();
+        });
+        let r = server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert!(!is_error(&r), "{}", all_text(&r));
+    }
+
+    #[tokio::test]
     async fn browser_hand_pace_overrides_the_settings_for_that_server() {
         let s = Setup::new();
         fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);

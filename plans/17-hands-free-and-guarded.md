@@ -116,7 +116,8 @@ No benchmark compared them.
 | **Weighted total** | **100** | **4.60** | **4.00** |
 
 - Efficiency: an append, no transaction or fsync per record (5); SQLite
-  commits per insert (4). Unmeasured: Phase 2 times 1000 appends.
+  commits per insert (4). Measured 20/11/2026 in Phase 2: 1000 appends
+  of the real line to a temp file took 12 ms (12 µs each).
 - Reliability 4: the file has one writer per server and appends are
   `O_APPEND`; two servers can interleave whole lines but not tear them under
   one `write` of a small line. SQLite 5.
@@ -235,9 +236,10 @@ file = ""                         # "" means the state dir's audit.jsonl
 `timeout` naming what it waited for.
 
 Audit line, one per tool call: `{"t":<ms>,"tool":"computer","action":
-"left_click","tab":123,"host":"example.com","ok":true,"ms":412}` and, on
-failure, `"err":"<code>"`. Never a path, query, typed text, value or page
-text.
+"left_click","tab":123,"ok":true,"ms":412}`; a `navigate` line also has
+`"host":"example.com"`; a failure has `"err":"<code>"`. Never a path, query,
+typed text, value or page text. (The host sees a URL only in `navigate`'s
+argument, so other tools carry the tab id and no host.)
 
 CLI: `browser-hand replay <recording id> [--profile <dir>] [--from <n>]
 [--value <step>=<text>]...` and `browser-hand recordings`. Exit 0 when every
@@ -358,12 +360,12 @@ phase. New verified findings go to the file `kn path` prints.
 
 ### Phase 2: the audit log
 
-- [ ] `audit.enabled` and `audit.file` (fixed in `host/src/config.rs`) and
+- [x] `audit.enabled` and `audit.file` (fixed in `host/src/config.rs`) and
   the writer (expected in `host/src/audit.rs`), called from `Server::call` and
   `dispatch` so a `browser_batch` item gets its own line, pinned by
   `host/tests/audit.rs` (redaction, mode `0600`, a failed open does not fail
   the call).
-- [ ] 1000 appends timed and the figure written under Decision 3's
+- [x] 1000 appends timed and the figure written under Decision 3's
   evidence.
 - [ ] Check: `make check` passes, and a call with logging on adds one line
   that `jq .` reads.

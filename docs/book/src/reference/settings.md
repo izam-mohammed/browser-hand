@@ -44,4 +44,11 @@ The settings page writes these keys to `~/.config/browser-hand/config.toml` (`$X
 | --- | --- | --- | --- | --- |
 | `detach_after_idle_s` | Detach after idle | integer | `30` | 5 to 600. |
 
+## `[audit]`
+
+| Key | Settings page | Type | Default | What it does |
+| --- | --- | --- | --- | --- |
+| `enabled` | Audit log | boolean | `false` | Whether the host writes one line per tool call to the audit file. |
+| `file` | Audit file | string | `""` | `~/...` or an absolute path; empty means `audit.jsonl` beside `config.toml`. |
+
 The file's top-level `version` key is 1.

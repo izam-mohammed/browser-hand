@@ -12,6 +12,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
+use crate::audit;
 use crate::config::{self, Settings};
 use crate::gif::{self, Overlays, Recorded, Recorder};
 use crate::host_conn::{self, HostConn};
@@ -282,6 +283,8 @@ pub struct Inner {
     bound: Mutex<Option<Bound>>,
     images: std::sync::Mutex<ImageStore>,
     recorder: Mutex<Recorder>,
+    /// Set once the audit log failed to write, so the warning prints once.
+    audit_warned: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Clone)]
@@ -422,6 +425,7 @@ impl Server {
                 bound: Mutex::new(None),
                 images: Default::default(),
                 recorder: Default::default(),
+                audit_warned: Default::default(),
             }),
         }
     }
@@ -600,10 +604,47 @@ impl Server {
         self.bind(profile, &host).await
     }
 
+    /// Sends a tool call to the bound profile (`call_inner`) and, when the
+    /// settings turn the audit log on, appends one line for it
+    /// (`audit.rs`). A log that cannot be written never fails the call.
+    async fn call(&self, tool: &str, args: Value, wait: Duration) -> Outcome {
+        let settings = self.settings();
+        if !settings.audit.enabled {
+            return self.call_inner(tool, args, wait).await;
+        }
+        let started = std::time::Instant::now();
+        let logged = args.clone();
+        let out = self.call_inner(tool, args, wait).await;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis());
+        let line = audit::line(
+            now,
+            tool,
+            &logged,
+            out.as_ref().map(|_| ()).map_err(String::as_str),
+            started.elapsed().as_millis(),
+        );
+        let file = audit::path(&settings.audit, &self.inner.config);
+        if let Err(e) = audit::append(&file, &line) {
+            if !self
+                .inner
+                .audit_warned
+                .swap(true, std::sync::atomic::Ordering::Relaxed)
+            {
+                eprintln!(
+                    "browser-hand: cannot write the audit log {}: {e}",
+                    file.display()
+                );
+            }
+        }
+        out
+    }
+
     /// Sends a tool call to the bound profile, binding the settings' default
     /// profile, or else the only connected one, when none is selected, and
     /// reconnecting once if the host restarted.
-    async fn call(&self, tool: &str, args: Value, wait: Duration) -> Outcome {
+    async fn call_inner(&self, tool: &str, args: Value, wait: Duration) -> Outcome {
         self.bind_default().await?;
         let mut bound = self.inner.bound.lock().await;
 

@@ -36,6 +36,17 @@ pub struct Settings {
     pub sites: SiteSettings,
     pub capture: CaptureSettings,
     pub debugger: DebuggerSettings,
+    pub audit: AuditSettings,
+}
+
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq, Default)]
+#[serde(default)]
+#[ts(export, export_to = "wire.gen.ts")]
+pub struct AuditSettings {
+    /// Whether the host writes one line per tool call to the audit file.
+    pub enabled: bool,
+    /// `~/...` or an absolute path; empty means `audit.jsonl` beside `config.toml`.
+    pub file: String,
 }
 
 #[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
@@ -110,6 +121,7 @@ impl Default for Settings {
             sites: Default::default(),
             capture: Default::default(),
             debugger: Default::default(),
+            audit: Default::default(),
         }
     }
 }
@@ -302,6 +314,11 @@ pub fn problems(s: &Settings) -> Vec<Problem> {
     if !(100..=5000).contains(&s.capture.gif_frame_delay_ms) {
         out.push(problem("capture.gif_frame_delay_ms", "must be 100 to 5000"));
     }
+    if !s.audit.file.is_empty() {
+        if let Some(why) = folder_problem(&s.audit.file) {
+            out.push(problem("audit.file", why));
+        }
+    }
     if !(5..=600).contains(&s.debugger.detach_after_idle_s) {
         out.push(problem("debugger.detach_after_idle_s", "must be 5 to 600"));
     }
@@ -327,6 +344,7 @@ fn reset(s: &mut Settings, field: &str) {
         "capture.screenshot_size" => s.capture.screenshot_size = d.capture.screenshot_size,
         "capture.screenshot_quality" => s.capture.screenshot_quality = d.capture.screenshot_quality,
         "capture.gif_folder" => s.capture.gif_folder = d.capture.gif_folder,
+        "audit.file" => s.audit.file = d.audit.file,
         "capture.screenshot_folder" => s.capture.screenshot_folder = d.capture.screenshot_folder,
         "capture.gif_frame_delay_ms" => s.capture.gif_frame_delay_ms = d.capture.gif_frame_delay_ms,
         "debugger.detach_after_idle_s" => {
@@ -453,6 +471,8 @@ pub fn parse(text: &str) -> Result<(Settings, Vec<String>), String> {
         &mut s.capture.gif_frame_delay_ms,
         &mut w,
     );
+    take(&table, "audit", "enabled", &mut s.audit.enabled, &mut w);
+    take(&table, "audit", "file", &mut s.audit.file, &mut w);
     take(
         &table,
         "debugger",
