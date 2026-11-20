@@ -17,6 +17,3 @@ jobs:
       # Rust has no ecosystem value yet; the gate's osv-scanner stage still
       # reads host/Cargo.lock.
       ecosystem: node
-      # The private repo's GitHub-hosted minutes are blocked, so the gate runs
-      # on the linux machine, as ci.yml does.
-      runs-on: '["self-hosted", "linux", "izam-linux"]'
