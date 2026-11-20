@@ -276,6 +276,38 @@ repository instructions for recording useful development findings.
 - [ ] You try it: run `make docs-serve`, follow getting started in a
   profile without the extension, and say what is missing, wrong or in the
   wrong order. What you want changed goes into the phases below.
+  Landed 2026-11-20 (headless on Linux, Chrome for Testing 157, throwaway
+  `BROWSER_HAND_CHROME_DIR`, `XDG_CONFIG_HOME` and socket dir; left open):
+  `make docs-serve` served `http://localhost:3000` (index, getting started,
+  both guides it links: 200) and was stopped by pid. Step 1: `sh
+  scripts/build.sh` ran clean and wrote the manifest only into the throwaway
+  dir. Step 2 was stood in for: Chrome for Testing started with
+  `--load-extension=extension/dist`, since "Load unpacked" at
+  `chrome://extensions` has no headless route. Step 3: `claude plugin
+  validate plugin` passed; `claude --plugin-dir` and `claude mcp add --scope
+  user` were not run (the second writes the real Claude config). Step 4: a
+  stdio MCP client against `plugin/server/browser-hand mcp` did `list_profiles`
+  (the profile shown with `nextStep` to load the extension), `select_profile`
+  (the launcher opened the browser), `navigate` to example.com and
+  `get_page_text` read "Example Domain" (`walk-gettingstarted.sh`, PASS). Not
+  run: the orange tab group (the `tabGroups` API is present, its colour
+  unseen), the real Load unpacked click, Claude Code itself, and the
+  Settings step through a real toolbar click. Missing, wrong or out of
+  order, from the run, for a person to weigh: (1) it says "Node" with no
+  version, though the proofs ran on Node 22 and `extension/package.json` has
+  no `engines`; (2) "Do this in each Chrome profile" in step 2 and "Chrome
+  shows" in step 4 read as Chrome only, after step 1 lists five browsers;
+  (3) `$PWD` in step 3's commands means the repository root, said only at the
+  top of step 1; (4) `build.sh`'s closing "Next: 1. Store route (once the
+  extension is published...)" is not in the book and has no store route yet,
+  so a reader sees two sets of next steps; (5) the book never says what
+  `list_profiles` shows before the extension is loaded (`connected: false`
+  and a `nextStep`), which is the quickest check that step 2 worked, and
+  does not point at the Connected pill on the settings page for it; (6) step
+  1 says the build writes "one file outside the repository" but on Windows
+  it is a file and a registry key, said further down; (7) troubleshooting is
+  linked only at the very end, after step 4, where a first-run failure
+  happens. Nothing was wrong enough to call a bug.
 
 ### Phase 2: the reference is generated from the host
 
