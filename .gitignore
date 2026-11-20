@@ -5,3 +5,6 @@ plugin/server/
 
 # agent worktrees
 .claude/
+
+# third-party extract of the claude in chrome extension, kept locally only
+reference/claude-in-chrome/
