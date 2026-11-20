@@ -12,8 +12,11 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: izam-mohammed/.github/.github/workflows/security-scan.yml@ce1b7cc9c4298348fd0020825e2c0ecbb17bd32f # main
+    uses: izam-mohammed/.github/.github/workflows/security-scan.yml@b0add75acb9391555da00d7df77945c14436197d # main
     with:
       # Rust has no ecosystem value yet; the gate's osv-scanner stage still
       # reads host/Cargo.lock.
       ecosystem: node
+      # The private repo's GitHub-hosted minutes are blocked, so the gate runs
+      # on the linux machine, as ci.yml does.
+      runs-on: '["self-hosted", "linux", "izam-linux"]'
