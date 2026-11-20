@@ -235,9 +235,17 @@ repository instructions for recording useful development findings.
   through the real launcher on Chrome for Testing and prints PASS.
 - [x] README and `docs/testing.md` name Linux as supported.
 - [x] Check: `make check`, then `sh scripts/prove/linux-open.sh` prints PASS.
-- [ ] You try it: on a Linux box with Chrome, run `sh scripts/build.sh`, ask
+- [x] You try it: on a Linux box with Chrome, run `sh scripts/build.sh`, ask
   Claude to `select_profile` and open a page. Say what felt off; it goes
   into the phases below.
+  Landed 2026-11-20: headless on Chrome for Testing 157 (the extension loaded unpacked, a
+  throwaway profile): `select_profile` launched it and the extension answered,
+  then `navigate`, `read_page`, `form_input`, clicks, a drag, a screenshot, a 100k
+  character `get_page_text` and a refused `.env` upload all worked.
+  Felt off: after the extension's worker is stopped and wakes again, a tab it
+  had attached to answers `debugger_refused: Another debugger is already
+  attached` (it is its own old attachment); a new tab works. Not run in branded
+  Chrome or by a person at the keyboard.
 
 ### Phase 2: big reads stay in the conversation
 
