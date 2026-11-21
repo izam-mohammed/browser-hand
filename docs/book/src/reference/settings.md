@@ -26,6 +26,7 @@ The settings page writes these keys to `~/.config/browser-hand/config.toml` (`$X
 | --- | --- | --- | --- | --- |
 | `blocked` | Blocked sites | array of string | `[]` | Sites Claude never opens or acts on, as `host/path` patterns. |
 | `read_only` | Read-only sites | array of string | `[]` | Sites Claude may read and screenshot but not click, type in or script. |
+| `allowed` | Allowed sites | array of string | `[]` | When not empty, the only sites Claude may open or act on; `blocked` still wins over it. |
 
 ## `[capture]`
 
@@ -34,6 +35,8 @@ The settings page writes these keys to `~/.config/browser-hand/config.toml` (`$X
 | `screenshot_size` | Screenshot size | string | `"1280x800"` | `1024x640`, `1280x800` or `1568x980`. |
 | `screenshot_quality` | Screenshot quality | integer | `80` | JPEG quality, 30 to 100. |
 | `gif_folder` | GIF folder | string | `"~/Downloads/browser-hand"` | `~/...` or an absolute path. |
+| `save_screenshots` | Save every screenshot | boolean | `false` | Whether every screenshot Claude takes is also saved to a file. |
+| `screenshot_folder` | Screenshot folder | string | `""` | Where saved screenshots go: `~/...` or an absolute path; empty uses `gif_folder`. |
 | `gif_frame_delay_ms` | GIF frame delay | integer | `700` | 100 to 5000. |
 
 ## `[debugger]`
@@ -41,5 +44,12 @@ The settings page writes these keys to `~/.config/browser-hand/config.toml` (`$X
 | Key | Settings page | Type | Default | What it does |
 | --- | --- | --- | --- | --- |
 | `detach_after_idle_s` | Detach after idle | integer | `30` | 5 to 600. |
+
+## `[audit]`
+
+| Key | Settings page | Type | Default | What it does |
+| --- | --- | --- | --- | --- |
+| `enabled` | Audit log | boolean | `false` | Whether the host writes one line per tool call to the audit file. |
+| `file` | Audit file | string | `""` | `~/...` or an absolute path; empty means `audit.jsonl` beside `config.toml`. |
 
 The file's top-level `version` key is 1.

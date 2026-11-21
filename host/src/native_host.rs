@@ -94,7 +94,7 @@ impl Conf {
             .collect();
         self.sent = Some(revision.clone());
         Frame::Settings {
-            settings,
+            settings: Box::new(settings),
             revision,
             path: path.display().to_string(),
             profiles,

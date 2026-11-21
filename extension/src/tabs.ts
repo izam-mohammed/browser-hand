@@ -205,10 +205,14 @@ export class TabTools {
     // A redirect (or history) can land on a blocked site the URL did not name.
     if (this.sites().access(tab.url) === "blocked") {
       const host = hostOf(tab.url);
+      const reason =
+        this.sites().why(tab.url) === "unlisted"
+          ? "is not on the allowed sites list in browser-hand settings"
+          : "is blocked in browser-hand settings";
       await this.api.tabs.update(tabId, { url: "about:blank" });
       throw new ToolError(
         "blocked",
-        `${host} is blocked in browser-hand settings; ask the person. The tab was sent to about:blank.`,
+        `${host} ${reason}; ask the person. The tab was sent to about:blank.`,
       );
     }
     const result: Record<string, unknown> = { tabId, url: tab.url ?? "", title: tab.title ?? "" };

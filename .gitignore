@@ -4,4 +4,8 @@ dist/
 plugin/server/
 
 # agent worktrees
-.claude/
+.claude/*
+!.claude/skills/
+
+# third-party extract of the claude in chrome extension, kept locally only
+reference/claude-in-chrome/

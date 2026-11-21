@@ -1,11 +1,28 @@
-# blocked and read-only sites
+# blocked, read-only and allowed sites
 
-Two lists on the settings page, under **Site access**:
+Three lists on the settings page, under **Site access**:
 
 | List | What Claude can do |
 | --- | --- |
 | Blocked | Nothing. It never opens or acts on these. |
 | Read-only | Read and screenshot. Not click, type, fill forms or run scripts. |
+| Allowed | When the list has anything in it, Claude may open and act on only these sites. Empty means no limit. |
+
+Blocked wins over allowed: a site on both is blocked. Read-only still
+applies to a site that is allowed.
+
+## the allowed list
+
+Use it when you would rather name the few sites Claude may touch than the
+many it may not. With `docs.google.com/*` and `example.org/*` allowed, a
+tool that tries `news.example.com` is refused (`is not on the allowed sites
+list`), and a link or an iframe in one of Claude's tabs cannot load it
+either. Your own tabs are untouched.
+
+Two things to know. A site that loads others (a sign-in on another host, an
+embedded video) needs those hosts in the list too. And pages that are not
+sites, like `chrome://` and `about:blank`, are not judged: the list covers
+`http`, `https`, `ws` and `wss` only.
 
 ## patterns
 
