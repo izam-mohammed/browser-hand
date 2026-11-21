@@ -101,3 +101,13 @@ The store route was checked and is not being released (cost, review, the
 - [ ] `plans/18-release-v0.1.0.md` - `v0.1.0` released to GitHub with
   archives for five targets, install scripts, a Homebrew tap and a Scoop
   bucket, built and published by CI.
+
+### Phase 19: v0.2.0, your browser's data and controls, one switch each
+
+- [ ] `plans/19-optional-access.md` - per profile, each with a switch, a
+  grant and a revoke on the settings page: downloads, history, bookmarks,
+  sessions, cookie status, profile info, page storage and page info,
+  response headers and bodies, request control, emulation, performance,
+  console details, tabs extras, windows, extensions, site permissions,
+  privacy (writes confirm themselves), notifications, a side panel, idle,
+  the omnibox and schedules; walked on Linux and macOS.
