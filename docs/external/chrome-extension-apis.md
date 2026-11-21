@@ -177,3 +177,51 @@ for `plans/06-settings.md`.
 - Tab groups only move between `normal` windows; `onMoved` is not fired for cross-window moves.
 - Offscreen documents only get `chrome.runtime`; route other API calls through the service worker.
 - `allowed_origins` in the native host manifest needs a stable ID, so ship the `key` field in development builds.
+
+## Optional access (plans/19-optional-access.md)
+
+Fetched 2026-11-20 from developer.chrome.com/docs/extensions/reference/api/<name>.
+Not read end to end; `scripts/prove/optional-access.sh` settles what is marked unverified.
+
+### chrome.permissions and `optional_permissions`
+
+- `permissions.request({ permissions, origins })`: "Permissions must be requested from inside a user gesture, like a button's click handler." Only permissions in `optional_permissions` (or required ones the user withheld) can be requested; Chrome may show a warning prompt.
+- `permissions.remove(...)`: removes access; required permissions cannot be removed; a later `request` usually restores without a prompt. The docs state no gesture for `remove`.
+- `permissions.contains`, `getAll`, events `onAdded` and `onRemoved` (also fire when the person revokes in `chrome://extensions`).
+- Cannot be optional (not exhaustive: "including"): `debugger`, `declarativeNetRequest`, `devtools`, `geolocation`, `mdns`, `proxy`, `tts`, `ttsEngine`. Whether `sidePanel` and `offscreen` can be optional is unverified.
+
+### chrome.downloads (`downloads`)
+
+- `downloads.search({ state, filename, startedAfter, limit, orderBy })` (limit default 1000); `DownloadItem`: `id`, `filename` (absolute local path), `url`, `finalUrl`, `mime`, `state` (`in_progress`, `interrupted`, `complete`), `bytesReceived`, `totalBytes` (-1 unknown), `error`, `exists` (may be stale).
+- Events `onCreated(item)` and `onChanged(delta)` (no `bytesReceived` deltas).
+
+### chrome.cookies (`cookies` + host permissions)
+
+- `cookies.getAll({ url, domain, name, path, secure, session, partitionKey, storeId })`, only for hosts with host permission (`<all_urls>` is already held).
+- `Cookie`: `name`, `value`, `domain`, `path`, `httpOnly`, `secure`, `hostOnly`, `sameSite`, `session`, `expirationDate`, `storeId`. Whether httpOnly cookies are returned: unverified. Incognito uses a separate store.
+
+### chrome.alarms (`alarms`)
+
+- `alarms.create(name, { when | delayInMinutes, periodInMinutes })`; same name replaces; fires at most once a second; "an alarm will not wake up a device"; after wake a missed repeating alarm fires once. `persistAcrossSessions` defaults true (Chrome 150+); check `alarms.get` on worker start and recreate.
+
+### chrome.notifications (`notifications`)
+
+- `create(id?, { type: "basic", title, message, iconUrl, buttons (max 2), requireInteraction, silent, priority })`; events `onClicked`, `onButtonClicked(id, index)`, `onClosed(id, byUser)`; `getPermissionLevel()`. Priority -2 and -1 error where there is no notification center.
+
+### chrome.idle (`idle`)
+
+- `queryState(seconds)` returns `active`, `idle` (no input for that many seconds) or `locked`; `setDetectionInterval`, `onStateChanged`. Described as the machine's state; per window: not stated. Service-worker use: unverified.
+
+### chrome.sidePanel (`sidePanel`)
+
+- Manifest `side_panel.default_path`; `setOptions({ tabId, path, enabled })`, `setPanelBehavior({ openPanelOnActionClick })`; `open()` (Chrome 116+) "may only be called in response to a user action", so the panel cannot open on its own; a click in the popup or a keyboard shortcut is a gesture. One panel per window or tab.
+
+### chrome.history (`history`) and chrome.bookmarks (`bookmarks`)
+
+- `history.search({ text, startTime, endTime, maxResults })`: `startTime` defaults to 24 hours, `maxResults` to 100; `HistoryItem`: `id`, `url`, `title`, `lastVisitTime`, `visitCount`, `typedCount`. Incognito inclusion: not stated.
+- `bookmarks.search(string | { query, title, url })`, `getTree()`, `getRecent(n)`; `BookmarkTreeNode`: `id`, `parentId`, `title`, `url` (absent for folders), `dateAdded`, `children`.
+
+### chrome.pageCapture (`pageCapture`) and chrome.tabCapture (`tabCapture`)
+
+- `pageCapture.saveAsMHTML({ tabId }): Promise<Blob | undefined>`, Chrome 116+; no gesture requirement stated.
+- `tabCapture` works only "after the user invokes the extension", like `activeTab`; a service worker gets a stream id from `getMediaStreamId()` and an offscreen document turns it into a stream. A person must click first, so Claude cannot start it.
