@@ -402,7 +402,7 @@ async fn settings_frame(chrome: &mut Chrome) -> (Settings, String, Vec<String>) 
             ..
         } = chrome.recv_any().await
         {
-            return (settings, revision, warnings);
+            return (*settings, revision, warnings);
         }
     }
 }
@@ -504,7 +504,7 @@ async fn the_extensions_hello_gets_the_settings_with_no_file_the_defaults() {
     else {
         panic!()
     };
-    assert_eq!(settings, Settings::default());
+    assert_eq!(*settings, Settings::default());
     assert_eq!(revision, "0");
     assert_eq!(path, options(dir.path()).config.display().to_string());
     assert!(warnings.is_empty());
