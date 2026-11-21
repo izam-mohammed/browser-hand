@@ -95,3 +95,9 @@ The store route was checked and is not being released (cost, review, the
 - [ ] `plans/16-windows.md` - the host installs through the registry, talks
   over named pipes and launches Chrome, Edge, Brave, Chromium and Vivaldi on
   Windows, the one parity gap left from plan 14.
+
+### Phase 20: ask how many windows are open
+
+- [ ] `plans/20-window-list.md` - a read-only `windows_list` tool: how many
+  windows the profile has, which is focused, which holds Claude's tab group;
+  no tab titles or URLs.
