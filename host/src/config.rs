@@ -123,7 +123,7 @@ impl Default for SessionSettings {
     fn default() -> Self {
         SessionSettings {
             default_profile: String::new(),
-            new_window: true,
+            new_window: false,
             close_tabs_on_end: false,
         }
     }

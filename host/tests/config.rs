@@ -10,7 +10,7 @@ typing_speed = 1.0      # 0.25 to 3.0, multiplies the gap between keys
 mouse_speed = 1.0       # 0.25 to 3.0, multiplies the cursor's travel time
 [sessions]
 default_profile = ""    # a Chrome profile dir; "" asks
-new_window = true
+new_window = false
 close_tabs_on_end = false
 [sites]
 blocked = []            # each list: 200 patterns, 100 characters each
@@ -44,7 +44,7 @@ fn the_defaults_are_the_constants_from_before() {
         ("human", 1.0, 1.0)
     );
     assert!(
-        d.sessions.new_window
+        !d.sessions.new_window
             && !d.sessions.close_tabs_on_end
             && d.sessions.default_profile.is_empty()
     );

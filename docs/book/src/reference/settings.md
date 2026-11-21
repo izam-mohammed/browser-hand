@@ -17,7 +17,7 @@ The settings page writes these keys to `~/.config/browser-hand/config.toml` (`$X
 | Key | Settings page | Type | Default | What it does |
 | --- | --- | --- | --- | --- |
 | `default_profile` | Default profile | string | `""` | A Chrome profile dir; empty asks. |
-| `new_window` | Open a new window | boolean | `true` | Whether a session opens its tab group in a new window. |
+| `new_window` | Open a new window | boolean | `false` | Whether a session opens its tab group in a new window. |
 | `close_tabs_on_end` | Close tabs when the session ends | boolean | `false` | Whether Claude's tabs close when the session ends. |
 
 ## `[sites]`

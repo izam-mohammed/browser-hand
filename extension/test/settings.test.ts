@@ -281,7 +281,7 @@ describe("the settings page", () => {
       "Personal",
       "Work",
     ]);
-    expect(p.$("new-window").getAttribute("aria-checked")).toBe("true");
+    expect(p.$("new-window").getAttribute("aria-checked")).toBe("false");
     expect(p.$("close-tabs").getAttribute("aria-checked")).toBe("false");
     expect(p.patterns("blocked")).toEqual(["*.bank.com/*", "hr.example.com/*"]);
     expect(p.patterns("read_only")).toEqual(["mail.google.com/*"]);
