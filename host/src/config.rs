@@ -50,7 +50,7 @@ pub struct InputSettings {
     pub mouse_speed: f64,
 }
 
-#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq, Default)]
 #[serde(default)]
 #[ts(export, export_to = "wire.gen.ts")]
 pub struct SessionSettings {
@@ -115,16 +115,6 @@ impl Default for InputSettings {
             pace: "human".into(),
             typing_speed: 1.0,
             mouse_speed: 1.0,
-        }
-    }
-}
-
-impl Default for SessionSettings {
-    fn default() -> Self {
-        SessionSettings {
-            default_profile: String::new(),
-            new_window: false,
-            close_tabs_on_end: false,
         }
     }
 }
