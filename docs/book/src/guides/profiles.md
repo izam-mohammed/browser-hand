@@ -33,6 +33,6 @@ which one to drive. Empty means ask each time. It is the key
 ## tabs
 
 Each session works in its own `browser-hand` tab group in the selected
-profile, in a new window unless you turn that off (**Open a new window**).
+profile, in your current window unless you turn on **Open a new window**.
 Claude closes tabs it made when it finishes unless you want them kept, or
 you turn on **Close tabs when the session ends**.

@@ -73,7 +73,7 @@ export class TabTools {
   /** The person's last focused normal window, when the settings want the
    * group there and there is one. */
   private async currentWindow(): Promise<number | undefined> {
-    if (this.opts.newWindow?.() ?? true) return undefined;
+    if (this.opts.newWindow?.() ?? false) return undefined;
     try {
       return (await this.api.windows.getLastFocused({ windowTypes: ["normal"] })).id;
     } catch {
