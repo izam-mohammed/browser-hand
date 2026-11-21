@@ -4,6 +4,8 @@
 //! `browser-hand install`      writes the host manifest and the External Extensions file
 //!                             (`--uninstall` removes them, `--no-store` skips the file)
 //! `browser-hand reload`       reloads the extension in every connected profile
+//! `browser-hand recordings`   lists the person's recordings in a profile
+//! `browser-hand replay`       replays one with no model in the loop
 
 use std::process::ExitCode;
 
@@ -24,8 +26,11 @@ fn main() -> ExitCode {
         "mcp" => run(browser_hand::mcp::main()),
         "reload" => run(browser_hand::reload::main()),
         "install" => browser_hand::install::main(&args),
+        "recordings" => run(browser_hand::replay_cli::recordings(&args[1..])),
+        "replay" => run(browser_hand::replay_cli::replay(&args[1..])),
         _ => {
-            eprintln!("usage: browser-hand mcp | native-host | install [--uninstall] [--no-store] [--mobileconfig <path>] | reload");
+            eprintln!("usage: browser-hand mcp | native-host | install [--uninstall] [--no-store] [--mobileconfig <path>] | reload | recordings | replay");
+            eprintln!("{}", browser_hand::replay_cli::USAGE);
             return ExitCode::from(2);
         }
     };

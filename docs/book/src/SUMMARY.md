@@ -10,9 +10,10 @@
 
 - [choosing a profile](guides/profiles.md)
 - [pace and how input moves](guides/pace.md)
-- [blocked and read-only sites](guides/blocked-sites.md)
+- [blocked, read-only and allowed sites](guides/blocked-sites.md)
 - [recording and replay](guides/recording.md)
 - [screenshots and gifs](guides/screenshots-and-gifs.md)
+- [the audit log](guides/audit-log.md)
 - [troubleshooting](guides/troubleshooting.md)
 - [examples](examples.md)
 

@@ -81,7 +81,7 @@ pub enum Frame {
     /// Host to extension: `config.toml` as read now, on the extension's
     /// hello and whenever the file changes (plans/06-settings.md).
     Settings {
-        settings: Settings,
+        settings: Box<Settings>,
         /// The file's modification time in ns, "0" with no file.
         revision: String,
         /// Where the file is, absolute.

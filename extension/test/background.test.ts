@@ -352,6 +352,18 @@ describe("tools", () => {
     expect(h.state.tabs.ownTab).toHaveBeenCalled();
   });
 
+  it("waits for the page through the session's own tab", async () => {
+    // The mocked page answers every text read with "page:text".
+    expect(content(await call("wait_for", { tabId: 1, text: "PAGE:text", timeout_s: 1 }))).toMatch(
+      /^Found the text/,
+    );
+    expect(h.state.tabs.ownTab).toHaveBeenCalled();
+    expect(await call("wait_for", { tabId: 1 }, 2)).toMatchObject({
+      ok: false,
+      error: { code: "bad_args" },
+    });
+  });
+
   it("uploads an image by reference, by coordinate, and refuses neither", async () => {
     const img = { tabId: 1, mimeType: "image/png", data: "AAAA" };
     expect(content(await call("upload_image", { ...img, ref: "r" }, 2))).toBe("page:set_files");

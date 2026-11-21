@@ -12,6 +12,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
+use crate::audit;
 use crate::config::{self, Settings};
 use crate::gif::{self, Overlays, Recorded, Recorder};
 use crate::host_conn::{self, HostConn};
@@ -282,6 +283,11 @@ pub struct Inner {
     bound: Mutex<Option<Bound>>,
     images: std::sync::Mutex<ImageStore>,
     recorder: Mutex<Recorder>,
+    /// Set once the audit log failed to write, so the warning prints once.
+    audit_warned: std::sync::atomic::AtomicBool,
+    /// `browser-hand replay`: print each replay step as it happens.
+    echo: std::sync::atomic::AtomicBool,
+    echoed: std::sync::atomic::AtomicUsize,
 }
 
 #[derive(Clone)]
@@ -422,8 +428,34 @@ impl Server {
                 bound: Mutex::new(None),
                 images: Default::default(),
                 recorder: Default::default(),
+                audit_warned: Default::default(),
+                echo: Default::default(),
+                echoed: Default::default(),
             }),
         }
+    }
+
+    /// Makes replays print each step line as it happens (the command line's
+    /// `replay`); `echoed` counts the lines printed.
+    pub fn echo_steps(&self, on: bool) {
+        self.inner
+            .echo
+            .store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn echoed(&self) -> usize {
+        self.inner.echoed.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Adds a text block to a replay's answer, printing it when echoing.
+    fn say(&self, out: &mut Vec<Content>, t: String) {
+        if self.inner.echo.load(std::sync::atomic::Ordering::Relaxed) {
+            println!("{t}");
+            self.inner
+                .echoed
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        out.push(text(t));
     }
 
     /// `config.toml` as it is now (the defaults when it cannot be read).
@@ -600,10 +632,47 @@ impl Server {
         self.bind(profile, &host).await
     }
 
+    /// Sends a tool call to the bound profile (`call_inner`) and, when the
+    /// settings turn the audit log on, appends one line for it
+    /// (`audit.rs`). A log that cannot be written never fails the call.
+    async fn call(&self, tool: &str, args: Value, wait: Duration) -> Outcome {
+        let settings = self.settings();
+        if !settings.audit.enabled {
+            return self.call_inner(tool, args, wait).await;
+        }
+        let started = std::time::Instant::now();
+        let logged = args.clone();
+        let out = self.call_inner(tool, args, wait).await;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis());
+        let line = audit::line(
+            now,
+            tool,
+            &logged,
+            out.as_ref().map(|_| ()).map_err(String::as_str),
+            started.elapsed().as_millis(),
+        );
+        let file = audit::path(&settings.audit, &self.inner.config);
+        if let Err(e) = audit::append(&file, &line) {
+            if !self
+                .inner
+                .audit_warned
+                .swap(true, std::sync::atomic::Ordering::Relaxed)
+            {
+                eprintln!(
+                    "browser-hand: cannot write the audit log {}: {e}",
+                    file.display()
+                );
+            }
+        }
+        out
+    }
+
     /// Sends a tool call to the bound profile, binding the settings' default
     /// profile, or else the only connected one, when none is selected, and
     /// reconnecting once if the host restarted.
-    async fn call(&self, tool: &str, args: Value, wait: Duration) -> Outcome {
+    async fn call_inner(&self, tool: &str, args: Value, wait: Duration) -> Outcome {
         self.bind_default().await?;
         let mut bound = self.inner.bound.lock().await;
 
@@ -710,8 +779,17 @@ impl Server {
         self.inner.recorder.lock().await.push(frame);
     }
 
-    /// Gives each image an id for `upload_image` and saves it when asked.
+    /// Gives each image an id for `upload_image` and saves it when asked,
+    /// or when the settings save every screenshot (`capture.save_screenshots`,
+    /// into `capture.screenshot_folder`, else the GIF folder).
     fn keep_images(&self, content: &mut Vec<Content>, save: bool) {
+        let capture = self.settings().capture;
+        let save = save || capture.save_screenshots;
+        let folder = if capture.screenshot_folder.is_empty() {
+            capture.gif_folder
+        } else {
+            capture.screenshot_folder
+        };
         let mut notes = vec![];
         for c in content.iter_mut() {
             if let Content::Image {
@@ -728,12 +806,7 @@ impl Server {
                     .keep(data.clone(), mime_type.clone());
                 notes.push(format!("imageId: {id}"));
                 if save {
-                    match images::save(
-                        data,
-                        mime_type,
-                        "screenshot",
-                        &self.settings().capture.gif_folder,
-                    ) {
+                    match images::save(data, mime_type, "screenshot", &folder) {
                         Ok(path) => notes.push(format!("Saved to {}", path.display())),
                         Err(e) => notes.push(format!("Could not save: {e}")),
                     }
@@ -1057,10 +1130,14 @@ impl Server {
             },
         };
 
-        let mut out = vec![text(format!(
-            "Replaying recording {id}, steps {from} to {total}, in tab {tab_id}. {}",
-            recording::DATA_NOTE
-        ))];
+        let mut out = vec![];
+        self.say(
+            &mut out,
+            format!(
+                "Replaying recording {id}, steps {from} to {total}, in tab {tab_id}. {}",
+                recording::DATA_NOTE
+            ),
+        );
         for n in from..=total {
             let mut step = steps[n - 1].clone();
             let m = meta.get(n - 1).cloned().unwrap_or(Value::Null);
@@ -1083,7 +1160,7 @@ impl Server {
             };
             match failed {
                 Ok(said) => {
-                    out.push(text(format!("{line}: {}", all_text(&said))));
+                    self.say(&mut out, format!("{line}: {}", all_text(&said)));
                     self.record(tab_id, Some(format!("Replays step {n}")), None, None)
                         .await;
                 }
@@ -1094,11 +1171,14 @@ impl Server {
                     } else {
                         tried.join("; ")
                     };
-                    out.push(text(format!(
-                        "Stopped at step {n}: {line}\nSelectors tried, in order: {tried}\nWhy: {e}\n\
-                         Do this step another way (find, computer), then call recording_replay with from: {} to go on.",
-                        n + 1
-                    )));
+                    self.say(
+                        &mut out,
+                        format!(
+                            "Stopped at step {n}: {line}\nSelectors tried, in order: {tried}\nWhy: {e}\n\
+                             Do this step another way (find, computer), then call recording_replay with from: {} to go on.",
+                            n + 1
+                        ),
+                    );
                     if let Ok(mut shot) = self
                         .call(
                             "computer",
@@ -1116,8 +1196,19 @@ impl Server {
                 }
             }
         }
-        out.push(text(format!("Replayed steps {from} to {total}.")));
+        self.say(&mut out, format!("Replayed steps {from} to {total}."));
         respond(Ok(out))
+    }
+
+    /// `wait_for`: the extension polls; this only gives the call time to end.
+    async fn do_wait_for(&self, args: WaitForArgs) -> Outcome {
+        let seconds = u64::from(args.timeout_s.unwrap_or(15).clamp(1, 60));
+        self.call(
+            "wait_for",
+            to_args(&args),
+            Duration::from_secs(seconds + 10),
+        )
+        .await
     }
 
     /// One tool by name, for browser_batch.
@@ -1165,6 +1256,7 @@ impl Server {
                 self.call(name, to_args(&parse::<FindArgs>(name, input)?), CALL_WAIT)
                     .await
             }
+            "wait_for" => self.do_wait_for(parse(name, input)?).await,
             "get_page_text" => {
                 self.call(name, to_args(&parse::<TabArgs>(name, input)?), CALL_WAIT)
                     .await
@@ -1333,6 +1425,17 @@ impl Server {
         Parameters(args): Parameters<FindArgs>,
     ) -> Result<CallToolResult, McpError> {
         Ok(respond(self.call("find", to_args(&args), CALL_WAIT).await))
+    }
+
+    #[tool(
+        description = "Wait until the page shows something, in one call, instead of guessing seconds with computer wait. Give exactly one of text (shown anywhere on the page, any case), ref (an element ref that is on the page) or url_contains (a substring of the tab's URL); set gone to wait for it to disappear. Polls every quarter second, through page loads, up to timeout_s (1 to 60, default 15), then fails with a timeout that names what it waited for.",
+        annotations(read_only_hint = true)
+    )]
+    pub async fn wait_for(
+        &self,
+        Parameters(args): Parameters<WaitForArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(respond(self.do_wait_for(args).await))
     }
 
     #[tool(
@@ -1519,17 +1622,23 @@ impl ServerHandler for Server {
     }
 }
 
-pub async fn main() -> anyhow::Result<()> {
+/// A server set up the way `browser-hand mcp` does: the real profiles, the
+/// real socket dir, `BROWSER_HAND_PACE`.
+pub fn server_from_env() -> Server {
     let opts = ServerOptions {
         pace: pace_from_env(),
         ..Default::default()
     };
-    let server = Server::with_roots(
+    Server::with_roots(
         profiles::roots(),
         crate::paths::socket_dir(),
         open_in_chrome(),
         opts,
-    );
+    )
+}
+
+pub async fn main() -> anyhow::Result<()> {
+    let server = server_from_env();
     let service = server.serve(rmcp::transport::stdio()).await?;
     service.waiting().await?;
     Ok(())
