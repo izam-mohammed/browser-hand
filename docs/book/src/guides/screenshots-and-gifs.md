@@ -14,6 +14,11 @@ The settings page, under **Capture**:
 | Screenshot size | `1024x640`, `1280x800` (default) or `1568x980`. Bigger shows more detail and costs more tokens. |
 | Screenshot quality | JPEG quality, 30 to 100, default 80. |
 
+To keep every screenshot Claude takes, turn on **Save every screenshot**
+(off by default) and, if you like, set a **Screenshot folder**; empty uses
+the GIF folder. `save_to_disk` still saves a single one whatever the switch
+says.
+
 A screenshot gets an `imageId`, good for 5 minutes. `upload_image` sends
 that image to a file input or a drop target.
 

@@ -20,7 +20,8 @@ export const SIZES = [
   ["1568x980", "1568 × 980"],
 ] as const;
 
-type ListKey = "blocked" | "read_only";
+type ListKey = "blocked" | "read_only" | "allowed";
+const LISTS: readonly ListKey[] = ["blocked", "read_only", "allowed"];
 
 const clone = (s: Settings): Settings => structuredClone(s);
 
@@ -32,6 +33,15 @@ export function speedLabel(v: number): string {
 /** Why the GIF folder cannot be saved (the host checks the same). */
 export function folderProblem(folder: string): string | null {
   if (!folder) return "Needs a folder.";
+  return pathProblem(folder);
+}
+
+/** Why an optional folder or file cannot be saved: empty is fine. */
+export function optionalPathProblem(path: string): string | null {
+  return path ? pathProblem(path) : null;
+}
+
+function pathProblem(folder: string): string | null {
   if (!(folder === "~" || folder.startsWith("~/") || folder.startsWith("/")))
     return "Start with ~/ or /.";
   if (folder.split("/").includes("..")) return "May not contain ..";
@@ -58,11 +68,15 @@ export function changeCount(base: Settings, draft: Settings): number {
     [base.capture.screenshot_size, draft.capture.screenshot_size],
     [base.capture.screenshot_quality, draft.capture.screenshot_quality],
     [base.capture.gif_folder, draft.capture.gif_folder],
+    [base.capture.save_screenshots, draft.capture.save_screenshots],
+    [base.capture.screenshot_folder, draft.capture.screenshot_folder],
     [base.capture.gif_frame_delay_ms, draft.capture.gif_frame_delay_ms],
+    [base.audit.enabled, draft.audit.enabled],
+    [base.audit.file, draft.audit.file],
     [base.debugger.detach_after_idle_s, draft.debugger.detach_after_idle_s],
   ];
   for (const [a, b] of scalars) if (!Object.is(a, b)) n++;
-  for (const k of ["blocked", "read_only"] as const) {
+  for (const k of LISTS) {
     const was = new Set(base.sites[k]);
     const now = new Set(draft.sites[k]);
     for (const p of now) if (!was.has(p)) n++;
@@ -257,6 +271,28 @@ export class SettingsPage {
     size.addEventListener("change", () =>
       this.edit((d) => (d.capture.screenshot_size = size.value)),
     );
+    const optionalPath = (id: string, edit: (d: Settings, v: string) => void, hint: string) => {
+      const input = this.el("input", {
+        type: "text",
+        id,
+        class: "mono",
+        autocomplete: "off",
+        spellcheck: "false",
+        placeholder: hint,
+      });
+      input.addEventListener("input", () => this.edit((d) => edit(d, input.value.trim())));
+      return input;
+    };
+    const shotFolder = optionalPath(
+      "shot-folder",
+      (d, v) => (d.capture.screenshot_folder = v),
+      "Same as the GIF folder",
+    );
+    const auditFile = optionalPath(
+      "audit-file",
+      (d, v) => (d.audit.file = v),
+      "The browser-hand settings folder",
+    );
     const folder = this.el("input", {
       type: "text",
       id: "gif-folder",
@@ -354,6 +390,11 @@ export class SettingsPage {
             "Read-only sites",
             "Claude can read these but not click, type or run scripts.",
           ),
+          this.patterns(
+            "allowed",
+            "Allowed sites",
+            "When this list has anything in it, Claude may open and act on only these sites (blocked ones still win). Empty means no limit.",
+          ),
         ),
         this.section(
           "Capture",
@@ -379,12 +420,40 @@ export class SettingsPage {
             this.el("div", { class: "field wide" }, folder),
           ),
           this.row(
+            "save-shots",
+            "Save every screenshot",
+            "Off: only when Claude asks. On: each screenshot Claude takes is also written to a file.",
+            this.toggle("save-shots", (on) => this.edit((d) => (d.capture.save_screenshots = on))),
+          ),
+          this.row(
+            "shot-folder",
+            "Screenshot folder",
+            "Where saved screenshots go. Empty uses the GIF folder.",
+            this.el("div", { class: "field wide" }, shotFolder),
+          ),
+          this.row(
             "gif-delay",
             "GIF frame delay",
             "Playback speed of recordings.",
             this.number("gif-delay", "ms", (v) =>
               this.edit((d) => (d.capture.gif_frame_delay_ms = v)),
             ),
+          ),
+        ),
+        this.section(
+          "Audit log",
+          "A private file with one line for each thing Claude does: the tool, the tab, whether it worked and how long it took. Never what was typed or read.",
+          this.row(
+            "audit-on",
+            "Write the audit log",
+            "Off by default.",
+            this.toggle("audit-on", (on) => this.edit((d) => (d.audit.enabled = on))),
+          ),
+          this.row(
+            "audit-file",
+            "Audit file",
+            "Where it is written. Empty keeps audit.jsonl in the browser-hand settings folder.",
+            this.el("div", { class: "field wide" }, auditFile),
           ),
         ),
         this.section(
@@ -459,9 +528,8 @@ export class SettingsPage {
         );
       } else {
         this.saveError = msg.error?.message ?? "Not saved.";
-        if (msg.error?.field === "sites.blocked") this.listErrors.set("blocked", msg.error.message);
-        if (msg.error?.field === "sites.read_only")
-          this.listErrors.set("read_only", msg.error.message);
+        for (const k of LISTS)
+          if (msg.error?.field === `sites.${k}`) this.listErrors.set(k, msg.error.message);
       }
     }
     this.render();
@@ -506,8 +574,7 @@ export class SettingsPage {
     this.draft = clone(this.base.settings);
     this.listErrors.clear();
     this.saveError = null;
-    for (const k of ["blocked", "read_only"] as const)
-      this.get<HTMLInputElement>(`${k}-input`).value = "";
+    for (const k of LISTS) this.get<HTMLInputElement>(`${k}-input`).value = "";
     this.render();
   }
 
@@ -518,6 +585,10 @@ export class SettingsPage {
     if (!d) return out;
     const folder = folderProblem(d.capture.gif_folder);
     if (folder) out.set("gif-folder", folder);
+    const shots = optionalPathProblem(d.capture.screenshot_folder);
+    if (shots) out.set("shot-folder", shots);
+    const audit = optionalPathProblem(d.audit.file);
+    if (audit) out.set("audit-file", audit);
     const delay = numberProblem(d.capture.gif_frame_delay_ms, 100, 5000, "ms");
     if (delay) out.set("gif-delay", delay);
     const idle = numberProblem(d.debugger.detach_after_idle_s, 5, 600, "s");
@@ -594,7 +665,8 @@ export class SettingsPage {
       );
     }
     const errors = this.fieldErrors();
-    for (const id of ["gif-folder", "gif-delay", "idle"]) this.setError(id, errors.get(id));
+    for (const id of ["gif-folder", "shot-folder", "audit-file", "gif-delay", "idle"])
+      this.setError(id, errors.get(id));
     this.renderSaveBar(errors.size > 0);
   }
 
@@ -682,7 +754,7 @@ export class SettingsPage {
   }
 
   private renderSites(d: Settings) {
-    for (const key of ["blocked", "read_only"] as const) {
+    for (const key of LISTS) {
       const ul = this.get(`${key}-list`);
       ul.replaceChildren(
         ...(d.sites[key].length
@@ -716,6 +788,10 @@ export class SettingsPage {
     this.get("shot-quality-value").textContent = String(d.capture.screenshot_quality);
     this.fill("shot-quality");
     this.setValue("gif-folder", d.capture.gif_folder);
+    this.get("save-shots").setAttribute("aria-checked", String(d.capture.save_screenshots));
+    this.setValue("shot-folder", d.capture.screenshot_folder);
+    this.get("audit-on").setAttribute("aria-checked", String(d.audit.enabled));
+    this.setValue("audit-file", d.audit.file);
     this.setValue(
       "gif-delay",
       Number.isNaN(d.capture.gif_frame_delay_ms) ? "" : String(d.capture.gif_frame_delay_ms),

@@ -95,3 +95,26 @@ The store route was checked and is not being released (cost, review, the
 - [ ] `plans/16-windows.md` - the host installs through the registry, talks
   over named pipes and launches Chrome, Edge, Brave, Chromium and Vivaldi on
   Windows, the one parity gap left from plan 14.
+
+### Phase 17: hands-free and guarded
+
+- [ ] `plans/17-hands-free-and-guarded.md` - a recording replays without
+  Claude, sites can be allow-listed, every call can be logged, screenshots
+  can save to a folder of the person's choice, and `wait_for` replaces
+  guessed waits.
+
+### Phase 18: v0.1.0, the first version anyone can install
+
+- [ ] `plans/18-release-v0.1.0.md` - `v0.1.0` released to GitHub with
+  archives for five targets, install scripts, a Homebrew tap and a Scoop
+  bucket, built and published by CI.
+
+### Phase 19: v0.2.0, your browser's data and controls, one switch each
+
+- [ ] `plans/19-optional-access.md` - per profile, each with a switch, a
+  grant and a revoke on the settings page: downloads, history, bookmarks,
+  sessions, cookie status, profile info, page storage and page info,
+  response headers and bodies, request control, emulation, performance,
+  console details, tabs extras, windows, extensions, site permissions,
+  privacy (writes confirm themselves), notifications, a side panel, idle,
+  the omnibox and schedules; walked on Linux and macOS.

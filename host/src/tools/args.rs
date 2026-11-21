@@ -128,6 +128,28 @@ pub struct FindArgs {
 }
 
 #[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct WaitForArgs {
+    /// Tab to watch. Must be in this session's group.
+    #[serde(rename = "tabId")]
+    pub tab_id: i64,
+    /// Text the page must show, matched without regard to case.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// An element ref (from read_page or find) that must be on the page.
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "ref")]
+    pub element_ref: Option<String>,
+    /// A substring the tab's URL must hold.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url_contains: Option<String>,
+    /// Wait for it to disappear instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gone: Option<bool>,
+    /// Seconds to wait, 1 to 60. Default 15.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_s: Option<u32>,
+}
+
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
 pub struct TabArgs {
     /// Tab to read. Must be in this session's group.
     #[serde(rename = "tabId")]

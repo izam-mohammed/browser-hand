@@ -8,10 +8,10 @@ before reporting.
 
 ## Reporting a vulnerability
 
-This repository is private, so only its collaborators can see it. Please do
-not open an issue, pull request or discussion for a security problem.
-Report it privately to the owner, [@izam-mohammed](https://github.com/izam-mohammed),
-on GitHub.
+Please do not open a public issue, pull request or discussion for a
+security problem. Report it privately with GitHub's
+[private vulnerability reporting](https://github.com/izam-mohammed/browser-hand/security/advisories/new)
+(the **Security** tab, then **Report a vulnerability**).
 
 Helpful details:
 

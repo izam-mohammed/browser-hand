@@ -297,6 +297,69 @@ fn the_gif_folder_is_absolute_after_tilde_and_never_climbs() {
 }
 
 #[test]
+fn saving_screenshots_is_off_by_default_and_its_folder_may_be_empty_but_never_climbs() {
+    let d = Settings::default();
+    assert!(!d.capture.save_screenshots);
+    assert_eq!(d.capture.screenshot_folder, "");
+    let with = |folder: &str| {
+        let mut s = Settings::default();
+        s.capture.screenshot_folder = folder.into();
+        config::from_page(&serde_json::to_value(s).unwrap())
+    };
+    for good in ["", "~/Pictures/shots", "/tmp/shots"] {
+        assert!(with(good).is_ok(), "{good:?}");
+    }
+    for bad in ["shots", "./shots", "~/../../etc", "/tmp/../etc"] {
+        assert_eq!(
+            with(bad).unwrap_err().0,
+            Some("capture.screenshot_folder"),
+            "{bad:?}"
+        );
+    }
+    // A hand-edited file with a bad folder keeps the rest and says so.
+    let (s, warnings) =
+        config::parse("[capture]\nsave_screenshots = true\nscreenshot_folder = \"x\"\n").unwrap();
+    assert!(s.capture.save_screenshots);
+    assert_eq!(s.capture.screenshot_folder, "");
+    assert!(warnings
+        .iter()
+        .any(|w| w.contains("capture.screenshot_folder")));
+}
+
+#[test]
+fn the_allow_list_is_empty_by_default_keeps_good_patterns_and_drops_bad_ones_with_a_warning() {
+    assert!(Settings::default().sites.allowed.is_empty());
+    let (s, warnings) = config::parse(
+        "[sites]\nallowed = [\"docs.google.com/*\", \"not a pattern\"]\nblocked = [\"ads.example.com/*\"]\n",
+    )
+    .unwrap();
+    assert_eq!(s.sites.allowed, vec!["docs.google.com/*"]);
+    assert_eq!(s.sites.blocked, vec!["ads.example.com/*"]);
+    assert!(
+        warnings.iter().any(|w| w.contains("sites.allowed")),
+        "{warnings:?}"
+    );
+    let (field, _) = config::from_page(&json!({ "sites": { "allowed": ["nope"] } })).unwrap_err();
+    assert_eq!(field, Some("sites.allowed"));
+}
+
+#[test]
+fn the_audit_file_may_be_empty_but_must_be_rooted_and_never_climb() {
+    let with = |file: &str| {
+        let mut s = Settings::default();
+        s.audit.file = file.into();
+        config::from_page(&serde_json::to_value(s).unwrap())
+    };
+    assert!(!Settings::default().audit.enabled);
+    for good in ["", "~/logs/bh.jsonl", "/var/log/bh.jsonl"] {
+        assert!(with(good).is_ok(), "{good:?}");
+    }
+    for bad in ["bh.jsonl", "./bh.jsonl", "/tmp/../etc/x"] {
+        assert_eq!(with(bad).unwrap_err().0, Some("audit.file"), "{bad:?}");
+    }
+}
+
+#[test]
 fn the_config_path_honours_xdg_config_home() {
     // The only test in this binary that touches the environment.
     std::env::set_var("XDG_CONFIG_HOME", "/somewhere/conf");

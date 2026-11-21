@@ -64,30 +64,60 @@ export function dnrRegex(p: string): string {
 
 export type Access = "blocked" | "read_only" | "open";
 
-/** The two lists, compiled once. Patterns that fail the grammar are skipped
- * (the host already refused or dropped them). */
+/** Why a URL is `blocked`: the person listed it, or listed other sites only. */
+export type Why = "listed" | "unlisted";
+
+/** Pages the allow list judges; chrome://, about: and the like are not
+ * sites, and the network rules do not reach them either. */
+const WEB = new Set(["http:", "https:", "ws:", "wss:"]);
+
+/** The three lists, compiled once. Patterns that fail the grammar are skipped
+ * (the host already refused or dropped them). A non-empty `allowed` list
+ * blocks every web page it does not match; `blocked` wins over it. */
 export class SiteRules {
   private blocked: RegExp[];
   private readOnly: RegExp[];
+  private allowed: RegExp[];
+  /** Whether an allow list was given at all, valid patterns or not. */
+  private restricted: boolean;
 
-  constructor(blocked: readonly string[] = [], readOnly: readonly string[] = []) {
+  constructor(
+    blocked: readonly string[] = [],
+    readOnly: readonly string[] = [],
+    allowed: readonly string[] = [],
+  ) {
     this.blocked = blocked.filter(isPattern).map(gateRegex);
     this.readOnly = readOnly.filter(isPattern).map(gateRegex);
+    this.allowed = allowed.filter(isPattern).map(gateRegex);
+    this.restricted = allowed.length > 0;
   }
 
   /** What the settings allow on `url`. URLs with no host are open. */
   access(url: string | undefined): Access {
+    return this.judge(url).access;
+  }
+
+  /** Why `url` is blocked, or null when it is not. */
+  why(url: string | undefined): Why | null {
+    const j = this.judge(url);
+    return j.access === "blocked" ? j.why : null;
+  }
+
+  private judge(url: string | undefined): { access: Access; why: Why } {
     let u: URL;
     try {
       u = new URL(url ?? "");
     } catch {
-      return "open";
+      return { access: "open", why: "listed" };
     }
-    if (!u.hostname) return "open";
+    if (!u.hostname) return { access: "open", why: "listed" };
     const target = u.hostname.toLowerCase() + (u.pathname || "/");
-    if (this.blocked.some((r) => r.test(target))) return "blocked";
-    if (this.readOnly.some((r) => r.test(target))) return "read_only";
-    return "open";
+    if (this.blocked.some((r) => r.test(target))) return { access: "blocked", why: "listed" };
+    if (this.restricted && WEB.has(u.protocol) && !this.allowed.some((r) => r.test(target))) {
+      return { access: "blocked", why: "unlisted" };
+    }
+    if (this.readOnly.some((r) => r.test(target))) return { access: "read_only", why: "listed" };
+    return { access: "open", why: "listed" };
   }
 }
 
@@ -101,6 +131,7 @@ const LOOKING = new Set(["screenshot", "zoom", "scroll", "scroll_to"]);
 const READING = new Set([
   "read_page",
   "find",
+  "wait_for",
   "get_page_text",
   "read_console_messages",
   "read_network_requests",
@@ -132,7 +163,9 @@ export function gate(rules: SiteRules, url: string | undefined, use: Use) {
   if (access === "blocked") {
     throw new ToolError(
       "blocked",
-      `${hostOf(url!)} is blocked in browser-hand settings; ask the person.`,
+      rules.why(url) === "unlisted"
+        ? `${hostOf(url!)} is not on the allowed sites list in browser-hand settings; ask the person.`
+        : `${hostOf(url!)} is blocked in browser-hand settings; ask the person.`,
     );
   }
   if (access === "read_only" && use === "act") {

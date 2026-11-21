@@ -1,7 +1,7 @@
 {
   "name": "browser-hand",
   "version": "0.1.0",
-  "description": "Drive your own Chrome profiles from Claude Code: pick a profile, read pages, click and type like a person, record GIFs.",
+  "description": "Drive your own Chrome profiles from Claude Code: pick a profile, read pages, click and type like a person, record GIFs. A Claude in Chrome that works in any profile.",
   "author": {
     "name": "Izam Mohammed"
   }

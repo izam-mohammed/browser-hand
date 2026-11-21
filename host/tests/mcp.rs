@@ -739,6 +739,155 @@ mod more {
     }
 
     #[tokio::test]
+    async fn screenshots_save_only_when_the_switch_is_on_and_only_to_the_settings_folder() {
+        let out = tempfile::tempdir().unwrap();
+        let shots = out.path().join("shots");
+        let count = |dir: &std::path::Path| std::fs::read_dir(dir).map(|d| d.count()).unwrap_or(0);
+        let (s, server) = connected().await;
+        s.settings(|c| c.capture.screenshot_folder = shots.display().to_string());
+
+        // Off by default: nothing is written, whatever the folder says.
+        server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert_eq!(count(&shots), 0);
+
+        s.settings(|c| {
+            c.capture.screenshot_folder = shots.display().to_string();
+            c.capture.save_screenshots = true;
+        });
+        let r = server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert_eq!(count(&shots), 1);
+        assert!(all_text(&r).contains("Saved to"), "{}", all_text(&r));
+
+        // An empty folder falls back to the GIF folder.
+        let gifs = out.path().join("gifs");
+        s.settings(|c| {
+            c.capture.save_screenshots = true;
+            c.capture.gif_folder = gifs.display().to_string();
+        });
+        server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert_eq!(count(&gifs), 1);
+        assert_eq!(count(&shots), 1);
+    }
+
+    #[test]
+    fn wait_for_is_a_tool() {
+        let names: Vec<String> = Server::tool_router()
+            .list_all()
+            .into_iter()
+            .map(|t| t.name.to_string())
+            .collect();
+        assert!(names.iter().any(|n| n == "wait_for"), "{names:?}");
+    }
+
+    #[tokio::test]
+    async fn wait_for_sends_only_what_was_given_under_the_names_the_extension_reads() {
+        let (_s, server) = connected().await;
+        let r = server
+            .wait_for(Parameters(WaitForArgs {
+                tab_id: 1,
+                text: None,
+                element_ref: Some("ref_1_2".into()),
+                url_contains: None,
+                gone: Some(true),
+                timeout_s: Some(5),
+            }))
+            .await
+            .unwrap();
+        let t = text(&r);
+        assert!(t.starts_with("wait_for "), "{t}");
+        for want in [
+            "\"ref\":\"ref_1_2\"",
+            "\"gone\":true",
+            "\"timeout_s\":5",
+            "\"tabId\":1",
+        ] {
+            assert!(t.contains(want), "{want} in {t}");
+        }
+        assert!(!t.contains("null") && !t.contains("text"), "{t}");
+    }
+
+    #[tokio::test]
+    async fn the_audit_log_writes_a_line_per_call_only_when_on_and_never_fails_a_call() {
+        let out = tempfile::tempdir().unwrap();
+        let file = out.path().join("audit.jsonl");
+        let lines = |f: &std::path::Path| -> Vec<serde_json::Value> {
+            std::fs::read_to_string(f)
+                .unwrap_or_default()
+                .lines()
+                .map(|l| serde_json::from_str(l).unwrap())
+                .collect()
+        };
+        let (s, server) = connected().await;
+
+        // Off by default: no file.
+        s.settings(|c| c.audit.file = file.display().to_string());
+        server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert!(!file.exists());
+
+        s.settings(|c| {
+            c.audit.enabled = true;
+            c.audit.file = file.display().to_string();
+        });
+        server
+            .computer(Parameters(ComputerArgs {
+                text: Some("hunter2".into()),
+                ..computer(ComputerAction::Type)
+            }))
+            .await
+            .unwrap();
+        let items = vec![BatchItem {
+            name: "find".into(),
+            input: serde_json::json!({ "query": "secret field", "tabId": 1 }),
+        }];
+        server
+            .browser_batch(Parameters(BatchArgs { actions: items }))
+            .await
+            .unwrap();
+        let got = lines(&file);
+        assert_eq!(got.len(), 2, "{got:?}");
+        assert_eq!(
+            (got[0]["tool"].as_str(), got[0]["action"].as_str()),
+            (Some("computer"), Some("type"))
+        );
+        assert_eq!(got[1]["tool"], "find", "a batch item has its own line");
+        assert!(got.iter().all(|l| l["ok"] == true && l["tab"] == 1));
+        let raw = std::fs::read_to_string(&file).unwrap();
+        assert!(
+            !raw.contains("hunter2") && !raw.contains("secret field"),
+            "{raw}"
+        );
+
+        // A file that cannot be opened does not fail the call.
+        std::fs::write(out.path().join("blocker"), "x").unwrap();
+        s.settings(|c| {
+            c.audit.enabled = true;
+            c.audit.file = out
+                .path()
+                .join("blocker")
+                .join("a.jsonl")
+                .display()
+                .to_string();
+        });
+        let r = server
+            .computer(Parameters(computer(ComputerAction::Screenshot)))
+            .await
+            .unwrap();
+        assert!(!is_error(&r), "{}", all_text(&r));
+    }
+
+    #[tokio::test]
     async fn browser_hand_pace_overrides_the_settings_for_that_server() {
         let s = Setup::new();
         fake_profile(s.sockets.path(), 1, Some("Profile 3"), None);
@@ -1154,6 +1303,34 @@ mod more {
             "{t}"
         );
         assert!(t.contains("values: {\"9\": \"...\"}"), "{t}");
+    }
+
+    #[tokio::test]
+    async fn the_command_line_replay_echoes_each_step_and_stops_at_a_masked_one_like_claudes() {
+        let (_s, server) = connected().await;
+        server.echo_steps(true);
+        let r = server
+            .recording_replay(Parameters(replay(2, &[("4", "dogs")])))
+            .await
+            .unwrap();
+        assert!(is_error(&r), "{}", all_text(&r));
+        // The header, steps 2 to 8 and the stop block, as the answer holds them.
+        let said = all_text(&r).lines().filter(|l| !l.is_empty()).count();
+        assert!(server.echoed() >= 9, "echoed {}", server.echoed());
+        assert!(
+            said >= server.echoed(),
+            "{said} lines for {} blocks",
+            server.echoed()
+        );
+        assert!(all_text(&r).contains("Stopped at step 9:") && all_text(&r).contains("masked"));
+
+        // Off, nothing is echoed.
+        let (_s2, quiet) = connected().await;
+        quiet
+            .recording_replay(Parameters(replay(2, &[])))
+            .await
+            .unwrap();
+        assert_eq!(quiet.echoed(), 0);
     }
 
     #[tokio::test]
