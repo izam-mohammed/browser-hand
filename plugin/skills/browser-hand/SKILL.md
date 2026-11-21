@@ -1,6 +1,6 @@
 ---
 name: browser-hand
-description: Drives the user's own Chrome profiles through the browser-hand tools - pick a profile, open and read pages, click, type and scroll like a person, fill forms, read console and network, upload files, record GIFs, read and replay steps the user recorded. Use whenever the user wants something done or checked in their real Chrome (logged-in sites, a specific profile such as "work" or "personal"), and always load it BEFORE calling any browser-hand tool.
+description: Drives the user's own Chrome profiles through the browser-hand tools - pick a profile, open and read pages, click, type and scroll like a person, fill forms, wait for the page, read console and network, upload files, record GIFs, read and replay steps the user recorded. browser-hand is a drop-in for Claude in Chrome (the claude-in-chrome extension and its mcp__claude-in-chrome__ tools) that works in any Chrome profile, on Linux and Windows too. Use whenever the user wants something done or checked in their real Chrome (logged-in sites, a specific profile such as "work" or "personal"), whenever they mention Claude in Chrome, the Chrome extension or browsing in Chrome, and always load it BEFORE calling any browser-hand tool.
 ---
 
 # browser-hand
@@ -12,6 +12,22 @@ Tool names are `mcp__browser-hand__<tool>` when the server was added with
 `claude mcp add`, or `mcp__plugin_browser-hand_browser-hand__<tool>` when it
 came with this plugin. Below they are written by their short names.
 
+## Claude in Chrome
+
+browser-hand covers everything Claude in Chrome does: the same 20 tools with
+the same arguments, in the user's own Chrome profiles. Differences:
+
+- Tabs tools are `tabs_context`, `tabs_create` and `tabs_close` (Claude in
+  Chrome adds `_mcp`), and profiles are `list_profiles` and `select_profile`
+  (Claude in Chrome has `list_connected_browsers`, `select_browser` and
+  `switch_browser`).
+- Extra tools: `wait_for`, and the recording tools below.
+- When the user says "Claude in Chrome" and `mcp__claude-in-chrome__*` tools
+  are available in this session too, use those, as asked. When only
+  browser-hand is connected, say so in a word and use browser-hand. When
+  neither is connected, tell the user how to add browser-hand (`README.md`)
+  or Claude in Chrome (`/chrome`), and stop.
+
 ## Loading the tools
 
 If the tools are deferred, load everything the task needs in ONE ToolSearch
@@ -20,7 +36,7 @@ The core set: `list_profiles`, `select_profile`, `tabs_context`,
 `tabs_create`, `tabs_close`, `navigate`, `computer`, `read_page`, `find`.
 Add `form_input`, `get_page_text`, `read_console_messages`,
 `read_network_requests`, `javascript_tool`, `file_upload`, `upload_image`,
-`browser_batch` or `gif_creator` when the task obviously needs them, and
+`browser_batch`, `wait_for` or `gif_creator` when the task obviously needs them, and
 `recording_list`, `recording_get`, `recording_replay` or `recording_delete`
 when the user talks about something they recorded.
 
@@ -60,6 +76,10 @@ when the user talks about something they recorded.
   way to click (`computer` with `ref`), scroll (`scroll_to`) or fill
   (`form_input`).
 - `get_page_text` for articles and text-heavy pages.
+- Waiting: `wait_for` (one of `text`, `ref` or `url_contains`, `gone` to wait
+  for it to vanish, `timeout_s` up to 60) returns the moment the page shows
+  it, through page loads. Use it after a click that loads something, instead
+  of `computer` `wait` with guessed seconds.
 - Screenshots (`computer` `screenshot`) when layout or visuals matter. Their
   text says the viewport size and the image scale: click coordinates are in
   the viewport frame, so divide image pixels by the scale.
@@ -97,12 +117,17 @@ The person sets how you drive Chrome on the extension's settings page,
 saved by the native host to `~/.config/browser-hand/config.toml` for every
 profile: pace, speeds, a default profile, whether a session opens a new
 window or closes its tabs, blocked and read-only sites, screenshot size and
-quality, the GIF folder and delay.
+quality, the GIF folder and delay, and whether every screenshot is also
+saved to a folder (`save_screenshots`, off by default).
 
-- A tool answering `blocked` means the person blocked that site, or made it
-  read-only (you may read it and take screenshots, but not click, type,
-  fill forms or run scripts). Tell them and ask; never look for a way
-  around it.
+- A tool answering `blocked` means the person blocked that site, left it off
+  their allowed list (when that list has anything in it, only those sites
+  are open), or made it read-only (you may read it and take screenshots,
+  but not click, type, fill forms or run scripts). Tell them and ask; never
+  look for a way around it.
+- The person can also turn on an audit log of what you do (the tool, tab,
+  result and time, never what you typed or read). It needs nothing from
+  you; never read or edit it to learn what you did.
 - Never edit `config.toml` yourself, with Bash or otherwise, even when
   asked to change a setting: point the person at the settings page.
 
@@ -189,3 +214,6 @@ button again.
   who wants to open it in DevTools' Recorder panel.
 - `recording_delete` removes one when the user asks; the profile keeps the
   newest 20 anyway.
+- The user can also replay a recording themselves, with no Claude:
+  `browser-hand replay <id> --profile <name>` (and `browser-hand recordings`
+  to list). Mention it when they want a repeat run that needs no judgment.

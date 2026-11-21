@@ -36,6 +36,17 @@ pub struct Settings {
     pub sites: SiteSettings,
     pub capture: CaptureSettings,
     pub debugger: DebuggerSettings,
+    pub audit: AuditSettings,
+}
+
+#[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq, Default)]
+#[serde(default)]
+#[ts(export, export_to = "wire.gen.ts")]
+pub struct AuditSettings {
+    /// Whether the host writes one line per tool call to the audit file.
+    pub enabled: bool,
+    /// `~/...` or an absolute path; empty means `audit.jsonl` beside `config.toml`.
+    pub file: String,
 }
 
 #[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
@@ -70,6 +81,9 @@ pub struct SiteSettings {
     pub blocked: Vec<String>,
     /// Sites Claude may read and screenshot but not click, type in or script.
     pub read_only: Vec<String>,
+    /// When not empty, the only sites Claude may open or act on; `blocked`
+    /// still wins over it.
+    pub allowed: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, TS, JsonSchema, Debug, Clone, PartialEq)]
@@ -82,6 +96,11 @@ pub struct CaptureSettings {
     pub screenshot_quality: u32,
     /// `~/...` or an absolute path.
     pub gif_folder: String,
+    /// Whether every screenshot Claude takes is also saved to a file.
+    pub save_screenshots: bool,
+    /// Where saved screenshots go: `~/...` or an absolute path; empty uses
+    /// `gif_folder`.
+    pub screenshot_folder: String,
     /// 100 to 5000.
     pub gif_frame_delay_ms: u32,
 }
@@ -105,6 +124,7 @@ impl Default for Settings {
             sites: Default::default(),
             capture: Default::default(),
             debugger: Default::default(),
+            audit: Default::default(),
         }
     }
 }
@@ -135,6 +155,8 @@ impl Default for CaptureSettings {
             screenshot_size: "1280x800".into(),
             screenshot_quality: 80,
             gif_folder: "~/Downloads/browser-hand".into(),
+            save_screenshots: false,
+            screenshot_folder: String::new(),
             gif_frame_delay_ms: 700,
         }
     }
@@ -275,6 +297,7 @@ pub fn problems(s: &Settings) -> Vec<Problem> {
     }
     out.extend(list_problem("sites.blocked", &s.sites.blocked));
     out.extend(list_problem("sites.read_only", &s.sites.read_only));
+    out.extend(list_problem("sites.allowed", &s.sites.allowed));
     if !SCREENSHOT_SIZES.contains(&s.capture.screenshot_size.as_str()) {
         out.push(problem(
             "capture.screenshot_size",
@@ -287,8 +310,18 @@ pub fn problems(s: &Settings) -> Vec<Problem> {
     if let Some(why) = folder_problem(&s.capture.gif_folder) {
         out.push(problem("capture.gif_folder", why));
     }
+    if !s.capture.screenshot_folder.is_empty() {
+        if let Some(why) = folder_problem(&s.capture.screenshot_folder) {
+            out.push(problem("capture.screenshot_folder", why));
+        }
+    }
     if !(100..=5000).contains(&s.capture.gif_frame_delay_ms) {
         out.push(problem("capture.gif_frame_delay_ms", "must be 100 to 5000"));
+    }
+    if !s.audit.file.is_empty() {
+        if let Some(why) = folder_problem(&s.audit.file) {
+            out.push(problem("audit.file", why));
+        }
     }
     if !(5..=600).contains(&s.debugger.detach_after_idle_s) {
         out.push(problem("debugger.detach_after_idle_s", "must be 5 to 600"));
@@ -312,9 +345,12 @@ fn reset(s: &mut Settings, field: &str) {
         "sessions.default_profile" => s.sessions.default_profile = d.sessions.default_profile,
         "sites.blocked" => keep(&mut s.sites.blocked),
         "sites.read_only" => keep(&mut s.sites.read_only),
+        "sites.allowed" => keep(&mut s.sites.allowed),
         "capture.screenshot_size" => s.capture.screenshot_size = d.capture.screenshot_size,
         "capture.screenshot_quality" => s.capture.screenshot_quality = d.capture.screenshot_quality,
         "capture.gif_folder" => s.capture.gif_folder = d.capture.gif_folder,
+        "audit.file" => s.audit.file = d.audit.file,
+        "capture.screenshot_folder" => s.capture.screenshot_folder = d.capture.screenshot_folder,
         "capture.gif_frame_delay_ms" => s.capture.gif_frame_delay_ms = d.capture.gif_frame_delay_ms,
         "debugger.detach_after_idle_s" => {
             s.debugger.detach_after_idle_s = d.debugger.detach_after_idle_s
@@ -398,6 +434,7 @@ pub fn parse(text: &str) -> Result<(Settings, Vec<String>), String> {
     );
     take(&table, "sites", "blocked", &mut s.sites.blocked, &mut w);
     take(&table, "sites", "read_only", &mut s.sites.read_only, &mut w);
+    take(&table, "sites", "allowed", &mut s.sites.allowed, &mut w);
     take(
         &table,
         "capture",
@@ -422,10 +459,26 @@ pub fn parse(text: &str) -> Result<(Settings, Vec<String>), String> {
     take(
         &table,
         "capture",
+        "save_screenshots",
+        &mut s.capture.save_screenshots,
+        &mut w,
+    );
+    take(
+        &table,
+        "capture",
+        "screenshot_folder",
+        &mut s.capture.screenshot_folder,
+        &mut w,
+    );
+    take(
+        &table,
+        "capture",
         "gif_frame_delay_ms",
         &mut s.capture.gif_frame_delay_ms,
         &mut w,
     );
+    take(&table, "audit", "enabled", &mut s.audit.enabled, &mut w);
+    take(&table, "audit", "file", &mut s.audit.file, &mut w);
     take(
         &table,
         "debugger",

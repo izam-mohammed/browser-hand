@@ -23,15 +23,34 @@ export const DEFAULTS: Settings = {
   version: 1,
   input: { pace: "human", typing_speed: 1.0, mouse_speed: 1.0 },
   sessions: { default_profile: "", new_window: true, close_tabs_on_end: false },
-  sites: { blocked: [], read_only: [] },
+  sites: { blocked: [], read_only: [], allowed: [] },
   capture: {
     screenshot_size: "1280x800",
     screenshot_quality: 80,
     gif_folder: "~/Downloads/browser-hand",
+    save_screenshots: false,
+    screenshot_folder: "",
     gif_frame_delay_ms: 700,
   },
   debugger: { detach_after_idle_s: 30 },
+  audit: { enabled: false, file: "" },
 };
+
+/** Settings from a host (or a stored copy) older than this extension lack
+ * the newer keys; each missing one takes its default. */
+export function withDefaults(s: Settings): Settings {
+  const d = DEFAULTS;
+  return {
+    ...d,
+    ...s,
+    input: { ...d.input, ...s.input },
+    sessions: { ...d.sessions, ...s.sessions },
+    sites: { ...d.sites, ...s.sites },
+    capture: { ...d.capture, ...s.capture },
+    debugger: { ...d.debugger, ...s.debugger },
+    audit: { ...d.audit, ...s.audit },
+  };
+}
 
 /** Why the page cannot save: the host is not there, or never sent settings. */
 export type Down = "not_running" | "older" | "connecting";
@@ -116,7 +135,7 @@ export class SettingsHub {
 
   /** The settings to act on now: the host's, else the last seen, else the defaults. */
   get settings(): Settings {
-    return this.last?.settings ?? DEFAULTS;
+    return this.last ? withDefaults(this.last.settings) : DEFAULTS;
   }
 
   get connected(): boolean {
