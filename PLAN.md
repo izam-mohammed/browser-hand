@@ -118,3 +118,9 @@ The store route was checked and is not being released (cost, review, the
   console details, tabs extras, windows, extensions, site permissions,
   privacy (writes confirm themselves), notifications, a side panel, idle,
   the omnibox and schedules; walked on Linux and macOS.
+
+### Phase 20: ask how many windows are open
+
+- [ ] `plans/20-window-list.md` - a read-only `windows_list` tool: how many
+  windows the profile has, which is focused, which holds Claude's tab group;
+  no tab titles or URLs.
