@@ -8,7 +8,7 @@ description = "MCP server and Chrome native messaging host for browser-hand"
 
 [dependencies]
 # Pinned to the minor: rmcp breaks often (docs/external/rmcp.md § Gotchas).
-rmcp = { version = "~3.9.0", features = ["server", "macros", "transport-io"] }
+rmcp = { version = "~3.10.0", features = ["server", "macros", "transport-io"] }
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "sync", "time", "process", "fs", "signal"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
